@@ -18,7 +18,7 @@ def post_source(file: UploadFile):
     return source
 
 
-def get_source(source_id: UUID):
+def get_sources(source_id: UUID):
     sources = SourceRepository.get_source(source_id)
     return sources
 

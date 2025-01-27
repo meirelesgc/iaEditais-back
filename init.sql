@@ -20,5 +20,7 @@ CREATE TABLE IF NOT EXISTS evaluations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     guideline_id UUID REFERENCES guidelines(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
-    description TEXT
+    description TEXT,
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp
 );

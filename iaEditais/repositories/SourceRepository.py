@@ -19,7 +19,7 @@ def get_source(source_id) -> list[Source] | Source:
         WHERE 1 = 1
             {filter_id}
         """
-    result = conn.select(SCRIPT_SQL, params, one=one)
+    result = conn.select(SCRIPT_SQL, params, one)
     return result
 
 
@@ -31,9 +31,8 @@ def post_source(source: Source) -> None:
     conn.exec(SCRIPT_SQL, source.model_dump())
 
 
-def delete_source(source_id: UUID):
+def delete_source(source_id: UUID) -> None:
     params = {'id': source_id}
-
     SCRIPT_SQL = """
         DELETE FROM sources WHERE id = %(id)s;
         """
