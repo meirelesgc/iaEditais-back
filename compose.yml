@@ -1,0 +1,15 @@
+services:
+  fiotec-postgres:
+    image: ankane/pgvector
+    container_name: fiotec-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: fiotec
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - fiotec-postgres:/var/lib/postgresql/data
+
+volumes:
+  fiotec-postgres:

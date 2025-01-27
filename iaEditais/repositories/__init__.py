@@ -22,11 +22,13 @@ class Connection:
             print(f'Error: {e}')
             raise
 
-    def select(self, query, params=None) -> list:
+    def select(self, query, params=None, one=False) -> list:
         try:
             with self.pool.connection() as conn:
                 with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
                     cur.execute(query, params)
+                    if one:
+                        return cur.fetchone()
                     return cur.fetchall()
         except Exception as e:
             print(f'Error executing query: {query}')
