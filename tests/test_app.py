@@ -7,9 +7,9 @@ from iaEditais import app
 
 
 def test_root_deve_retornar_ok_e_ola_mundo():
-    client = TestClient(app)  # Arrange
+    client = TestClient(app)
 
-    response = client.get('/')  # Act
+    response = client.get('/')
 
-    assert response.status_code == HTTPStatus.OK  # Assert
-    assert response.json() == {'message': 'Olá Mundo!'}  # Assert
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == {'message': 'Olá Mundo!'}

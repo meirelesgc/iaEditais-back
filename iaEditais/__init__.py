@@ -1,8 +1,9 @@
 from fastapi import FastAPI
+from iaEditais.config import Settings
 
-app = FastAPI()
+app = FastAPI(root_path=Settings().ROOT_PATH)
 
 
-@app.get("/")
+@app.get('/')
 def read_root():
-    return {"message": "Olá Mundo!"}
+    return {'message': 'Olá Mundo!'}
