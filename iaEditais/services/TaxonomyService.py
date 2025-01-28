@@ -28,3 +28,17 @@ def post_evaluation(evaluation: CreateEvaluation) -> Evaluation:
     evaluation = Evaluation(**evaluation.model_dump())
     TaxonomyRepository.post_evaluation(evaluation)
     return evaluation
+
+
+def get_evaluations(evaluation_id) -> list[Evaluation] | Evaluation:
+    evaluations = TaxonomyRepository.get_evaluations(evaluation_id)
+    return evaluations
+
+
+def put_evaluation(evaluation: Evaluation) -> Evaluation:
+    return TaxonomyRepository.put_evaluation(evaluation)
+
+
+def delete_evaluation(evaluation_id) -> dict:
+    TaxonomyRepository.delete_evaluation(evaluation_id)
+    return {'message': 'Source deleted successfully'}

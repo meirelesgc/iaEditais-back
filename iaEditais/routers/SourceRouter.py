@@ -3,7 +3,6 @@ from uuid import UUID
 from iaEditais.schemas.Source import Source
 from iaEditais.services import SourceService
 from http import HTTPStatus
-from typing import List
 
 router = APIRouter()
 
@@ -14,7 +13,7 @@ def create_source(file: UploadFile = File(...)) -> Source:
     return source
 
 
-@router.get('/source/', response_model=List[Source])
+@router.get('/source/', response_model=list[Source])
 @router.get('/source/{source_id}/', response_model=Source)
 def get_source(source_id: UUID = None):
     sources = SourceService.get_sources(source_id)

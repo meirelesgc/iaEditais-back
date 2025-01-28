@@ -1,13 +1,13 @@
 from datetime import datetime
 from uuid import uuid4, UUID
-from typing import Optional, List
+from typing import Optional
 from pydantic import BaseModel, Field
 
 
 class CreateGuideline(BaseModel):
     title: str
     description: str = None
-    source: Optional[List[UUID]] = None
+    source: Optional[list[UUID]] = None
 
 
 class Guideline(CreateGuideline):

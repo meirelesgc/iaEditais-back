@@ -63,3 +63,46 @@ def delete_guideline(guideline_id: UUID) -> None:
         DELETE FROM guidelines WHERE id = %(id)s;
         """
     conn.exec(SCRIPT_SQL, params)
+
+
+def get_evaluations(evaluation_id: UUID) -> list[Evaluation] | Evaluation:
+    one = False
+    params = {}
+    filter_id = str()
+
+    if evaluation_id:
+        one = True
+        params['id'] = evaluation_id
+        filter_id = 'AND e.id = %(id)s'
+
+    SCRIPT_SQL = f"""
+        SELECT id, guideline_id, title, description, created_at, updated_at
+        FROM evaluations e
+        WHERE 1 = 1
+            {filter_id}
+        """
+    result = conn.select(SCRIPT_SQL, params, one)
+    return result
+
+
+def put_evaluation(evaluation: Evaluation) -> Evaluation:
+    params = evaluation.model_dump()
+    SCRIPT_SQL = """
+        UPDATE evaluations
+        SET guideline_id = %(guideline_id)s,
+            title = %(title)s,
+            description = %(description)s,
+            updated_at = NOW()
+        WHERE id = %(id)s;
+        """
+    conn.exec(SCRIPT_SQL, params)
+    return evaluation
+
+
+def delete_evaluation(evaluation_id: UUID) -> None:
+    params = {'id': evaluation_id}
+    SCRIPT_SQL = """
+        DELETE FROM evaluations
+        WHERE id = %(id)s;
+        """
+    conn.exec(SCRIPT_SQL, params)
