@@ -1,4 +1,5 @@
 from fastapi import APIRouter, File, UploadFile
+
 from uuid import UUID
 from iaEditais.schemas.Source import Source
 from iaEditais.services import SourceService
@@ -13,11 +14,15 @@ def create_source(file: UploadFile = File(...)) -> Source:
     return source
 
 
-@router.get('/source/', response_model=list[Source])
-@router.get('/source/{source_id}/', response_model=Source)
-def get_source(source_id: UUID = None):
-    sources = SourceService.get_sources(source_id)
+@router.get('/source/', response_model=Source | list[Source])
+def get_sources():
+    sources = SourceService.get_sources()
     return sources
+
+
+@router.get('/source/{source_id}/', response_model=Source)
+def get_source_file(source_id: UUID = None):
+    return SourceService.get_source_file(source_id)
 
 
 @router.delete('/source/{source_id}/')

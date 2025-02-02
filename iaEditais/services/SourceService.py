@@ -1,4 +1,5 @@
 from uuid import UUID
+from fastapi.responses import FileResponse
 import os
 from iaEditais.schemas.Source import Source
 from iaEditais.repositories import SourceRepository
@@ -18,8 +19,8 @@ def post_source(file: UploadFile):
     return source
 
 
-def get_sources(source_id: UUID):
-    sources = SourceRepository.get_source(source_id)
+def get_sources():
+    sources = SourceRepository.get_source()
     return sources
 
 
@@ -27,9 +28,15 @@ def delete_source(source_id: UUID):
     source = SourceRepository.get_source(source_id)
     if source is None:
         raise HTTPException(status_code=404, detail='Source not found')
-
     SourceRepository.delete_source(source_id)
     file_path = f'storage/sources/{source_id}.pdf'
     if os.path.exists(file_path):
         os.remove(file_path)
     return {'message': 'Source deleted successfully'}
+
+
+def get_source_file(source_id: UUID):
+    file_path = f'storage/sources/{source_id}.pdf'
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail='File not found')
+    return FileResponse(file_path)

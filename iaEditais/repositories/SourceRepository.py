@@ -3,15 +3,9 @@ from uuid import UUID
 from iaEditais.schemas.Source import Source
 
 
-def get_source(source_id) -> list[Source] | Source:
-    one = False
+def get_source() -> list[Source] | Source:
     params = {}
     filter_id = str()
-
-    if source_id:
-        one = True
-        params = {'id': source_id}
-        filter_id = 'AND s.id = %(id)s'
 
     SCRIPT_SQL = f"""
         SELECT s.id, s.name, s.created_at, s.updated_at
@@ -19,7 +13,7 @@ def get_source(source_id) -> list[Source] | Source:
         WHERE 1 = 1
             {filter_id}
         """
-    result = conn.select(SCRIPT_SQL, params, one)
+    result = conn.select(SCRIPT_SQL, params)
     return result
 
 
