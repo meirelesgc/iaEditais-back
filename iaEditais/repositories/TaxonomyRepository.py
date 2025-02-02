@@ -59,15 +59,9 @@ def delete_guideline(guideline_id: UUID) -> None:
     conn.exec(SCRIPT_SQL, params)
 
 
-def get_evaluations(evaluation_id: UUID) -> list[Evaluation] | Evaluation:
-    one = False
+def get_evaluations() -> list[Evaluation]:
     params = {}
     filter_id = str()
-
-    if evaluation_id:
-        one = True
-        params['id'] = evaluation_id
-        filter_id = 'AND e.id = %(id)s'
 
     SCRIPT_SQL = f"""
         SELECT id, guideline_id, title, description, created_at, updated_at
@@ -75,7 +69,7 @@ def get_evaluations(evaluation_id: UUID) -> list[Evaluation] | Evaluation:
         WHERE 1 = 1
             {filter_id}
         """
-    result = conn.select(SCRIPT_SQL, params, one)
+    result = conn.select(SCRIPT_SQL, params)
     return result
 
 

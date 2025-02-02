@@ -30,8 +30,8 @@ def post_evaluation(evaluation: CreateEvaluation) -> Evaluation:
     return evaluation
 
 
-def get_evaluations(evaluation_id) -> list[Evaluation] | Evaluation:
-    evaluations = TaxonomyRepository.get_evaluations(evaluation_id)
+def get_evaluations() -> list[Evaluation]:
+    evaluations = TaxonomyRepository.get_evaluations()
     return evaluations
 
 
