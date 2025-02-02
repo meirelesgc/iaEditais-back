@@ -11,16 +11,13 @@ def post_guideline(guideline: CreateGuideline) -> Guideline:
     return TaxonomyService.post_guideline(guideline)
 
 
-@router.get(
-    '/taxonomy/guidelines/{guideline_id}/',
-    response_model=Guideline | list[Guideline],
-)
-def get_guideline(guideline_id: UUID = None):
-    return TaxonomyService.get_guidelines(guideline_id)
+@router.get('/taxonomy/guidelines/', response_model=list[Guideline])
+def get_guideline():
+    return TaxonomyService.get_guidelines()
 
 
-@router.put('/taxonomy/guidelines/')
-def put_guideline(guideline: Guideline) -> Guideline:
+@router.put('/taxonomy/guidelines/', response_model=Guideline)
+def put_guideline(guideline: Guideline):
     return TaxonomyService.put_guideline(guideline)
 
 

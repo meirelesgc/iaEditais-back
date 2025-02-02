@@ -13,15 +13,9 @@ def post_guideline(guideline: Guideline) -> None:
     conn.exec(SCRIPT_SQL, params)
 
 
-def get_guidelines(guideline_id: UUID) -> list[Guideline] | Guideline:
-    one = False
+def get_guidelines() -> list[Guideline]:
     params = {}
     filter_id = str()
-
-    if guideline_id:
-        one = True
-        filter_id = 'AND id = %(guideline_id)s'
-        params['guideline_id'] = str(guideline_id)
 
     SCRIPT_SQL = f"""
         SELECT id, title, description, source, created_at, updated_at 
@@ -29,7 +23,7 @@ def get_guidelines(guideline_id: UUID) -> list[Guideline] | Guideline:
         WHERE 1 = 1
             {filter_id};
         """
-    result = conn.select(SCRIPT_SQL, params, one)
+    result = conn.select(SCRIPT_SQL, params)
     return result
 
 

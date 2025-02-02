@@ -9,8 +9,8 @@ def post_guideline(guideline: CreateGuideline) -> Guideline:
     return guideline
 
 
-def get_guidelines(guideline_id) -> list[Guideline] | Guideline:
-    guidelines = TaxonomyRepository.get_guidelines(guideline_id)
+def get_guidelines() -> list[Guideline]:
+    guidelines = TaxonomyRepository.get_guidelines()
     return guidelines
 
 
