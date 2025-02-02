@@ -8,7 +8,6 @@ from iaEditais.routers.Taxonomy.EvaluationsRouter import (
     router as evaluations_router,
 )
 
-
 app = FastAPI(root_path=Settings().ROOT_PATH)
 
 app.include_router(source_router, tags=['Source'])
