@@ -1,6 +1,6 @@
 # IaEditais - Plataforma de Avaliação de Editais
 
-Este é o README do IaEditais, uma API desenvolvida para avaliar editais utilizando modelos de linguagem de grande porte (Large Language Models - LLMs). A plataforma automatiza tanto a formatação dos critérios de avaliação quanto a avaliação dos próprios editais.
+IaEditais, uma API desenvolvida para avaliar editais utilizando modelos de linguagem de grande porte (Large Language Models - LLMs). A plataforma automatiza tanto a formatação dos critérios de avaliação quanto a avaliação dos próprios editais.
 
 ## Pré-requisitos
 
@@ -32,7 +32,7 @@ Este é o README do IaEditais, uma API desenvolvida para avaliar editais utiliza
 
 ## Executando o Projeto
 
-1. Execute a task principal do projeto para que ele inicie:
+1. Execute a tarefa principal do projeto:
     ```sh
     task run
     ```
@@ -40,11 +40,22 @@ Este é o README do IaEditais, uma API desenvolvida para avaliar editais utiliza
 2. Acesse a documentação da API no navegador:
     [http://localhost:8000/redocs](http://localhost:8000/redocs)
 
-3. Execute a task dos testes (Em desenvolvimento):
+## Executando o Projeto com Docker
+
+Você também pode executar o projeto usando Docker. Siga os passos abaixo para construir e iniciar o contêiner Docker:
+
+1. Construa a imagem Docker:
     ```sh
-    task test
+    docker build -t iaeditais .
     ```
-    
+
+2. Inicie o contêiner Docker:
+    ```sh
+    docker run -p 8000:8000 iaeditais
+    ```
+
+3. Acesse a documentação da API no navegador:
+    [http://localhost:8000/redocs](http://localhost:8000/redocs)
 
 ## Sobre o IaEditais
 
@@ -60,3 +71,4 @@ Sinta-se à vontade para contribuir com este projeto. Envie pull requests e abra
 ## Licença
 
 Este projeto está licenciado sob a [MIT License](LICENSE).
+
