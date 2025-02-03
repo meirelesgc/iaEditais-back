@@ -3,6 +3,7 @@ import psycopg.rows
 from psycopg_pool import ConnectionPool
 
 from iaEditais.config import Settings
+from functools import cache
 
 
 class Connection:
@@ -40,4 +41,6 @@ class Connection:
         self.pool.close()
 
 
-conn = Connection(Settings().get_connection_string())
+@cache
+def conn() -> Connection:
+    return Connection(Settings().get_connection_string())

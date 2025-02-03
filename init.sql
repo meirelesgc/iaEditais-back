@@ -1,12 +1,10 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
 CREATE TABLE IF NOT EXISTS sources (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp
 );
-
 CREATE TABLE IF NOT EXISTS guidelines (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
@@ -15,7 +13,6 @@ CREATE TABLE IF NOT EXISTS guidelines (
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp
 );
-
 CREATE TABLE IF NOT EXISTS evaluations (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     guideline_id UUID REFERENCES guidelines(id) ON DELETE CASCADE,
@@ -23,4 +20,17 @@ CREATE TABLE IF NOT EXISTS evaluations (
     description TEXT,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp
+);
+CREATE TABLE IF NOT EXISTS documents (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    name VARCHAR(255) NOT NULL,
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at timestamp
+);
+CREATE TABLE IF NOT EXISTS audits(
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    doc_id UUID REFERENCES documents(id) ON DELETE CASCADE,
+    status VARCHAR(255) NOT NULL,
+    guidelines UUID[],
+    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

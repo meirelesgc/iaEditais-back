@@ -20,8 +20,7 @@ def post_source(file: UploadFile):
 
 
 def get_sources():
-    sources = SourceRepository.get_source()
-    return sources
+    return SourceRepository.get_source()
 
 
 def delete_source(source_id: UUID):
