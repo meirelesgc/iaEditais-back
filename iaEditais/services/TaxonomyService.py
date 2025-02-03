@@ -1,4 +1,5 @@
 from iaEditais.schemas.Guideline import Guideline, CreateGuideline
+from datetime import datetime
 from iaEditais.schemas.Evaluation import Evaluation, CreateEvaluation
 from iaEditais.repositories import TaxonomyRepository
 
@@ -15,8 +16,9 @@ def get_guidelines() -> list[Guideline]:
 
 
 def put_guideline(guideline: Guideline) -> Guideline:
+    guideline.updated_at = datetime.now()
     TaxonomyRepository.put_guideline(guideline)
-    return {'message': 'Source deleted successfully'}
+    return guideline
 
 
 def delete_guideline(guideline_id) -> dict:

@@ -10,7 +10,7 @@ def post_guideline(guideline: Guideline) -> None:
         INSERT INTO guidelines (id, title, description, source)
         VALUES (%(id)s, %(title)s, %(description)s, %(source)s);
         """
-    conn.exec(SCRIPT_SQL, params)
+    conn().exec(SCRIPT_SQL, params)
 
 
 def get_guidelines() -> list[Guideline]:
@@ -23,7 +23,7 @@ def get_guidelines() -> list[Guideline]:
         WHERE 1 = 1
             {filter_id};
         """
-    result = conn.select(SCRIPT_SQL, params)
+    result = conn().select(SCRIPT_SQL, params)
     return result
 
 
@@ -34,7 +34,7 @@ def post_evaluation(evaluation: Evaluation) -> None:
         INSERT INTO evaluations (id, guideline_id, title, description, created_at)
         VALUES (%(id)s, %(guideline_id)s, %(title)s, %(description)s, %(created_at)s);
         """
-    conn.exec(SCRIPT_SQL, params)
+    conn().exec(SCRIPT_SQL, params)
 
 
 def put_guideline(guideline: Guideline) -> str:
@@ -45,10 +45,10 @@ def put_guideline(guideline: Guideline) -> str:
             title = %(title)s, 
             description = %(description)s,
             source = %(source)s, 
-            updated_at = NOW()
+            updated_at = %(updated_at)s
         WHERE id = %(id)s;
         """
-    conn.exec(SCRIPT_SQL, params)
+    conn().exec(SCRIPT_SQL, params)
 
 
 def delete_guideline(guideline_id: UUID) -> None:
@@ -56,7 +56,7 @@ def delete_guideline(guideline_id: UUID) -> None:
     SCRIPT_SQL = """ 
         DELETE FROM guidelines WHERE id = %(id)s;
         """
-    conn.exec(SCRIPT_SQL, params)
+    conn().exec(SCRIPT_SQL, params)
 
 
 def get_evaluations() -> list[Evaluation]:
@@ -69,7 +69,7 @@ def get_evaluations() -> list[Evaluation]:
         WHERE 1 = 1
             {filter_id}
         """
-    result = conn.select(SCRIPT_SQL, params)
+    result = conn().select(SCRIPT_SQL, params)
     return result
 
 
@@ -83,7 +83,7 @@ def put_evaluation(evaluation: Evaluation) -> Evaluation:
             updated_at = NOW()
         WHERE id = %(id)s;
         """
-    conn.exec(SCRIPT_SQL, params)
+    conn().exec(SCRIPT_SQL, params)
     return evaluation
 
 
@@ -93,4 +93,4 @@ def delete_evaluation(evaluation_id: UUID) -> None:
         DELETE FROM evaluations
         WHERE id = %(id)s;
         """
-    conn.exec(SCRIPT_SQL, params)
+    conn().exec(SCRIPT_SQL, params)

@@ -68,7 +68,7 @@ def test_delete_source_by_id(client):
     files = {'file': ('testfile.pdf', file_content, 'application/pdf')}
     post_response = client.post('/source/', files=files)
     source = post_response.json()
-    source_id = source['id']
+    source_id = source.get('id')
 
     delete_response = client.delete(f'/source/{source_id}/')
     assert delete_response.status_code == HTTPStatus.NO_CONTENT
