@@ -29,7 +29,6 @@ def get_guidelines() -> list[Guideline]:
 
 def post_evaluation(evaluation: Evaluation) -> None:
     params = evaluation.model_dump()
-    print(params)
     SCRIPT_SQL = """
         INSERT INTO evaluations (id, guideline_id, title, description, created_at)
         VALUES (%(id)s, %(guideline_id)s, %(title)s, %(description)s, %(created_at)s);
@@ -59,9 +58,13 @@ def delete_guideline(guideline_id: UUID) -> None:
     conn().exec(SCRIPT_SQL, params)
 
 
-def get_evaluations() -> list[Evaluation]:
+def get_evaluations(guideline_id: UUID) -> list[Evaluation]:
     params = {}
     filter_id = str()
+
+    if guideline_id:
+        params['guideline_id'] = guideline_id
+        filter_id = 'AND guideline_id = %(guideline_id)s'
 
     SCRIPT_SQL = f"""
         SELECT id, guideline_id, title, description, created_at, updated_at

@@ -38,3 +38,20 @@ def setup_data():
 
     with open('init.sql', 'r') as buffer:
         conn().exec(buffer.read())
+
+
+@pytest.fixture
+def guideline_payload():
+    return {
+        'title': 'Test Guideline',
+        'description': 'This is a test guideline.',
+        'source': [],
+    }
+
+
+@pytest.fixture
+def evaluate_payload():
+    return {
+        'title': 'Test evaluate',
+        'description': 'Test description',
+    }

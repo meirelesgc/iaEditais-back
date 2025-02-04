@@ -1,15 +1,5 @@
 from http import HTTPStatus
-import pytest
 from iaEditais.schemas.Guideline import Guideline
-
-
-@pytest.fixture
-def guideline_payload():
-    return {
-        'title': 'Test Guideline',
-        'description': 'This is a test guideline.',
-        'source': [],
-    }
 
 
 def test_create_guideline(client, guideline_payload):

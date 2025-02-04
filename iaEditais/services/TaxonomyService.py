@@ -1,4 +1,5 @@
 from iaEditais.schemas.Guideline import Guideline, CreateGuideline
+from uuid import UUID
 from datetime import datetime
 from iaEditais.schemas.Evaluation import Evaluation, CreateEvaluation
 from iaEditais.repositories import TaxonomyRepository
@@ -32,9 +33,8 @@ def post_evaluation(evaluation: CreateEvaluation) -> Evaluation:
     return evaluation
 
 
-def get_evaluations() -> list[Evaluation]:
-    evaluations = TaxonomyRepository.get_evaluations()
-    return evaluations
+def get_evaluations(guideline_id: UUID = None) -> list[Evaluation]:
+    return TaxonomyRepository.get_evaluations(guideline_id)
 
 
 def put_evaluation(evaluation: Evaluation) -> Evaluation:
