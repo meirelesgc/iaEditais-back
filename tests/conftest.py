@@ -41,17 +41,17 @@ def setup_data():
 
 
 @pytest.fixture
-def guideline_payload():
+def taxonomy_payload():
     return {
-        'title': 'Test Guideline',
-        'description': 'This is a test guideline.',
+        'title': 'Test Taxonomy',
+        'description': 'This is a test taxonomy.',
         'source': [],
     }
 
 
 @pytest.fixture
-def evaluate_payload():
+def branch_payload():
     return {
-        'title': 'Test evaluate',
+        'title': 'Test Branch',
         'description': 'Test description',
     }

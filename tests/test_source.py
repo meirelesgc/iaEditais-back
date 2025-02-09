@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from uuid import uuid4
 from iaEditais.schemas.Source import Source
 
 
@@ -75,3 +76,12 @@ def test_delete_source_by_id(client):
 
     get_response = client.get(f'/source/{source_id}/')
     assert get_response.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_delete_source_with_the_wrong_id(client):
+    file_content = b'%PDF-1.4\n...fake pdf content...'
+    files = {'file': ('testfile.pdf', file_content, 'application/pdf')}
+    client.post('/source/', files=files)
+
+    delete_response = client.delete(f'/source/{uuid4()}/')
+    assert delete_response.status_code == HTTPStatus.NOT_FOUND

@@ -5,7 +5,7 @@ CREATE TABLE IF NOT EXISTS sources (
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp
 );
-CREATE TABLE IF NOT EXISTS guidelines (
+CREATE TABLE IF NOT EXISTS taxonomies (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
     description TEXT,
@@ -13,24 +13,24 @@ CREATE TABLE IF NOT EXISTS guidelines (
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp
 );
-CREATE TABLE IF NOT EXISTS evaluations (
+CREATE TABLE IF NOT EXISTS branches  (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    guideline_id UUID REFERENCES guidelines(id) ON DELETE CASCADE,
+    taxonomy_id UUID REFERENCES taxonomies(id) ON DELETE CASCADE,
     title VARCHAR(255) NOT NULL,
     description TEXT,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp
 );
-CREATE TABLE IF NOT EXISTS documents (
+CREATE TABLE IF NOT EXISTS orders (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp
 );
-CREATE TABLE IF NOT EXISTS audits(
+CREATE TABLE IF NOT EXISTS releases(
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    doc_id UUID REFERENCES documents(id) ON DELETE CASCADE,
-    status VARCHAR(255) NOT NULL,
-    guidelines UUID[],
+    order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
+    taxonomies UUID[] NOT NULL,
+    taxonomy JSONB NOT NULL,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

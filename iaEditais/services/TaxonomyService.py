@@ -1,46 +1,46 @@
-from iaEditais.schemas.Guideline import Guideline, CreateGuideline
+from iaEditais.schemas.Taxonomy import Taxonomy, CreateTaxonomy
 from uuid import UUID
 from datetime import datetime
-from iaEditais.schemas.Evaluation import Evaluation, CreateEvaluation
+from iaEditais.schemas.Branch import Branch, CreateBranch
 from iaEditais.repositories import TaxonomyRepository
 
 
-def post_guideline(guideline: CreateGuideline) -> Guideline:
-    guideline = Guideline(**guideline.model_dump())
-    TaxonomyRepository.post_guideline(guideline)
-    return guideline
+def post_taxonomy(taxonomy: CreateTaxonomy) -> Taxonomy:
+    taxonomy = Taxonomy(**taxonomy.model_dump())
+    TaxonomyRepository.post_taxonomy(taxonomy)
+    return taxonomy
 
 
-def get_guidelines() -> list[Guideline]:
-    guidelines = TaxonomyRepository.get_guidelines()
-    return guidelines
+def get_taxonomy() -> list[Taxonomy]:
+    taxonomies = TaxonomyRepository.get_taxonomy()
+    return taxonomies
 
 
-def put_guideline(guideline: Guideline) -> Guideline:
-    guideline.updated_at = datetime.now()
-    TaxonomyRepository.put_guideline(guideline)
-    return guideline
+def put_taxonomy(taxonomy: Taxonomy) -> Taxonomy:
+    taxonomy.updated_at = datetime.now()
+    TaxonomyRepository.put_taxonomy(taxonomy)
+    return taxonomy
 
 
-def delete_guideline(guideline_id) -> dict:
-    TaxonomyRepository.delete_guideline(guideline_id)
+def delete_taxonomy(taxonomy_id) -> dict:
+    TaxonomyRepository.delete_taxonomy(taxonomy_id)
     return {'message': 'Source deleted successfully'}
 
 
-def post_evaluation(evaluation: CreateEvaluation) -> Evaluation:
-    evaluation = Evaluation(**evaluation.model_dump())
-    TaxonomyRepository.post_evaluation(evaluation)
-    return evaluation
+def post_branch(branch: CreateBranch) -> Branch:
+    branch = Branch(**branch.model_dump())
+    TaxonomyRepository.post_branch(branch)
+    return branch
 
 
-def get_evaluations(guideline_id: UUID = None) -> list[Evaluation]:
-    return TaxonomyRepository.get_evaluations(guideline_id)
+def get_branches(taxonomy_id: UUID = None) -> list[Branch]:
+    return TaxonomyRepository.get_branches(taxonomy_id)
 
 
-def put_evaluation(evaluation: Evaluation) -> Evaluation:
-    return TaxonomyRepository.put_evaluation(evaluation)
+def put_branch(branch: Branch) -> Branch:
+    return TaxonomyRepository.put_branch(branch)
 
 
-def delete_evaluation(evaluation_id) -> dict:
-    TaxonomyRepository.delete_evaluation(evaluation_id)
+def delete_branch(branch_id) -> dict:
+    TaxonomyRepository.delete_branch(branch_id)
     return {'message': 'Source deleted successfully'}

@@ -1,46 +1,52 @@
-from iaEditais.schemas.Guideline import Guideline
+from iaEditais.schemas.Taxonomy import Taxonomy
 from uuid import UUID
-from iaEditais.schemas.Evaluation import Evaluation
+from iaEditais.schemas.Branch import Branch
 from iaEditais.repositories import conn
 
 
-def post_guideline(guideline: Guideline) -> None:
-    params = guideline.model_dump()
+def post_taxonomy(taxonomy: Taxonomy) -> None:
+    params = taxonomy.model_dump()
     SCRIPT_SQL = """
-        INSERT INTO guidelines (id, title, description, source)
+        INSERT INTO taxonomies (id, title, description, source)
         VALUES (%(id)s, %(title)s, %(description)s, %(source)s);
         """
     conn().exec(SCRIPT_SQL, params)
 
 
-def get_guidelines() -> list[Guideline]:
+def get_taxonomy(taxonomy_id: UUID = None) -> list[Taxonomy]:
+    one = False
     params = {}
     filter_id = str()
 
+    if taxonomy_id:
+        one = True
+        params['taxonomy_id'] = taxonomy_id
+        filter_id = 'AND id = %(taxonomy_id)s'
+
     SCRIPT_SQL = f"""
         SELECT id, title, description, source, created_at, updated_at 
-        FROM guidelines
+        FROM taxonomies
         WHERE 1 = 1
             {filter_id};
         """
-    result = conn().select(SCRIPT_SQL, params)
+    result = conn().select(SCRIPT_SQL, params, one=one)
     return result
 
 
-def post_evaluation(evaluation: Evaluation) -> None:
-    params = evaluation.model_dump()
+def post_branch(branch: Branch) -> None:
+    params = branch.model_dump()
     SCRIPT_SQL = """
-        INSERT INTO evaluations (id, guideline_id, title, description, created_at)
-        VALUES (%(id)s, %(guideline_id)s, %(title)s, %(description)s, %(created_at)s);
+        INSERT INTO branches (id, taxonomy_id, title, description, created_at)
+        VALUES (%(id)s, %(taxonomy_id)s, %(title)s, %(description)s, %(created_at)s);
         """
     conn().exec(SCRIPT_SQL, params)
 
 
-def put_guideline(guideline: Guideline) -> str:
-    params = guideline.model_dump()
+def put_taxonomy(taxonomy: Taxonomy) -> str:
+    params = taxonomy.model_dump()
 
     SCRIPT_SQL = """ 
-        UPDATE guidelines SET 
+        UPDATE taxonomies SET 
             title = %(title)s, 
             description = %(description)s,
             source = %(source)s, 
@@ -50,25 +56,25 @@ def put_guideline(guideline: Guideline) -> str:
     conn().exec(SCRIPT_SQL, params)
 
 
-def delete_guideline(guideline_id: UUID) -> None:
-    params = {'id': guideline_id}
+def delete_taxonomy(taxonomy_id: UUID) -> None:
+    params = {'id': taxonomy_id}
     SCRIPT_SQL = """ 
-        DELETE FROM guidelines WHERE id = %(id)s;
+        DELETE FROM taxonomies WHERE id = %(id)s;
         """
     conn().exec(SCRIPT_SQL, params)
 
 
-def get_evaluations(guideline_id: UUID) -> list[Evaluation]:
+def get_branches(taxonomy_id: UUID) -> list[Branch]:
     params = {}
     filter_id = str()
 
-    if guideline_id:
-        params['guideline_id'] = guideline_id
-        filter_id = 'AND guideline_id = %(guideline_id)s'
+    if taxonomy_id:
+        params['taxonomy_id'] = taxonomy_id
+        filter_id = 'AND taxonomy_id = %(taxonomy_id)s'
 
     SCRIPT_SQL = f"""
-        SELECT id, guideline_id, title, description, created_at, updated_at
-        FROM evaluations e
+        SELECT id, taxonomy_id, title, description, created_at, updated_at
+        FROM branches
         WHERE 1 = 1
             {filter_id}
         """
@@ -76,24 +82,24 @@ def get_evaluations(guideline_id: UUID) -> list[Evaluation]:
     return result
 
 
-def put_evaluation(evaluation: Evaluation) -> Evaluation:
-    params = evaluation.model_dump()
+def put_branch(branch: Branch) -> Branch:
+    params = branch.model_dump()
     SCRIPT_SQL = """
-        UPDATE evaluations
-        SET guideline_id = %(guideline_id)s,
+        UPDATE branches
+        SET taxonomy_id = %(taxonomy_id)s,
             title = %(title)s,
             description = %(description)s,
             updated_at = NOW()
         WHERE id = %(id)s;
         """
     conn().exec(SCRIPT_SQL, params)
-    return evaluation
+    return branch
 
 
-def delete_evaluation(evaluation_id: UUID) -> None:
-    params = {'id': evaluation_id}
+def delete_branch(branch_id: UUID) -> None:
+    params = {'id': branch_id}
     SCRIPT_SQL = """
-        DELETE FROM evaluations
+        DELETE FROM branches
         WHERE id = %(id)s;
         """
     conn().exec(SCRIPT_SQL, params)

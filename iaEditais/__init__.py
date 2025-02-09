@@ -1,14 +1,14 @@
 from fastapi import FastAPI
 from iaEditais.config import Settings
 from iaEditais.routers.SourceRouter import router as source_router
-from iaEditais.routers.Taxonomy.GuidelineRouter import (
-    router as guideline_router,
+from iaEditais.routers.Taxonomy.TaxonomyRouter import (
+    router as taxonomy_router,
 )
-from iaEditais.routers.Taxonomy.EvaluateRouter import (
-    router as evaluate_router,
+from iaEditais.routers.Taxonomy.BranchRouter import (
+    router as branch_router,
 )
-from iaEditais.routers.DocumentRouter import (
-    router as document_router,
+from iaEditais.routers.OrderRouter import (
+    router as order_router,
 )
 
 app = FastAPI(
@@ -17,9 +17,9 @@ app = FastAPI(
 )
 
 app.include_router(source_router, tags=['Source'])
-app.include_router(guideline_router, tags=['Guideline'])
-app.include_router(evaluate_router, tags=['Evaluation'])
-app.include_router(document_router, tags=['Document'])
+app.include_router(taxonomy_router, tags=['Taxonomy'])
+app.include_router(branch_router, tags=['Branch'])
+app.include_router(order_router, tags=['Order'])
 
 
 @app.get('/')
