@@ -22,7 +22,10 @@ dependencies = [
     "mkdocs (>=1.6.1,<2.0.0)",
     "pymdown-extensions (>=10.14.3,<11.0.0)",
     "mkdocs-material (>=9.6.3,<10.0.0)",
-    "mkdocs-mermaid2-plugin (>=1.2.1,<2.0.0)"
+    "mkdocs-mermaid2-plugin (>=1.2.1,<2.0.0)",
+    "streamlit (>=1.42.0,<2.0.0)",
+    "streamlit-mermaid (>=0.3.0,<0.4.0)",
+    "streamlit-pdf-viewer (>=0.0.21,<0.0.22)",
 ]
 
 
