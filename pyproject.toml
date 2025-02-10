@@ -18,7 +18,11 @@ dependencies = [
     "pypdf (>=5.2.0,<6.0.0)",
     "langchain-community (>=0.3.16,<0.4.0)",
     "langchain-openai (>=0.3.4,<0.4.0)",
-    "pytest-mock (>=3.14.0,<4.0.0)"
+    "pytest-mock (>=3.14.0,<4.0.0)",
+    "mkdocs (>=1.6.1,<2.0.0)",
+    "pymdown-extensions (>=10.14.3,<11.0.0)",
+    "mkdocs-material (>=9.6.3,<10.0.0)",
+    "mkdocs-mermaid2-plugin (>=1.2.1,<2.0.0)"
 ]
 
 

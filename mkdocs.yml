@@ -1,0 +1,43 @@
+site_name: iaEditais
+repo_url: https://github.com/meirelesgc/fiotec-iaEditais.git
+repo_name: meirelesgc/fiotec-iaEditais
+
+nav:
+  - 'IaEditais': index.md
+  - 'Recursos': 
+    - 'Introdução': resources/index.md
+    - 'Taxonomia': resources/taxonomy.md
+    - 'Ordens': resources/order.md
+  - 'Desenvolvimento': dev/index.md
+  
+theme:
+  name: material
+  palette:
+    primary: teal
+    scheme: slate
+    accent: deep orange
+  language: pt-BR
+  features:
+    - navigation.tabs
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.tabbed
+  - pymdownx.extra
+  - pymdownx.emoji
+  - pymdownx.highlight
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - toc:
+      permalink: "#"
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:mermaid2.fence_mermaid_custom
+plugins:
+    - search
+    - mermaid2

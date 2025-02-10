@@ -57,18 +57,6 @@ Você também pode executar o projeto usando Docker. Siga os passos abaixo para 
 3. Acesse a documentação da API no navegador:
     [http://localhost:8000/redocs](http://localhost:8000/redocs)
 
-## Sobre o IaEditais
-
-**IaEditais** é uma plataforma inovadora que utiliza modelos de linguagem de grande porte para otimizar o processo de avaliação de editais. A plataforma automatiza:
-
-- **Formatação dos critérios de avaliação:** Os critérios são padronizados e formatados de acordo com as melhores práticas.
-- **Avaliação dos editais:** Utilizando IA, o IaEditais avalia editais com base nos critérios estabelecidos, proporcionando análises precisas e imparciais.
-
 ## Contribuição
 
 Sinta-se à vontade para contribuir com este projeto. Envie pull requests e abra issues conforme necessário.
-
-## Licença
-
-Este projeto está licenciado sob a [MIT License](LICENSE).
-
