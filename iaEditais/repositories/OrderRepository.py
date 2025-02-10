@@ -34,20 +34,29 @@ def get_order(order_id: UUID = None) -> list[Order]:
     return results
 
 
-def get_releases(order_id: UUID):
+def get_releases(
+    order_id: UUID = None, release_id: UUID = None
+) -> list[Release] | Release:
+    one = False
     params = {}
     filter_id = str()
 
     if order_id:
-        params = {'id': order_id}
-        filter_id = 'AND order_id = %(id)s'
+        params = {'order_id': order_id}
+        filter_id = 'AND order_id = %(order_id)s'
+
+    if release_id:
+        one = True
+        params = {'release_id': release_id}
+        filter_id = 'AND id = %(release_id)s'
+
     SCRIPT_SQL = f"""
         SELECT id, order_id, taxonomies, taxonomy, created_at
         FROM releases
         WHERE 1 = 1
             {filter_id}
         """
-    results = conn().select(SCRIPT_SQL, params)
+    results = conn().select(SCRIPT_SQL, params, one)
     return results
 
 

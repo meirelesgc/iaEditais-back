@@ -28,13 +28,10 @@ def delete_order(order_id: UUID):
     return OrderService.delete_order(order_id)
 
 
-@router.post(
-    '/order/release/',
-    status_code=HTTPStatus.CREATED,
-)
+@router.post('/order/release/', status_code=HTTPStatus.CREATED)
 def post_release(
     order_id: UUID = Form(...),
-    taxonomies: list[UUID] | None = Form(...),
+    taxonomies: list[UUID] = Form(None),
     file: UploadFile = File(...),
 ):
     return OrderService.post_release(order_id, file, taxonomies)

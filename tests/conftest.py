@@ -1,4 +1,7 @@
 import pytest
+import os
+from uuid import uuid4
+from fpdf import FPDF
 from iaEditais.config import Settings
 from fastapi.testclient import TestClient
 from testcontainers.postgres import PostgresContainer
@@ -55,3 +58,17 @@ def branch_payload():
         'title': 'Test Branch',
         'description': 'Test description',
     }
+
+
+@pytest.fixture
+def release_pdf():
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(40, 10, 'Test Release')
+
+    path = f'/tmp/release/{uuid4()}.pdf'
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    pdf.output(path)
+    yield path
+    os.remove(path)

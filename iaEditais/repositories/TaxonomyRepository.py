@@ -29,6 +29,7 @@ def get_taxonomy(taxonomy_id: UUID = None) -> list[Taxonomy]:
         WHERE 1 = 1
             {filter_id};
         """
+
     result = conn().select(SCRIPT_SQL, params, one=one)
     return result
 

@@ -19,15 +19,12 @@ class Release(BaseModel):
     order_id: UUID
     taxonomies: list[UUID]
     taxonomy: list
+    taxonomy_score: list = []
     created_at: datetime = Field(default_factory=datetime.now)
 
 
 class DetailedOrder(Order):
     releases: list[Release]
-
-
-class OrderOptions(BaseModel):
-    order_id: UUID
 
 
 class ReleaseFeedback(BaseModel):

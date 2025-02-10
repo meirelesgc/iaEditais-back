@@ -3,8 +3,8 @@ from iaEditais.schemas.Order import (
     Order,
     Release,
 )
-
-
+from iaEditais.integrations import OrderIntegrations
+from http import HTTPStatus
 from fastapi import UploadFile
 from iaEditais.repositories import (
     OrderRepository,
@@ -40,20 +40,29 @@ def build_taxonomy(taxonomies: list[UUID] = []):
     if not taxonomies:
         taxonomies = TaxonomyRepository.get_taxonomy()
 
-    taxonomy = taxonomies
-
-    for _, taxonomy in enumerate(taxonomy):
-        taxonomy[_]['branches'] = TaxonomyRepository.get_branches(
-            taxonomy['id']
+    if not taxonomies:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail='Invalid taxonomy structure.',
         )
-    return taxonomy
+
+    for _, taxonomy in enumerate(taxonomies):
+        branch = TaxonomyRepository.get_branches(taxonomy['id'])
+        if not branch:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail='Invalid taxonomy structure.',
+            )
+        taxonomies[_]['branches'] = branch
+
+    return taxonomies
 
 
 def post_release(
     order_id: UUID,
     file: UploadFile,
     taxonomies: list[UUID] = [],
-):
+) -> Release:
     taxonomies = [] if not taxonomies else taxonomies
 
     # Remover depois
@@ -75,4 +84,9 @@ def post_release(
 
     OrderRepository.post_release(release)
 
+    release.taxonomy_score = OrderIntegrations.analyze_release(release)
     return release
+
+
+def get_releases(order_id: UUID) -> list[Release]:
+    return OrderRepository.get_releases(order_id)

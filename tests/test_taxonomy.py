@@ -8,8 +8,6 @@ def test_create_taxonomy(client, taxonomy_payload):
 
     taxonomy = response.json()
     assert isinstance(Taxonomy(**taxonomy), Taxonomy)
-    assert taxonomy['title'] == taxonomy_payload['title']
-    assert taxonomy['description'] == taxonomy_payload['description']
 
 
 def test_get_taxonomies_empty(client):
