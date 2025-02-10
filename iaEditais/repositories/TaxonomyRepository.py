@@ -13,7 +13,10 @@ def post_taxonomy(taxonomy: Taxonomy) -> None:
     conn().exec(SCRIPT_SQL, params)
 
 
-def get_taxonomy(taxonomy_id: UUID = None) -> list[Taxonomy]:
+def get_taxonomy(
+    taxonomy_id: UUID = None,
+    taxonomies: list[UUID] = None,
+) -> list[Taxonomy]:
     one = False
     params = {}
     filter_id = str()
@@ -22,6 +25,11 @@ def get_taxonomy(taxonomy_id: UUID = None) -> list[Taxonomy]:
         one = True
         params['taxonomy_id'] = taxonomy_id
         filter_id = 'AND id = %(taxonomy_id)s'
+
+    if taxonomies:
+        one = False
+        params['taxonomies'] = taxonomies
+        filter_id = 'AND id = ANY(%(taxonomies)s)'
 
     SCRIPT_SQL = f"""
         SELECT id, title, description, source, created_at, updated_at 

@@ -74,9 +74,12 @@ def post_release(release: Release):
     params['taxonomy'] = json.dumps(release.taxonomy, default=str)
     params['taxonomy'] = Jsonb(json.loads(params['taxonomy']))
 
+    params['taxonomy_score'] = json.dumps(release.taxonomy, default=str)
+    params['taxonomy_score'] = Jsonb(json.loads(params['taxonomy_score']))
+
     SCRIPT_SQL = """
-        INSERT INTO releases (id, order_id, taxonomies, taxonomy, created_at)
-        VALUES (%(id)s, %(order_id)s, %(taxonomies)s, %(taxonomy)s, %(created_at)s);
+        INSERT INTO releases (id, order_id, taxonomies, taxonomy, taxonomy_score, created_at)
+        VALUES (%(id)s, %(order_id)s, %(taxonomies)s, %(taxonomy)s, %(taxonomy_score)s, %(created_at)s);
         """
 
     conn().exec(SCRIPT_SQL, params)

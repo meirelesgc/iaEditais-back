@@ -58,3 +58,4 @@ addopts = '-p no:warnings'
 [tool.taskipy.tasks]
 run = 'fastapi dev iaEditais'
 test = 'pytest -s -x --cov=iaEditais -vv; coverage html'
+demo = 'streamlit run demo/app.py'

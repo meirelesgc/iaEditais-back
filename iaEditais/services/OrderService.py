@@ -37,9 +37,7 @@ def delete_order(order_id: UUID):
 
 
 def build_taxonomy(taxonomies: list[UUID] = []):
-    if not taxonomies:
-        taxonomies = TaxonomyRepository.get_taxonomy()
-
+    taxonomies = TaxonomyRepository.get_taxonomy(taxonomies=taxonomies)
     if not taxonomies:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
@@ -47,6 +45,7 @@ def build_taxonomy(taxonomies: list[UUID] = []):
         )
 
     for _, taxonomy in enumerate(taxonomies):
+        print(taxonomy)
         branch = TaxonomyRepository.get_branches(taxonomy['id'])
         if not branch:
             raise HTTPException(
@@ -54,7 +53,6 @@ def build_taxonomy(taxonomies: list[UUID] = []):
                 detail='Invalid taxonomy structure.',
             )
         taxonomies[_]['branches'] = branch
-
     return taxonomies
 
 
@@ -64,9 +62,6 @@ def post_release(
     taxonomies: list[UUID] = [],
 ) -> Release:
     taxonomies = [] if not taxonomies else taxonomies
-
-    # Remover depois
-    taxonomies = []
 
     release = Release(
         order_id=order_id,
@@ -82,9 +77,10 @@ def post_release(
     with open(f'storage/releases/{release.id}.pdf', 'wb') as buffer:
         buffer.write(file.file.read())
 
-    OrderRepository.post_release(release)
-
     release.taxonomy_score = OrderIntegrations.analyze_release(release)
+
+    OrderRepository.post_release(release)
+    print(release)
     return release
 
 

@@ -10,6 +10,7 @@ class CreateOrder(BaseModel):
 
 class Order(CreateOrder):
     id: UUID = Field(default_factory=uuid4)
+    name: str
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: Optional[datetime] = None
 

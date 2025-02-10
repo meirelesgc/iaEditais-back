@@ -32,5 +32,6 @@ CREATE TABLE IF NOT EXISTS releases(
     order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
     taxonomies UUID[] NOT NULL,
     taxonomy JSONB NOT NULL,
+    taxonomy_score JSONB NOT NULL,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

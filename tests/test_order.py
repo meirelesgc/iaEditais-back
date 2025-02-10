@@ -116,3 +116,8 @@ def test_create_release(
 
     assert response.status_code == HTTPStatus.CREATED
     assert isinstance(Release(**response.json()), Release)
+
+    response = client.get(f'/order/{order_id}/')
+
+    assert response.status_code == HTTPStatus.OK
+    assert isinstance(DetailedOrder(**response.json()), DetailedOrder)
