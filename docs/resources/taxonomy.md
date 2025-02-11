@@ -32,8 +32,48 @@ graph TD
   D[Ação Requerida] -->|Descrição| G["Deixe claro no final do e-mail qual ação você espera do destinatário."]
 ```
 
-## Como a Taxonomia Funciona na Prática
+### Como a Taxonomia Funciona na Prática
 
-Quando um edital é analisado, ele é comparado com a raiz das taxonomias e suas ramificações para garantir que todos os aspectos relevantes sejam abordados. Por exemplo, para garantir que o e-mail seja claro e objetivo, as verificações podem ser feitas em cada **branch** (ramificação), como o **Assunto do E-mail** e a **Estrutura**.
+Na prática, a taxonomia organiza a análise do edital com base nas ramificações definidas para cada aspecto relevante. Quando um documento é submetido à revisão, ele segue um caminho que examina cada ramo da taxonomia e valida se as especificações estão sendo cumpridas.
 
-Essa taxonomia e as ramificações ajudam a garantir que os editores de documentos sigam as melhores práticas, como o uso de uma linguagem formal, revisão cuidadosa e clareza nas informações fornecidas.
+Cada ramo de uma taxonomia tem critérios específicos de verificação. Se todos os critérios de um ramo são atendidos, o processo continua com a próxima ramificação. Se algum critério não for cumprido, o resultado será uma resposta negativa para essa ramificação, indicando que o edital precisa ser ajustado.
+
+### Exemplo Visual de Validação da Taxonomia
+
+O diagrama a seguir mostra como a análise do edital segue a taxonomia, ramificando-se em direções específicas e retornando uma resposta de "Cumpriu" ou "Não Cumpriu".
+
+```mermaid
+graph TD
+  A[Seja Claro e Objetivo]
+  A --> B[Assunto do E-mail]
+  A --> C[Estrutura]
+  A --> D[Ação Requerida]
+  
+  B -->|Verificar Assunto| E{Cumpriu?}
+  C -->|Verificar Estrutura| F{Cumpriu?}
+  D -->|Verificar Ação Requerida| G{Cumpriu?}
+
+  E -->|Sim| H[Resultado: Cumpriu]
+  E -->|Não| I[Resultado: Não Cumpriu]
+  F -->|Sim| J[Resultado: Cumpriu]
+  F -->|Não| K[Resultado: Não Cumpriu]
+  G -->|Sim| L[Resultado: Cumpriu]
+  G -->|Não| M[Resultado: Não Cumpriu]
+
+  H --> N[Finalizar Análise]
+  I --> N
+  J --> N
+  K --> N
+  L --> N
+  M --> N
+```
+
+### Explicação do Diagrama
+
+1. O diagrama começa com a raiz da taxonomia **"Seja Claro e Objetivo"**.
+2. A análise segue para três ramificações principais: **Assunto do E-mail**, **Estrutura** e **Ação Requerida**.
+3. Para cada uma dessas ramificações, um processo de verificação é realizado (ex: "Verificar Assunto", "Verificar Estrutura", "Verificar Ação Requerida").
+4. Em cada ramificação, o resultado é avaliado: se **cumpriu** o critério, a análise continua para a próxima. Se **não cumpriu**, a resposta será "Não Cumpriu", e ajustes no edital são necessários.
+5. Ao final de todas as verificações, o processo de validação é concluído, indicando se o edital está conforme os critérios ou se precisa de ajustes.
+
+Esse processo assegura que todos os aspectos do edital sejam avaliados de forma estruturada e padronizada, garantindo que o documento final atenda a todos os critérios estabelecidos pela taxonomia.

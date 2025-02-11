@@ -11,21 +11,25 @@ IaEditais, uma API desenvolvida para avaliar editais utilizando modelos de lingu
 ## Instalação
 
 1. Instale o `pipx`:
+
     ```sh
     pip install pipx
     ```
 
 2. Use o `pipx` para instalar o `poetry`:
+
     ```sh
     pipx install poetry
     ```
 
 3. Instale as dependências do projeto:
+
     ```sh
     poetry install
     ```
 
 4. Ative o ambiente virtual:
+
     ```sh
     poetry shell
     ```
@@ -33,6 +37,7 @@ IaEditais, uma API desenvolvida para avaliar editais utilizando modelos de lingu
 ## Executando o Projeto
 
 1. Execute a tarefa principal do projeto:
+
     ```sh
     task run
     ```
@@ -45,11 +50,13 @@ IaEditais, uma API desenvolvida para avaliar editais utilizando modelos de lingu
 Você também pode executar o projeto usando Docker. Siga os passos abaixo para construir e iniciar o contêiner Docker:
 
 1. Construa a imagem Docker:
+
     ```sh
     docker build -t iaeditais .
     ```
 
 2. Inicie o contêiner Docker:
+
     ```sh
     docker run -p 8000:8000 iaeditais
     ```
