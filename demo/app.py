@@ -142,7 +142,9 @@ with tab2:
     for tax in taxonomies:
         container = st.container()
         a, b, c = container.columns([5, 1, 1])
-        a.button(tax['title'], use_container_width=True)
+        a.button(
+            tax['title'], use_container_width=True, key=f'tax_{tax["id"]}'
+        )
         if b.button(
             '✏️ Atualizar',
             key=f'update_{tax["id"]}',
@@ -167,10 +169,22 @@ with tab2:
             st.divider()
             container = st.container()
             a, b, c = container.columns([5, 1, 1])
-            a.button('🔍 Lista de ramos', use_container_width=True)
-            if b.button('✏️ Editar ramos', use_container_width=True):
+            a.button(
+                '🔍 Lista de ramos',
+                use_container_width=True,
+                key=f'list_branch_{tax["id"]}',
+            )
+            if b.button(
+                '✏️ Editar ramos',
+                use_container_width=True,
+                key=f'edit_branch_{tax["id"]}',
+            ):
                 edit_branch(tax['id'])
-            if c.button('➕ Adicionar Ramo', use_container_width=True):
+            if c.button(
+                '➕ Adicionar Ramo',
+                use_container_width=True,
+                key=f'add_branch_{tax["id"]}',
+            ):
                 create_branch(tax['id'])
             branches = taxonomy.get_branches_by_taxonomy_id(tax['id'])
             st.dataframe(
