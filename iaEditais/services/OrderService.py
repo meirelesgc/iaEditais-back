@@ -80,7 +80,6 @@ def post_release(
     release.taxonomy_score = OrderIntegrations.analyze_release(release)
 
     OrderRepository.post_release(release)
-    print(release)
     return release
 
 

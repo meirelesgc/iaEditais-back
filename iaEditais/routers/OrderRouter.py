@@ -27,11 +27,9 @@ def get_detailed_orders(order_id: UUID):
     return OrderService.get_detailed_orders(order_id)
 
 
-@router.delete(
-    '/order/{order_id}',
-    status_code=HTTPStatus.NO_CONTENT,
-)
+@router.delete('/order/{order_id}/', status_code=HTTPStatus.NO_CONTENT)
 def delete_order(order_id: UUID):
+    print('entrei aqui')
     return OrderService.delete_order(order_id)
 
 

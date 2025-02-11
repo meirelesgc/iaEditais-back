@@ -13,6 +13,11 @@ def get_order():
     return response.json()
 
 
+def delete_order(order_id):
+    httpx.delete(f'http://localhost:8000/order/{order_id}/')
+    st.rerun()
+
+
 def get_detailed_order(order_id):
     response = httpx.get(f'http://localhost:8000/order/{order_id}/')
     return response.json()

@@ -34,3 +34,13 @@ def get_branches_by_taxonomy_id(taxonomy_id):
     URL = f'http://localhost:8000/taxonomy/branch/{taxonomy_id}/'
     response = httpx.get(URL)
     return response.json()
+
+
+def post_branch(taxonomy_id, title, description):
+    data = {
+        'title': title,
+        'description': description,
+        'taxonomy_id': taxonomy_id,
+    }
+    httpx.post('http://localhost:8000/taxonomy/branch/', json=data)
+    st.rerun()

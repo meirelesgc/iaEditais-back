@@ -51,7 +51,7 @@ def get_releases(
         filter_id = 'AND id = %(release_id)s'
 
     SCRIPT_SQL = f"""
-        SELECT id, order_id, taxonomies, taxonomy, created_at
+        SELECT id, order_id, taxonomies, taxonomy, taxonomy_score, created_at
         FROM releases
         WHERE 1 = 1
             {filter_id}
@@ -74,7 +74,7 @@ def post_release(release: Release):
     params['taxonomy'] = json.dumps(release.taxonomy, default=str)
     params['taxonomy'] = Jsonb(json.loads(params['taxonomy']))
 
-    params['taxonomy_score'] = json.dumps(release.taxonomy, default=str)
+    params['taxonomy_score'] = json.dumps(release.taxonomy_score, default=str)
     params['taxonomy_score'] = Jsonb(json.loads(params['taxonomy_score']))
 
     SCRIPT_SQL = """
