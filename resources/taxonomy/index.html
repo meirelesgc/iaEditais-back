@@ -219,15 +219,29 @@
     </span>
 </a>
 </li>
-</ul>
-</nav>
-</li>
 <li class="md-nav__item">
 <a class="md-nav__link" href="#como-a-taxonomia-funciona-na-pratica">
 <span class="md-ellipsis">
       Como a Taxonomia Funciona na Prática
     </span>
 </a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#exemplo-visual-de-validacao-da-taxonomia">
+<span class="md-ellipsis">
+      Exemplo Visual de Validação da Taxonomia
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#explicacao-do-diagrama">
+<span class="md-ellipsis">
+      Explicação do Diagrama
+    </span>
+</a>
+</li>
+</ul>
+</nav>
 </li>
 </ul>
 </nav>
@@ -280,15 +294,29 @@
     </span>
 </a>
 </li>
-</ul>
-</nav>
-</li>
 <li class="md-nav__item">
 <a class="md-nav__link" href="#como-a-taxonomia-funciona-na-pratica">
 <span class="md-ellipsis">
       Como a Taxonomia Funciona na Prática
     </span>
 </a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#exemplo-visual-de-validacao-da-taxonomia">
+<span class="md-ellipsis">
+      Exemplo Visual de Validação da Taxonomia
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#explicacao-do-diagrama">
+<span class="md-ellipsis">
+      Explicação do Diagrama
+    </span>
+</a>
+</li>
+</ul>
+</nav>
 </li>
 </ul>
 </nav>
@@ -323,9 +351,44 @@
   C[Estrutura] --&gt;|Descrição| F["Organize suas ideias em parágrafos curtos e claros. Utilize marcadores ou listas quando necessário para facilitar a leitura."]
   D[Ação Requerida] --&gt;|Descrição| G["Deixe claro no final do e-mail qual ação você espera do destinatário."]
 </code></pre>
-<h2 id="como-a-taxonomia-funciona-na-pratica">Como a Taxonomia Funciona na Prática<a class="headerlink" href="#como-a-taxonomia-funciona-na-pratica" title="Permanent link">#</a></h2>
-<p>Quando um edital é analisado, ele é comparado com a raiz das taxonomias e suas ramificações para garantir que todos os aspectos relevantes sejam abordados. Por exemplo, para garantir que o e-mail seja claro e objetivo, as verificações podem ser feitas em cada <strong>branch</strong> (ramificação), como o <strong>Assunto do E-mail</strong> e a <strong>Estrutura</strong>.</p>
-<p>Essa taxonomia e as ramificações ajudam a garantir que os editores de documentos sigam as melhores práticas, como o uso de uma linguagem formal, revisão cuidadosa e clareza nas informações fornecidas.</p>
+<h3 id="como-a-taxonomia-funciona-na-pratica">Como a Taxonomia Funciona na Prática<a class="headerlink" href="#como-a-taxonomia-funciona-na-pratica" title="Permanent link">#</a></h3>
+<p>Na prática, a taxonomia organiza a análise do edital com base nas ramificações definidas para cada aspecto relevante. Quando um documento é submetido à revisão, ele segue um caminho que examina cada ramo da taxonomia e valida se as especificações estão sendo cumpridas.</p>
+<p>Cada ramo de uma taxonomia tem critérios específicos de verificação. Se todos os critérios de um ramo são atendidos, o processo continua com a próxima ramificação. Se algum critério não for cumprido, o resultado será uma resposta negativa para essa ramificação, indicando que o edital precisa ser ajustado.</p>
+<h3 id="exemplo-visual-de-validacao-da-taxonomia">Exemplo Visual de Validação da Taxonomia<a class="headerlink" href="#exemplo-visual-de-validacao-da-taxonomia" title="Permanent link">#</a></h3>
+<p>O diagrama a seguir mostra como a análise do edital segue a taxonomia, ramificando-se em direções específicas e retornando uma resposta de "Cumpriu" ou "Não Cumpriu".</p>
+<pre class="mermaid"><code>graph TD
+  A[Seja Claro e Objetivo]
+  A --&gt; B[Assunto do E-mail]
+  A --&gt; C[Estrutura]
+  A --&gt; D[Ação Requerida]
+
+  B --&gt;|Verificar Assunto| E{Cumpriu?}
+  C --&gt;|Verificar Estrutura| F{Cumpriu?}
+  D --&gt;|Verificar Ação Requerida| G{Cumpriu?}
+
+  E --&gt;|Sim| H[Resultado: Cumpriu]
+  E --&gt;|Não| I[Resultado: Não Cumpriu]
+  F --&gt;|Sim| J[Resultado: Cumpriu]
+  F --&gt;|Não| K[Resultado: Não Cumpriu]
+  G --&gt;|Sim| L[Resultado: Cumpriu]
+  G --&gt;|Não| M[Resultado: Não Cumpriu]
+
+  H --&gt; N[Finalizar Análise]
+  I --&gt; N
+  J --&gt; N
+  K --&gt; N
+  L --&gt; N
+  M --&gt; N
+</code></pre>
+<h3 id="explicacao-do-diagrama">Explicação do Diagrama<a class="headerlink" href="#explicacao-do-diagrama" title="Permanent link">#</a></h3>
+<ol>
+<li>O diagrama começa com a raiz da taxonomia <strong>"Seja Claro e Objetivo"</strong>.</li>
+<li>A análise segue para três ramificações principais: <strong>Assunto do E-mail</strong>, <strong>Estrutura</strong> e <strong>Ação Requerida</strong>.</li>
+<li>Para cada uma dessas ramificações, um processo de verificação é realizado (ex: "Verificar Assunto", "Verificar Estrutura", "Verificar Ação Requerida").</li>
+<li>Em cada ramificação, o resultado é avaliado: se <strong>cumpriu</strong> o critério, a análise continua para a próxima. Se <strong>não cumpriu</strong>, a resposta será "Não Cumpriu", e ajustes no edital são necessários.</li>
+<li>Ao final de todas as verificações, o processo de validação é concluído, indicando se o edital está conforme os critérios ou se precisa de ajustes.</li>
+</ol>
+<p>Esse processo assegura que todos os aspectos do edital sejam avaliados de forma estruturada e padronizada, garantindo que o documento final atenda a todos os critérios estabelecidos pela taxonomia.</p>
 </article>
 </div>
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
