@@ -1,4 +1,5 @@
 import pytest
+
 import os
 from uuid import uuid4
 from fpdf import FPDF
@@ -7,6 +8,7 @@ from fastapi.testclient import TestClient
 from testcontainers.postgres import PostgresContainer
 from iaEditais import app
 from iaEditais.repositories import conn
+from iaEditais.schemas.Typification import Typification
 
 
 @pytest.fixture
@@ -72,3 +74,14 @@ def release_pdf():
     pdf.output(path)
     yield path
     os.remove(path)
+
+
+@pytest.fixture
+def typification():
+    params = Typification(name='Test Typification')
+    SCRIPT_SQL = """
+        INSERT INTO typifications (id, name, created_at) 
+        VALUES (%(id)s, %(name)s, %(created_at)s);
+        """
+    conn().exec(SCRIPT_SQL, params.model_dump())
+    return params

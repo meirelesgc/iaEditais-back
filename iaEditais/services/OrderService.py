@@ -45,7 +45,6 @@ def build_taxonomy(taxonomies: list[UUID] = []):
         )
 
     for _, taxonomy in enumerate(taxonomies):
-        print(taxonomy)
         branch = TaxonomyRepository.get_branches(taxonomy['id'])
         if not branch:
             raise HTTPException(
