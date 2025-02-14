@@ -9,7 +9,11 @@ from http import HTTPStatus
 router = APIRouter()
 
 
-@router.post('/source/', status_code=HTTPStatus.CREATED, response_model=Source)
+@router.post(
+    '/source/',
+    status_code=HTTPStatus.CREATED,
+    response_model=Source,
+)
 def post_source(file: UploadFile = File(...)):
     return SourceService.post_source(file)
 

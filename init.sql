@@ -22,7 +22,7 @@ CREATE TABLE IF NOT EXISTS taxonomies (
 CREATE TABLE IF NOT EXISTS branches  (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     taxonomy_id UUID REFERENCES taxonomies(id) ON DELETE CASCADE,
-    title VARCHAR(255) NOT NULL,
+    title TEXT NOT NULL,
     description TEXT,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp
