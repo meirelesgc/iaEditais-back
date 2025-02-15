@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS typifications (
 CREATE TABLE IF NOT EXISTS sources (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL UNIQUE,
+    description TEXT,
     has_file BOOLEAN DEFAULT FALSE,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp

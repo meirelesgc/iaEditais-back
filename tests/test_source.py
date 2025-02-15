@@ -9,9 +9,10 @@ def source_data_factory():
     def _factory(
         name='Test Source',
         file_content=b'%PDF-1.4\n...fake pdf content...',
+        description='Test Description',
     ):
         return {
-            'data': {'name': name},
+            'data': {'name': name, 'description': description},
             'files': {
                 'file': ('testfile.pdf', file_content, 'application/pdf')
             },
@@ -25,8 +26,9 @@ def create_source(client, source_data_factory):
     def _create(
         name='Test Source',
         file_content=b'%PDF-1.4\n...fake pdf content...',
+        description='Test Description',
     ):
-        source_data = source_data_factory(name, file_content)
+        source_data = source_data_factory(name, file_content, description)
         return client.post(
             '/source/',
             files=source_data['files'],

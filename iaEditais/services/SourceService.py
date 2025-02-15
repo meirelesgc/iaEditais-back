@@ -6,7 +6,7 @@ from iaEditais.repositories import SourceRepository
 from fastapi import UploadFile, HTTPException
 
 
-def post_source(name: str, file: UploadFile):
+def post_source(name: str, description, file: UploadFile):
     names = [s['name'] for s in SourceRepository.get_source(name=name)]
 
     if name in names:
@@ -14,7 +14,7 @@ def post_source(name: str, file: UploadFile):
             status_code=409, detail=f'Source {name} already exists.'
         )
 
-    source = Source(name=name)
+    source = Source(name=name, description=description)
 
     if file:
         if not file.filename.endswith('.pdf'):

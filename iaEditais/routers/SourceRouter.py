@@ -16,9 +16,10 @@ router = APIRouter()
 )
 def post_source(
     name: str = Form(...),
+    description: str = Form(...),
     file: UploadFile = File(None),
 ):
-    return SourceService.post_source(name, file)
+    return SourceService.post_source(name, description, file)
 
 
 @router.get(
