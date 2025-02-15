@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS sources (
     updated_at timestamp
 );
 CREATE TABLE IF NOT EXISTS taxonomies (
+    typification_id UUID REFERENCES typifications(id) ON DELETE CASCADE,
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     title VARCHAR(255) NOT NULL,
     description TEXT,

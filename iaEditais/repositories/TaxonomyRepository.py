@@ -7,8 +7,8 @@ from iaEditais.repositories import conn
 def post_taxonomy(taxonomy: Taxonomy) -> None:
     params = taxonomy.model_dump()
     SCRIPT_SQL = """
-        INSERT INTO taxonomies (id, title, description, source)
-        VALUES (%(id)s, %(title)s, %(description)s, %(source)s);
+        INSERT INTO taxonomies (typification_id, id, title, description, source)
+        VALUES (%(typification_id)s, %(id)s, %(title)s, %(description)s, %(source)s);
         """
     conn().exec(SCRIPT_SQL, params)
 
@@ -32,7 +32,7 @@ def get_taxonomy(
         filter_id = 'AND id = ANY(%(taxonomies)s)'
 
     SCRIPT_SQL = f"""
-        SELECT id, title, description, source, created_at, updated_at 
+        SELECT typification_id, id, title, description, source, created_at, updated_at 
         FROM taxonomies
         WHERE 1 = 1
             {filter_id};

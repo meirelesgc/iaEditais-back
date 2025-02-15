@@ -9,6 +9,7 @@ from testcontainers.postgres import PostgresContainer
 from iaEditais import app
 from iaEditais.repositories import conn
 from iaEditais.schemas.Typification import Typification
+from iaEditais.schemas.Taxonomy import Taxonomy
 
 
 @pytest.fixture
@@ -122,8 +123,8 @@ def typification_data_factory():
 def create_typification(client, typification_data_factory, create_source):
     def _create(name='Test type', source_count=1):
         source_ids = [
-            create_source(f'Test Source {i}').json().get('id')
-            for i in range(source_count)
+            create_source(f'Test Source {uuid4()}').json().get('id')
+            for _ in range(source_count)
         ]
         data = typification_data_factory(name, source_ids)
         return client.post('/typification/', json=data)
@@ -135,3 +136,56 @@ def create_typification(client, typification_data_factory, create_source):
 def typification(client, create_typification):
     response = create_typification()
     return Typification(**response.json())
+
+
+@pytest.fixture
+def taxonomy_data_factory():
+    def _factory(
+        typification_id=None,
+        title='Test Taxonomy',
+        description='Test Description',
+        source_ids=None,
+    ):
+        return {
+            'typification_id': typification_id or None,
+            'title': title,
+            'description': description,
+            'source': source_ids or [],
+        }
+
+    return _factory
+
+
+@pytest.fixture
+def create_taxonomy(
+    client,
+    taxonomy_data_factory,
+    create_source,
+    create_typification,
+):
+    def _create(
+        title='Test Taxonomy',
+        description='Test Description',
+        source_count=1,
+    ):
+        typification_id = create_typification().json().get('id')
+        source_ids = [
+            create_source(f'Test Source {uuid4()}').json().get('id')
+            for _ in range(source_count)
+        ]
+        data = taxonomy_data_factory(
+            typification_id,
+            title,
+            description,
+            source_ids,
+        )
+        response = client.post('/taxonomy/', json=data)
+        return response
+
+    return _create
+
+
+@pytest.fixture
+def taxonomy(client, create_taxonomy):
+    response = create_taxonomy()
+    return Taxonomy(**response.json())

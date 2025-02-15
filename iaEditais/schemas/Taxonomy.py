@@ -5,9 +5,10 @@ from pydantic import BaseModel, Field
 
 
 class CreateTaxonomy(BaseModel):
+    typification_id: UUID
     title: str
     description: str = None
-    source: Optional[list[UUID]] = None
+    source: Optional[list[UUID]] = []
 
 
 class Taxonomy(CreateTaxonomy):
