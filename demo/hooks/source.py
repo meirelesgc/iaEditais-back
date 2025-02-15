@@ -12,10 +12,21 @@ def get_source_file(source_id):
     return result.content
 
 
-def post_source(uploaded_file):
+def post_source(name, description, uploaded_file):
+    data = {'name': name, 'description': description}
     headers = {'accept': 'application/json'}
+    if not uploaded_file:
+        httpx.post('http://127.0.0.1:8000/source/', headers=headers, data=data)
+        st.rerun()
+        return
+
     files = {'file': (uploaded_file.name, uploaded_file, 'application/pdf')}
-    httpx.post('http://127.0.0.1:8000/source/', headers=headers, files=files)
+    httpx.post(
+        'http://127.0.0.1:8000/source/',
+        headers=headers,
+        files=files,
+        data=data,
+    )
     st.rerun()
 
 

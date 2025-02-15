@@ -29,9 +29,15 @@ with tab1:
 
     @st.dialog('➕ Adicionar Fonte')
     def create_source():
+        name = st.text_input('Nome da fonte')
+        description = st.text_input('Descrição da fonte')
         uploaded_file = st.file_uploader('Escolha um arquivo PDF', type='pdf')
-        if st.button('Enviar arquivo') and uploaded_file:
-            source.post_source(uploaded_file)
+
+        if st.button('Enviar'):
+            if name and description:
+                source.post_source(name, description, uploaded_file)
+            else:
+                st.toast('Por favor, preencha todos os campos.')
 
     container = st.container()
     a, b = container.columns([6, 1])
@@ -46,7 +52,7 @@ with tab1:
     for fonte in sources:
         container = st.container()
         a, b = container.columns([6, 1])
-        a.button(fonte['name'][:-4], use_container_width=True)
+        a.button(fonte['name'], use_container_width=True)
         if b.button(
             '🗑️ Excluir', key=f'exclude_{fonte["id"]}', use_container_width=True
         ):
@@ -54,20 +60,21 @@ with tab1:
             st.toast('Fonte excluída com sucesso!', icon='🗑️')
         with st.expander(f'📄 Detalhes da Fonte - ID: {fonte["id"]}'):
             st.write(f'**Criado em:** {format_date(fonte["created_at"])}')
+            st.write(f'**Descrição da fnte:** {fonte["description"]}')
             update_at = (
                 format_date(fonte['updated_at'])
                 if fonte['updated_at']
                 else 'N/A'
             )
             st.write(f'**Atualizado em:** {update_at}')
-            st.divider()
-            pdf_viewer(
-                input=source.get_source_file(fonte['id']),
-                key=f'pdf_viewer_{fonte["id"]}',
-                width='100%',
-            )
+            if fonte['has_file']:
+                st.divider()
+                pdf_viewer(
+                    input=source.get_source_file(fonte['id']),
+                    key=f'pdf_viewer_{fonte["id"]}',
+                    width='100%',
+                )
 
-# Seção de Taxonomia
 with tab2:
     st.subheader('📂 Gestão de Taxonomias')
     taxonomies = taxonomy.get_taxonomy()
