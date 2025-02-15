@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, File, UploadFile, Form
 from fastapi.responses import FileResponse
 
 from uuid import UUID
@@ -14,8 +14,11 @@ router = APIRouter()
     status_code=HTTPStatus.CREATED,
     response_model=Source,
 )
-def post_source(file: UploadFile = File(...)):
-    return SourceService.post_source(file)
+def post_source(
+    name: str = Form(...),
+    file: UploadFile = File(None),
+):
+    return SourceService.post_source(name, file)
 
 
 @router.get(
