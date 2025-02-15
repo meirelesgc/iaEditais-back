@@ -76,8 +76,34 @@ with tab1:
                 )
 
 with tab2:
-    st.subheader('📂 Gestão de Taxonomias')
-    taxonomies = taxonomy.get_taxonomy()
+
+    @st.dialog('Criar tipificação')
+    def create_tipyfication():
+        with st.form(key='create_tipyfication_form'):
+            name = st.text_input('Nome da Tipificação')
+            selected_sources = st.multiselect(
+                'Fontes', sources, format_func=lambda x: x['name']
+            )
+            if st.form_submit_button('Criar Tipificação'):
+                taxonomy.post_typification(name, selected_sources)
+
+    @st.dialog('✏️ Atualizar Tipificação')
+    def update_tipyfication(typ):
+        with st.form(key='update_tipyfication_form'):
+            default_sources = [s for s in sources if s['id'] in typ['source']]
+            typ['name'] = st.text_input(
+                'Nome da Tipificação',
+                value=typ['name'],
+            )
+            selected_sources = st.multiselect(
+                'Fontes',
+                sources,
+                format_func=lambda x: x['name'],
+                default=default_sources,
+            )
+            typ['source'] = [s['id'] for s in selected_sources]
+            if st.form_submit_button('Atualizar Tipificação'):
+                taxonomy.put_typification(typ)
 
     @st.dialog('➕ Criar Taxonomia')
     def create_taxonomy():
@@ -135,6 +161,40 @@ with tab2:
 
                 if st.form_submit_button('Criar Ramo'):
                     taxonomy.post_branch(branch)
+
+    st.subheader('🧵 Gestão de Tipificações')
+    typifications = taxonomy.get_typifications()
+
+    container = st.container()
+    a, b = container.columns([6, 1])
+    a.button('🔍 Tipificações', use_container_width=True)
+    if b.button('➕ Criar Tipificação', use_container_width=True):
+        create_tipyfication()
+
+    for typ in typifications:
+        container = st.container()
+        a, b, c = container.columns([5, 1, 1])
+        a.button(typ['name'], use_container_width=True, key=f'tax_{typ["id"]}')
+        if b.button(
+            '✏️ Atualizar',
+            key=f'update_{typ["id"]}',
+            use_container_width=True,
+        ):
+            update_tipyfication(typ)
+        if c.button(
+            '🗑️ Remover',
+            key=f'delete_{typ["id"]}',
+            use_container_width=True,
+        ):
+            taxonomy.delete_typification(typ['id'])
+        with st.expander(f'📄 Detalhes da Tipificação - ID: {typ["id"]}'):
+            expander_source = [
+                s['name'] for s in sources if s['id'] in typ['source']
+            ]
+            st.write(f'**Fontes:** {expander_source}')
+
+    st.subheader('📂 Gestão de Taxonomias')
+    taxonomies = taxonomy.get_taxonomy()
 
     container = st.container()
     a, b = container.columns([6, 1])
