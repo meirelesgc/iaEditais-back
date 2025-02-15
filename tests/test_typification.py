@@ -3,52 +3,47 @@ from iaEditais.schemas.Typification import Typification
 from http import HTTPStatus
 
 
-def test_create_typification(client):
-    typification = {'name': 'Test type'}
-    response = client.post('/typification/', json=typification)
+def test_create_typification(client, create_typification):
+    response = create_typification()
     assert response.status_code == HTTPStatus.CREATED
-    assert isinstance(Typification(**response.json()), Typification)
+    typification = response.json()
+    assert isinstance(Typification(**typification), Typification)
+    assert len(typification['source']) > 0
 
 
 def test_get_typification_empty(client):
     response = client.get('/typification/')
-
-    typifications = response.json()
-
     assert response.status_code == HTTPStatus.OK
-    assert len(typifications) == 0
+    assert response.json() == []
 
 
 def test_get_typification(client, typification):
     response = client.get('/typification/')
-
-    typifications = response.json()
-
     assert response.status_code == HTTPStatus.OK
-    assert len(typifications) == 1
+    assert len(response.json()) == 1
 
 
 def test_get_detailed_typification(client, typification):
     response = client.get(f'/typification/{typification.id}/')
-
     assert response.status_code == HTTPStatus.OK
     assert isinstance(Typification(**response.json()), Typification)
 
 
-def test_put_typification(client, typification):
-    typification = {
+def test_put_typification(client, typification, create_source):
+    new_source_id = create_source('New Source').json().get('id')
+    updated_data = {
         'id': str(typification.id),
         'name': 'Updated Name',
         'created_at': typification.created_at.isoformat(),
+        'source': [new_source_id],
     }
-
-    response = client.put('/typification/', json=typification)
-
+    response = client.put('/typification/', json=updated_data)
     assert response.status_code == HTTPStatus.OK
 
-    response = client.get(f'/typification/{typification["id"]}/')
+    response = client.get(f'/typification/{typification.id}/')
     assert response.status_code == HTTPStatus.OK
     assert response.json()['name'] == 'Updated Name'
+    assert new_source_id in response.json()['source']
 
 
 def test_delete_typification(client, typification):

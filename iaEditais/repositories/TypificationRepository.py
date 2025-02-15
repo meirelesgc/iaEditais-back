@@ -6,8 +6,8 @@ from iaEditais.schemas.Typification import Typification
 def post_typification(typification: Typification):
     params = typification.model_dump()
     SCRIPT_SQL = """
-        INSERT INTO typifications (id, name, created_at) 
-        VALUES (%(id)s, %(name)s, %(created_at)s);
+        INSERT INTO typifications (id, name, source, created_at) 
+        VALUES (%(id)s, %(name)s, %(source)s, %(created_at)s);
         """
     conn().exec(SCRIPT_SQL, params)
 
@@ -23,7 +23,7 @@ def get_typification(typification_id: UUID = None):
         filter_id = 'AND id = %(id)s'
 
     SCRIPT_SQL = f"""
-        SELECT id, name, created_at, updated_at 
+        SELECT id, name, source, created_at, updated_at 
         FROM typifications
         WHERE 1 = 1
             {filter_id}
@@ -39,6 +39,7 @@ def put_typification(typification: Typification):
         UPDATE typifications 
         SET name = %(name)s, 
             created_at = %(created_at)s,
+            source = %(source)s,
             updated_at = %(updated_at)s
         WHERE id = %(id)s;
         """

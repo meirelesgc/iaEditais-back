@@ -7,6 +7,7 @@ from uuid import UUID
 
 class CreateTypification(BaseModel):
     name: str
+    source: list[UUID]
 
 
 class Typification(CreateTypification):

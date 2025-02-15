@@ -1,41 +1,6 @@
-import pytest
 from http import HTTPStatus
 from uuid import uuid4
 from iaEditais.schemas.Source import Source
-
-
-@pytest.fixture
-def source_data_factory():
-    def _factory(
-        name='Test Source',
-        file_content=b'%PDF-1.4\n...fake pdf content...',
-        description='Test Description',
-    ):
-        return {
-            'data': {'name': name, 'description': description},
-            'files': {
-                'file': ('testfile.pdf', file_content, 'application/pdf')
-            },
-        }
-
-    return _factory
-
-
-@pytest.fixture
-def create_source(client, source_data_factory):
-    def _create(
-        name='Test Source',
-        file_content=b'%PDF-1.4\n...fake pdf content...',
-        description='Test Description',
-    ):
-        source_data = source_data_factory(name, file_content, description)
-        return client.post(
-            '/source/',
-            files=source_data['files'],
-            data=source_data['data'],
-        )
-
-    return _create
 
 
 def test_create_source(client, create_source):

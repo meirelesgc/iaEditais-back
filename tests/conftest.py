@@ -77,11 +77,61 @@ def release_pdf():
 
 
 @pytest.fixture
-def typification():
-    params = Typification(name='Test Typification')
-    SCRIPT_SQL = """
-        INSERT INTO typifications (id, name, created_at) 
-        VALUES (%(id)s, %(name)s, %(created_at)s);
-        """
-    conn().exec(SCRIPT_SQL, params.model_dump())
-    return params
+def source_data_factory():
+    def _factory(
+        name='Test Source',
+        file_content=b'%PDF-1.4\n...fake pdf content...',
+        description='Test Description',
+    ):
+        return {
+            'data': {'name': name, 'description': description},
+            'files': {
+                'file': ('testfile.pdf', file_content, 'application/pdf')
+            },
+        }
+
+    return _factory
+
+
+@pytest.fixture
+def create_source(client, source_data_factory):
+    def _create(
+        name='Test Source',
+        file_content=b'%PDF-1.4\n...fake pdf content...',
+        description='Test Description',
+    ):
+        source_data = source_data_factory(name, file_content, description)
+        return client.post(
+            '/source/',
+            files=source_data['files'],
+            data=source_data['data'],
+        )
+
+    return _create
+
+
+@pytest.fixture
+def typification_data_factory():
+    def _factory(name='Test type', source_ids=None):
+        return {'name': name, 'source': source_ids or []}
+
+    return _factory
+
+
+@pytest.fixture
+def create_typification(client, typification_data_factory, create_source):
+    def _create(name='Test type', source_count=1):
+        source_ids = [
+            create_source(f'Test Source {i}').json().get('id')
+            for i in range(source_count)
+        ]
+        data = typification_data_factory(name, source_ids)
+        return client.post('/typification/', json=data)
+
+    return _create
+
+
+@pytest.fixture
+def typification(client, create_typification):
+    response = create_typification()
+    return Typification(**response.json())
