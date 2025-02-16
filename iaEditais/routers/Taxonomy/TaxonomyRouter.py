@@ -25,6 +25,15 @@ def get_taxonomy():
     return TaxonomyService.get_taxonomy()
 
 
+@router.get(
+    '/taxonomy/{typification_id}/',
+    status_code=HTTPStatus.OK,
+    response_model=list[Taxonomy],
+)
+def get_taxonomy_by_typification(typification_id: UUID):
+    return TaxonomyService.get_taxonomy(typification_id)
+
+
 @router.put(
     '/taxonomy/',
     status_code=HTTPStatus.OK,

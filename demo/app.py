@@ -1,4 +1,6 @@
 import streamlit as st
+import pandas as pd
+
 from streamlit_pdf_viewer import pdf_viewer
 from hooks import source, taxonomy, order
 from datetime import datetime
@@ -14,18 +16,18 @@ st.set_page_config(
 POST_SOURCE = DELETE_SOURCE = False
 CREATE_TAXONOMY = POST_TAXONOMY = DELETE_TAXONOMY = PUT_TAXONOMY = False
 CREATE_ORDER = CREATE_RELEASE = DELETE_RELEASE = False
-
-tab1, tab2, tab3 = st.tabs(['📌 Fontes', '📂 Taxonomia', '📊 Análise'])
+NUM = 0
+tab1, tab2, tab3 = st.tabs(['📌 Fontes', '🧵 Tipificações', '📊 Análise'])
 
 
 def format_date(date_str):
-    dt = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S.%f')
-    return dt.strftime('%d/%m/%Y %H:%M:%S')
+    if isinstance(date_str, str):
+        dt = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S.%f')
+        return dt.strftime('%d/%m/%Y %H:%M:%S')
+    return None
 
 
 with tab1:
-    st.subheader('📌 Gestão de Fontes')
-    sources = source.get_source()
 
     @st.dialog('➕ Adicionar Fonte')
     def create_source():
@@ -39,28 +41,32 @@ with tab1:
             else:
                 st.toast('Por favor, preencha todos os campos.')
 
+    sources = source.get_source()
+
     container = st.container()
     a, b = container.columns([6, 1])
-    a.button('🔍 Fontes', use_container_width=True)
-    if b.button('➕ Adicionar Fonte', use_container_width=True):
+    a.subheader('📌 Gestão de Fontes')
+    if b.button('➕ Adicionar', use_container_width=True):
         create_source()
 
-    st.subheader('📜 Lista de Fontes')
+    st.divider()
+
     if not sources:
         st.error('Nenhuma fonte encontrada.')
 
-    for fonte in sources:
+    for _, fonte in enumerate(sources):
         container = st.container()
         a, b = container.columns([6, 1])
-        a.button(fonte['name'], use_container_width=True)
+
+        a.subheader(f'{_ + 1} - {fonte["name"]}')
         if b.button(
             '🗑️ Excluir', key=f'exclude_{fonte["id"]}', use_container_width=True
         ):
             source.delete_source(fonte['id'])
-            st.toast('Fonte excluída com sucesso!', icon='🗑️')
+
         with st.expander(f'📄 Detalhes da Fonte - ID: {fonte["id"]}'):
             st.write(f'**Criado em:** {format_date(fonte["created_at"])}')
-            st.write(f'**Descrição da fnte:** {fonte["description"]}')
+            st.write(f'**Descrição da fonte:** {fonte["description"]}')
             update_at = (
                 format_date(fonte['updated_at'])
                 if fonte['updated_at']
@@ -106,15 +112,21 @@ with tab2:
                 taxonomy.put_typification(typ)
 
     @st.dialog('➕ Criar Taxonomia')
-    def create_taxonomy():
+    def create_taxonomy(typ):
         with st.form(key='create_taxonomy_form'):
             title = st.text_input('Título da Taxonomia')
             description = st.text_area('Descrição da Taxonomia')
             selected_sources = st.multiselect(
                 'Fontes', sources, format_func=lambda x: x['name'][:-4]
             )
+            post_sources = [s['id'] for s in selected_sources]
             if st.form_submit_button('Criar Taxonomia'):
-                taxonomy.post_taxonomy(title, description, selected_sources)
+                taxonomy.post_taxonomy(
+                    typ['id'],
+                    title,
+                    description,
+                    post_sources,
+                )
 
     @st.dialog('✏️ Atualizar Taxonomia')
     def update_taxonomy(tax):
@@ -162,102 +174,148 @@ with tab2:
                 if st.form_submit_button('Criar Ramo'):
                     taxonomy.post_branch(branch)
 
-    st.subheader('🧵 Gestão de Tipificações')
+    @st.fragment
+    def taxonomy_form(typ):
+        st.subheader('📜 Gestão de Taxonomias')
+        title = st.text_input('📝 Título:')
+        description = st.text_area('📝 Descrição:')
+        selected_sources = st.multiselect(
+            '📌 Fontes:',
+            options=sources,
+            format_func=lambda x: x['name'],
+        )
+        if st.button(
+            '➕ Adicionar', use_container_width=True, key='add_taxonomy_button'
+        ):
+            selected_sources = [s['id'] for s in selected_sources]
+            taxonomy.post_taxonomy(
+                typ['id'], title, description, selected_sources
+            )
+
+    @st.fragment
+    def taxonomy_list(typ):
+        taxonomies = taxonomy.get_taxonomy(typ['id'])
+        if not taxonomies:
+            st.error('Nenhuma taxonomia encontrada.')
+        for tax in taxonomies:
+            st.title(f'{tax["title"]}')
+            with st.expander(f'🆔 {tax["id"][:8]}'):
+                taxonomy_details(tax)
+
+    @st.fragment
+    def taxonomy_details(tax):
+        title = st.text_input(
+            'Titulo:', value=tax['title'], key=f'title_{tax["id"]}'
+        )
+        description = st.text_area('Descrição:', value=tax['description'])
+        pre_selected_sources = [s for s in sources if s['id'] in tax['source']]
+        selected_sources = st.multiselect(
+            'Fontes',
+            options=sources,
+            key=f'source_{tax["id"]}',
+            format_func=lambda s: s['name'],
+            default=pre_selected_sources,
+        )
+        if st.button(
+            '✏️ Atualizar',
+            use_container_width=True,
+            key=f'update_taxonomy_button_{tax["id"]}',
+        ):
+            tax['title'] = title
+            tax['description'] = description
+            tax['source'] = [s['id'] for s in selected_sources]
+            taxonomy.put_taxonomy(tax)
+        st.subheader(f'Criado em: {tax["created_at"]}')
+        update_at = tax['updated_at'] if tax['updated_at'] else 'N/A'
+        st.subheader(f'Atualizado em: {update_at}')
+        st.divider()
+        branch_management(tax)
+
+    @st.fragment
+    def branch_management(tax):
+        st.subheader('🔍 Lista de ramos')
+        title = st.text_input('Nome do ramo:', key=f'title_input_{tax["id"]}')
+        description = st.text_area(
+            'Descrição do ramo:', key=f'description_input_{tax["id"]}'
+        )
+        if st.button('➕ Adicionar', key=f'add_branch_{tax["id"]}'):
+            taxonomy.post_branch(tax['id'], title, description)
+        branches = taxonomy.get_branches_by_taxonomy_id(tax['id'])
+        if not branches:
+            st.error('Nenhum ramo encontrado.')
+        else:
+            branches = pd.DataFrame(branches)
+            new_branches = st.data_editor(
+                branches,
+                use_container_width=True,
+                hide_index=True,
+                column_config={'taxonomy_id': None, 'id': None},
+                disabled=['created_at', 'updated_at'],
+            )
+            if st.button(
+                '✏️ Atualizar (Apague o nome do ramo para Excluir)',
+                key=f'update_branch_{tax["id"]}',
+            ):
+                for _, branch in new_branches.iterrows():
+                    if not branch['title']:
+                        taxonomy.delete_branch(branch['id'])
+                    else:
+                        taxonomy.put_branch(branch.to_dict())
+
+    @st.dialog('Visão detalhada', width='large')
+    def open_taxonomy(typ):
+        taxonomy_form(typ)
+        st.divider()
+        taxonomy_list(typ)
+
     typifications = taxonomy.get_typifications()
 
     container = st.container()
     a, b = container.columns([6, 1])
-    a.button('🔍 Tipificações', use_container_width=True)
-    if b.button('➕ Criar Tipificação', use_container_width=True):
+    a.subheader('🧵 Gestão de Tipificações')
+    st.divider()
+    if b.button(
+        '➕ Adicionar', use_container_width=True, key='add_typification'
+    ):
         create_tipyfication()
 
-    for typ in typifications:
+    for _, typ in enumerate(typifications):
         container = st.container()
         a, b, c = container.columns([5, 1, 1])
-        a.button(typ['name'], use_container_width=True, key=f'tax_{typ["id"]}')
+        a.subheader(f'{typ["name"]}')
         if b.button(
-            '✏️ Atualizar',
-            key=f'update_{typ["id"]}',
+            '🔍 Abrir',
+            key=f'open_{typ["id"]}',
             use_container_width=True,
         ):
-            update_tipyfication(typ)
+            open_taxonomy(typ)
         if c.button(
             '🗑️ Remover',
-            key=f'delete_{typ["id"]}',
+            key=f'delete_{typ["id"]}_externo',
             use_container_width=True,
         ):
             taxonomy.delete_typification(typ['id'])
-        with st.expander(f'📄 Detalhes da Tipificação - ID: {typ["id"]}'):
-            expander_source = [
-                s['name'] for s in sources if s['id'] in typ['source']
-            ]
-            st.write(f'**Fontes:** {expander_source}')
-
-    st.subheader('📂 Gestão de Taxonomias')
-    taxonomies = taxonomy.get_taxonomy()
-
-    container = st.container()
-    a, b = container.columns([6, 1])
-    a.button('🔍 Taxonomias', use_container_width=True)
-    if b.button('➕ Criar Taxonomia', use_container_width=True):
-        create_taxonomy()
-
-    st.subheader('📜 Lista de Taxonomias')
-    if not taxonomies:
-        st.error('Nenhuma taxonomia encontrada.')
-
-    for tax in taxonomies:
-        container = st.container()
-        a, b, c = container.columns([5, 1, 1])
-        a.button(
-            tax['title'], use_container_width=True, key=f'tax_{tax["id"]}'
-        )
-        if b.button(
-            '✏️ Atualizar',
-            key=f'update_{tax["id"]}',
-            use_container_width=True,
-        ):
-            update_taxonomy(tax)
-            st.toast('Taxonomia atualizada com sucesso!', icon='✏️')
-        if c.button(
-            '🗑️ Remover',
-            key=f'delete_{tax["id"]}',
-            use_container_width=True,
-        ):
-            taxonomy.delete_taxonomy(tax['id'])
-            st.toast('Taxonomia deletada com sucesso!', icon='🗑️')
-        with st.expander(f'📄 Detalhes da Taxonomia - ID: {tax["id"]}'):
-            st.write(f'**Descrição:** {tax["description"]}')
-            st.write(f'**Criado em:** {format_date(tax["created_at"])}')
-            update_at = (
-                format_date(tax['updated_at']) if tax['updated_at'] else 'N/A'
-            )
-            st.write(f'**Atualizado em:** {update_at}')
-            st.divider()
+        with st.expander('📝 Detalhes'):
             container = st.container()
-            a, b, c = container.columns([5, 1, 1])
-            a.button(
-                '🔍 Lista de ramos',
-                use_container_width=True,
-                key=f'list_branch_{tax["id"]}',
+            a, b = container.columns([4, 1])
+            a.subheader(f'🆔 {typ["id"][:8]}')
+
+            name = st.text_input('🧵 Nome:', value=typ['name'])
+
+            pre_selected_sources = [
+                s for s in sources if s['id'] in typ['source']
+            ]
+            selected_sources = st.multiselect(
+                '📌 Fontes:',
+                options=sources,
+                format_func=lambda x: x['name'],
+                default=pre_selected_sources,
             )
-            if b.button(
-                '✏️ Editar ramos',
-                use_container_width=True,
-                key=f'edit_branch_{tax["id"]}',
-            ):
-                edit_branch(tax['id'])
-            if c.button(
-                '➕ Adicionar Ramo',
-                use_container_width=True,
-                key=f'add_branch_{tax["id"]}',
-            ):
-                create_branch(tax['id'])
-            branches = taxonomy.get_branches_by_taxonomy_id(tax['id'])
-            st.dataframe(
-                branches,
-                use_container_width=True,
-            )
+            if st.button('✏️ Atualizar', use_container_width=True):
+                typ['name'] = name
+                typ['source'] = [s['id'] for s in selected_sources]
+                taxonomy.put_typification(typ)
+
 
 with tab3:
     st.subheader('📊 Gestão de Editais')

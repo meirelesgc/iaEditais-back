@@ -16,11 +16,6 @@ def post_branch(branch: CreateBranch):
     return TaxonomyService.post_branch(branch)
 
 
-@router.get('/taxonomy/branch/', response_model=list[Branch])
-def get_branch():
-    return TaxonomyService.get_branches()
-
-
 @router.get('/taxonomy/branch/{taxonomy_id}/', response_model=list[Branch])
 def get_branch_by_taxonomy(taxonomy_id: UUID):
     return TaxonomyService.get_branches(taxonomy_id)

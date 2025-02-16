@@ -11,8 +11,8 @@ def post_taxonomy(taxonomy: CreateTaxonomy) -> Taxonomy:
     return taxonomy
 
 
-def get_taxonomy() -> list[Taxonomy]:
-    taxonomies = TaxonomyRepository.get_taxonomy()
+def get_taxonomy(typification_id: UUID = None) -> list[Taxonomy]:
+    taxonomies = TaxonomyRepository.get_taxonomy(typification_id)
     return taxonomies
 
 

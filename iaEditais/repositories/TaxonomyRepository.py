@@ -14,13 +14,19 @@ def post_taxonomy(taxonomy: Taxonomy) -> None:
 
 
 def get_taxonomy(
+    typification_id: UUID = None,
     taxonomy_id: UUID = None,
     taxonomies: list[UUID] = None,
 ) -> list[Taxonomy]:
     one = False
     params = {}
-    filter_id = str()
 
+    filter_type = str()
+    if typification_id:
+        params['typification_id'] = typification_id
+        filter_type = 'AND typification_id = %(typification_id)s'
+
+    filter_id = str()
     if taxonomy_id:
         one = True
         params['taxonomy_id'] = taxonomy_id
@@ -35,6 +41,7 @@ def get_taxonomy(
         SELECT typification_id, id, title, description, source, created_at, updated_at 
         FROM taxonomies
         WHERE 1 = 1
+            {filter_type}
             {filter_id};
         """
 
@@ -73,7 +80,7 @@ def delete_taxonomy(taxonomy_id: UUID) -> None:
     conn().exec(SCRIPT_SQL, params)
 
 
-def get_branches(taxonomy_id: UUID) -> list[Branch]:
+def get_branches(taxonomy_id: UUID = None) -> list[Branch]:
     params = {}
     filter_id = str()
 
