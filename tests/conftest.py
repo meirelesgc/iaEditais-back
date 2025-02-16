@@ -1,6 +1,7 @@
 import pytest
-
+import os
 from uuid import uuid4
+from fpdf import FPDF
 from iaEditais.config import Settings
 from fastapi.testclient import TestClient
 from testcontainers.postgres import PostgresContainer
@@ -9,6 +10,7 @@ from iaEditais.repositories import conn
 from iaEditais.schemas.Typification import Typification
 from iaEditais.schemas.Taxonomy import Taxonomy
 from iaEditais.schemas.Branch import Branch
+from iaEditais.schemas.Order import Order
 
 
 @pytest.fixture
@@ -198,3 +200,52 @@ def create_branch(client, create_taxonomy, branch_data_factory):
 def branch(client, create_branch):
     response = create_branch()
     return Branch(**response.json())
+
+
+@pytest.fixture
+def release_pdf():
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(40, 10, 'Test Release')
+
+    path = f'/tmp/release/{uuid4()}.pdf'
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    pdf.output(path)
+    yield path
+    os.remove(path)
+
+
+@pytest.fixture
+def order_data_factory():
+    def _factory(name='Test Order', typifications=[]):
+        return {
+            'name': name,
+            'typifications': typifications or [],
+        }
+
+    return _factory
+
+
+@pytest.fixture
+def create_order(client, create_typification):
+    def _create(
+        name='Test Order',
+        typification_count=1,
+    ):
+        typifications = [
+            create_typification(f'Test Typification {uuid4()}')
+            .json()
+            .get('id')
+            for _ in range(typification_count)
+        ]
+        data = {'name': name, 'typification': typifications}
+        return client.post('/order/', json=data)
+
+    return _create
+
+
+@pytest.fixture
+def order(client, create_order):
+    response = create_order()
+    return Order(**response.json())
