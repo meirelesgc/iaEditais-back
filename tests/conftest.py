@@ -10,6 +10,7 @@ from iaEditais import app
 from iaEditais.repositories import conn
 from iaEditais.schemas.Typification import Typification
 from iaEditais.schemas.Taxonomy import Taxonomy
+from iaEditais.schemas.Branch import Branch
 
 
 @pytest.fixture
@@ -189,3 +190,44 @@ def create_taxonomy(
 def taxonomy(client, create_taxonomy):
     response = create_taxonomy()
     return Taxonomy(**response.json())
+
+
+@pytest.fixture
+def branch_data_factory():
+    def _factory(
+        taxonomy_id=None,
+        title='Test Branch',
+        description='Test Description',
+    ):
+        return {
+            'taxonomy_id': taxonomy_id or None,
+            'title': title,
+            'description': description,
+        }
+
+    return _factory
+
+
+@pytest.fixture
+def create_branch(client, create_taxonomy, branch_data_factory):
+    def _create(
+        taxonomy_id=None,
+        title='Test Branch',
+        description='Test Description',
+    ):
+        taxonomy_id = create_taxonomy().json()['id']
+        data = branch_data_factory(
+            taxonomy_id,
+            title,
+            description,
+        )
+        response = client.post('/taxonomy/branch/', json=data)
+        return response
+
+    return _create
+
+
+@pytest.fixture
+def branch(client, create_branch):
+    response = create_branch()
+    return Branch(**response.json())

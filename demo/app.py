@@ -316,7 +316,6 @@ with tab2:
                 typ['source'] = [s['id'] for s in selected_sources]
                 taxonomy.put_typification(typ)
 
-
 with tab3:
     st.subheader('📊 Gestão de Editais')
     orders = order.get_order()
