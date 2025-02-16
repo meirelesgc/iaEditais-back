@@ -1,8 +1,6 @@
 import pytest
 
-import os
 from uuid import uuid4
-from fpdf import FPDF
 from iaEditais.config import Settings
 from fastapi.testclient import TestClient
 from testcontainers.postgres import PostgresContainer
@@ -45,37 +43,6 @@ def setup_data():
 
     with open('init.sql', 'r') as buffer:
         conn().exec(buffer.read())
-
-
-@pytest.fixture
-def taxonomy_payload():
-    return {
-        'title': 'Test Taxonomy',
-        'description': 'This is a test taxonomy.',
-        'source': [],
-    }
-
-
-@pytest.fixture
-def branch_payload():
-    return {
-        'title': 'Test Branch',
-        'description': 'Test description',
-    }
-
-
-@pytest.fixture
-def release_pdf():
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font('Arial', 'B', 16)
-    pdf.cell(40, 10, 'Test Release')
-
-    path = f'/tmp/release/{uuid4()}.pdf'
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    pdf.output(path)
-    yield path
-    os.remove(path)
 
 
 @pytest.fixture

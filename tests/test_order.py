@@ -1,6 +1,38 @@
+import pytest
+import os
+from uuid import uuid4
+from http import HTTPStatus
+from fpdf import FPDF
 from iaEditais.schemas.Order import Order, DetailedOrder, Release
 
-from http import HTTPStatus
+
+@pytest.fixture
+def release_pdf():
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(40, 10, 'Test Release')
+
+    path = f'/tmp/release/{uuid4()}.pdf'
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    pdf.output(path)
+    yield path
+    os.remove(path)
+
+
+@pytest.fixture
+def create_order(client):
+    def _create(name='Test Order'):
+        response = client.post('/order/', json={'name': name})
+        assert response.status_code == HTTPStatus.CREATED
+        return response.json()
+
+    return _create
+
+
+@pytest.fixture
+def order(client, create_order):
+    return create_order()
 
 
 def test_create_order(client):
@@ -10,30 +42,23 @@ def test_create_order(client):
     assert isinstance(Order(**response.json()), Order)
 
 
-def test_get_order_with_one_order(client):
-    order = {'name': 'Test Order'}
-    client.post('/order/', json=order)
-
+def test_get_order_with_one_order(client, order):
     response = client.get('/order/')
     assert response.status_code == HTTPStatus.OK
     assert len(response.json()) == 1
 
 
-def test_get_order_with_multiple_records(client):
-    order = {'name': 'Test Order'}
-    for _ in range(2):
-        client.post('/order/', json=order)
+def test_get_order_with_multiple_orders(client, create_order):
+    create_order()
+    create_order()
 
     response = client.get('/order/')
     assert response.status_code == HTTPStatus.OK
     assert len(response.json()) == 2
 
 
-def test_delete_order(client):
-    order = {'name': 'Test Order'}
-    response = client.post('/order/', json=order)
-
-    response = client.delete(f'/order/{response.json()["id"]}')
+def test_delete_order(client, order):
+    response = client.delete(f'/order/{order["id"]}')
     assert response.status_code == HTTPStatus.NO_CONTENT
 
     response = client.get('/order/')
@@ -41,24 +66,14 @@ def test_delete_order(client):
     assert response.json() == []
 
 
-def test_get_detailed_order(client):
-    order = {'name': 'Test Order'}
-    response = client.post('/order/', json=order)
-
-    response = client.get(f'/order/{response.json()["id"]}/')
-
+def test_get_detailed_order(client, order):
+    response = client.get(f'/order/{order["id"]}/')
     assert response.status_code == HTTPStatus.OK
     assert isinstance(DetailedOrder(**response.json()), DetailedOrder)
 
 
-def test_create_release_no_taxonomies(client, release_pdf):
-    order = {'name': 'Test Order'}
-    response = client.post('/order/', json=order)
-    order_id = response.json().get('id')
-
-    order_id = str(order_id)
-
-    data = {'order_id': order_id}
+def test_create_release_no_taxonomies(client, order, release_pdf):
+    data = {'order_id': order['id']}
 
     with open(release_pdf, 'rb') as buffer:
         file = {'file': ('testfile1.pdf', buffer, 'application/pdf')}
@@ -68,18 +83,12 @@ def test_create_release_no_taxonomies(client, release_pdf):
     assert response.json() == {'detail': 'Invalid taxonomy structure.'}
 
 
-def test_create_release_with_invalide_taxonomies(
-    client, taxonomy_payload, release_pdf
+def test_create_release_with_invalid_taxonomies(
+    client, taxonomy, release_pdf, order
 ):
-    response = client.post('/taxonomy/', json=taxonomy_payload)
-    taxonomy_id = str(response.json().get('id'))
+    taxonomy_id = str(taxonomy.id)
 
-    order = {'name': 'Test Order'}
-    response = client.post('/order/', json=order)
-
-    order_id = str(response.json().get('id'))
-
-    data = {'order_id': order_id, 'taxonomies': [taxonomy_id]}
+    data = {'order_id': order['id'], 'taxonomies': [taxonomy_id]}
 
     with open(release_pdf, 'rb') as buffer:
         file = {'file': ('testfile1.pdf', buffer, 'application/pdf')}
@@ -89,21 +98,10 @@ def test_create_release_with_invalide_taxonomies(
     assert response.json() == {'detail': 'Invalid taxonomy structure.'}
 
 
-def test_create_release(
-    client, taxonomy_payload, branch_payload, release_pdf, mocker
-):
-    response = client.post('/taxonomy/', json=taxonomy_payload)
-    taxonomy_id = str(response.json().get('id'))
+def test_create_release(client, branch, release_pdf, mocker, order):
+    taxonomy_id = str(branch.taxonomy_id)
 
-    branch_payload['taxonomy_id'] = response.json()['id']
-    response = client.post('/taxonomy/branch/', json=branch_payload)
-
-    order = {'name': 'Test Order'}
-    response = client.post('/order/', json=order)
-
-    order_id = str(response.json().get('id'))
-
-    data = {'order_id': order_id, 'taxonomies': [taxonomy_id]}
+    data = {'order_id': order['id'], 'taxonomies': [taxonomy_id]}
 
     mocker.patch(
         'iaEditais.integrations.OrderIntegrations.analyze_release',
@@ -117,7 +115,6 @@ def test_create_release(
     assert response.status_code == HTTPStatus.CREATED
     assert isinstance(Release(**response.json()), Release)
 
-    response = client.get(f'/order/{order_id}/')
-
+    response = client.get(f'/order/{order["id"]}/')
     assert response.status_code == HTTPStatus.OK
     assert isinstance(DetailedOrder(**response.json()), DetailedOrder)
