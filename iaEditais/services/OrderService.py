@@ -3,13 +3,9 @@ from iaEditais.schemas.Order import (
     Order,
     Release,
 )
-from iaEditais.integrations import OrderIntegrations
-from http import HTTPStatus
 from fastapi import UploadFile
-from iaEditais.repositories import (
-    OrderRepository,
-    TaxonomyRepository,
-)
+from iaEditais.repositories import OrderRepository, TaxonomyRepository
+from iaEditais.integrations import OrderIntegrations
 from fastapi import HTTPException
 
 from uuid import UUID
@@ -36,47 +32,33 @@ def delete_order(order_id: UUID):
     return {'message': 'Order deleted successfully'}
 
 
-def build_taxonomy(taxonomies: list[UUID] = []):
-    taxonomies = TaxonomyRepository.get_taxonomy(taxonomies=taxonomies)
-    if not taxonomies:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail='Invalid taxonomy structure.',
+def build_taxonomy(order_id: UUID):
+    taxonomy = TaxonomyRepository.get_typification(order_id=order_id)
+    for typification in taxonomy:
+        typification_id = typification.get('id')
+        typification['taxonomy'] = TaxonomyRepository.get_taxonomy(
+            typification_id
         )
-
-    for _, taxonomy in enumerate(taxonomies):
-        branch = TaxonomyRepository.get_branches(taxonomy['id'])
-        if not branch:
-            raise HTTPException(
-                status_code=HTTPStatus.BAD_REQUEST,
-                detail='Invalid taxonomy structure.',
-            )
-        taxonomies[_]['branches'] = branch
-    return taxonomies
+        for item in typification['taxonomy']:
+            item_id = item.get('id')
+            item['branch'] = TaxonomyRepository.get_branches(item_id)
+    return taxonomy
 
 
 def post_release(
     order_id: UUID,
     file: UploadFile,
-    taxonomies: list[UUID] = [],
 ) -> Release:
-    taxonomies = [] if not taxonomies else taxonomies
-
-    release = Release(
-        order_id=order_id,
-        taxonomies=taxonomies,
-        taxonomy=build_taxonomy(taxonomies),
-    )
-
     if not file.filename.endswith('.pdf'):
         raise HTTPException(
             status_code=400, detail='Only .pdf files are allowed.'
         )
+    release = Release(order_id=order_id, taxonomy=build_taxonomy(order_id))
 
     with open(f'storage/releases/{release.id}.pdf', 'wb') as buffer:
         buffer.write(file.file.read())
 
-    release.taxonomy_score = OrderIntegrations.analyze_release(release)
+    release = OrderIntegrations.analyze_release(release)
 
     OrderRepository.post_release(release)
     return release

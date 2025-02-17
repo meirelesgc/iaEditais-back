@@ -137,8 +137,11 @@ def create_taxonomy(
         title='Test Taxonomy',
         description='Test Description',
         source_count=1,
+        typification_id=None,
     ):
-        typification_id = create_typification().json().get('id')
+        if not typification_id:
+            typification_id = create_typification().json().get('id')
+
         source_ids = [
             create_source(f'Test Source {uuid4()}').json().get('id')
             for _ in range(source_count)
@@ -149,8 +152,7 @@ def create_taxonomy(
             description,
             source_ids,
         )
-        response = client.post('/taxonomy/', json=data)
-        return response
+        return client.post('/taxonomy/', json=data)
 
     return _create
 
@@ -184,7 +186,8 @@ def create_branch(client, create_taxonomy, branch_data_factory):
         title='Test Branch',
         description='Test Description',
     ):
-        taxonomy_id = create_taxonomy().json()['id']
+        if not taxonomy_id:
+            taxonomy_id = create_taxonomy().json()['id']
         data = branch_data_factory(
             taxonomy_id,
             title,
@@ -203,15 +206,15 @@ def branch(client, create_branch):
 
 
 @pytest.fixture
-def release_pdf():
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font('Arial', 'B', 16)
-    pdf.cell(40, 10, 'Test Release')
+def pdf():
+    fpdf = FPDF()
+    fpdf.add_page()
+    fpdf.set_font('Arial', 'B', 16)
+    fpdf.cell(40, 10, 'Test Release')
 
     path = f'/tmp/release/{uuid4()}.pdf'
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    pdf.output(path)
+    fpdf.output(path)
     yield path
     os.remove(path)
 
@@ -246,6 +249,6 @@ def create_order(client, create_typification):
 
 
 @pytest.fixture
-def order(client, create_order):
+def order(client, create_order, branch):
     response = create_order()
     return Order(**response.json())

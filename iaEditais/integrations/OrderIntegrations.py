@@ -3,6 +3,7 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.prompts import PromptTemplate
 from iaEditais.integrations import get_model
+from iaEditais.repositories import SourceRepository
 
 
 def get_loader(path: str):
@@ -12,7 +13,7 @@ def get_loader(path: str):
 def analyze_release(release: Release) -> list:
     model = get_model()
 
-    taxonomy_score = []
+    score = []
     loader = get_loader(f'storage/releases/{release.id}.pdf')
     rag = '\n\n---\n\n'.join(page.page_content for page in loader)
 
@@ -44,6 +45,7 @@ def analyze_release(release: Release) -> list:
 
         {query}
         """
+
     query = 'Justifique sua resposta com base no conteúdo do edital.'
     parser = JsonOutputParser(pydantic_object=ReleaseFeedback)
     prompt = PromptTemplate(
@@ -64,20 +66,23 @@ def analyze_release(release: Release) -> list:
     )
     chain = prompt | model | parser
 
-    for taxonomy in release.taxonomy:
-        score = {'id': taxonomy.get('id'), 'branches': []}
-        for _, branch in enumerate(taxonomy.get('branches', [])):
-            params = {
-                'rag': rag,
-                'taxonomy_title': taxonomy.get('title'),
-                'taxonomy_description': taxonomy.get('description'),
-                'taxonomy_source': taxonomy.get('source'),
-                'taxonomy_branch_title': branch.get('title'),
-                'taxonomy_branch_description': branch.get('description'),
-                'query': query,
-            }
-            response = chain.invoke(params)
-            response['id'] = branch.get('id')
-            score['branches'].append(response)
-        taxonomy_score.append(score)
-    return taxonomy_score
+    for typification in release.taxonomy:
+        for item in typification.get('taxonomy', []):
+            source = [
+                s['name']
+                for s in SourceRepository.get_source()
+                if s['id']
+                in (item.get('source', []) + typification.get('source', []))
+            ]
+            for branch in item.get('branch', []):
+                input_variables = {
+                    'rag': rag,
+                    'taxonomy_title': item.get('title'),
+                    'taxonomy_description': item.get('description'),
+                    'taxonomy_source': source,
+                    'taxonomy_branch_title': branch.get('title'),
+                    'taxonomy_branch_description': branch.get('description'),
+                    'query': query,
+                }
+                branch['evaluate'] = chain.invoke(input_variables)
+    return release

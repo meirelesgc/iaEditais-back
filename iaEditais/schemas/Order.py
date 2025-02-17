@@ -19,9 +19,7 @@ class Order(CreateOrder):
 class Release(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     order_id: UUID
-    taxonomies: list[UUID]
     taxonomy: list
-    taxonomy_score: list = []
     created_at: datetime = Field(default_factory=datetime.now)
 
 

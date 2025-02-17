@@ -3,6 +3,75 @@ from uuid import UUID
 from iaEditais.schemas.Branch import Branch
 from iaEditais.repositories import conn
 
+from iaEditais.schemas.Typification import Typification
+
+
+def post_typification(typification: Typification):
+    params = typification.model_dump()
+    SCRIPT_SQL = """
+        INSERT INTO typifications (id, name, source, created_at) 
+        VALUES (%(id)s, %(name)s, %(source)s, %(created_at)s);
+        """
+    conn().exec(SCRIPT_SQL, params)
+
+
+def get_typification(
+    typification_id: UUID = None,
+    order_id: UUID = None,
+):
+    one = False
+    params = {}
+
+    filter_id = str()
+    if typification_id:
+        one = True
+        params = {'id': typification_id}
+        filter_id = 'AND id = %(id)s'
+
+    join_order = str()
+    filter_order = str()
+    if order_id:
+        params = {'order_id': order_id}
+        join_order = """
+            INNER JOIN orders o 
+                ON t.id = ANY(o.typification)
+            """
+        filter_order = 'AND o.id = %(order_id)s'
+
+    SCRIPT_SQL = f"""
+        SELECT t.id, t.name, t.source, t.created_at, t.updated_at 
+        FROM typifications t
+            {join_order}
+        WHERE 1 = 1
+            {filter_id}
+            {filter_order};
+        """
+    result = conn().select(SCRIPT_SQL, params, one)
+    return result
+
+
+def put_typification(typification: Typification):
+    params = typification.model_dump()
+
+    SCRIPT_SQL = """
+        UPDATE typifications 
+        SET name = %(name)s, 
+            created_at = %(created_at)s,
+            source = %(source)s,
+            updated_at = %(updated_at)s
+        WHERE id = %(id)s;
+        """
+    conn().exec(SCRIPT_SQL, params)
+
+
+def delete_typification(typification_id: UUID):
+    params = {'id': typification_id}
+    SCRIPT_SQL = """
+        DELETE FROM typifications 
+        WHERE id = %(id)s;
+        """
+    conn().exec(SCRIPT_SQL, params)
+
 
 def post_taxonomy(taxonomy: Taxonomy) -> None:
     params = taxonomy.model_dump()

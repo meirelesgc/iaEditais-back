@@ -1,72 +1,74 @@
-"habilitacao": {
-  "item": "Os documentos e requisitos necessários para a habilitação dos licitantes",
-  "fonte": "Artigos 62 a 70 da Lei nº 14.133/2021",
-  "subitens": [
-    {
-      "descricao": "Declarações e Exigências",
-      "detalhe": "O licitante deve apresentar uma declaração de que atende aos requisitos de habilitação."
-    },
-    {
-      "descricao": "Licença de Funcionamento",
-      "detalhe": "Licença de Funcionamento Estadual ou Municipal, emitida pelo Serviço de Vigilância Sanitária."
-    },
-    {
-      "descricao": "Comprovação de Regularidade",
-      "detalhe": "Foi definida a comprovação de regularidade das obrigações fiscais e trabalhistas."
-    }
-  ]
-},
-"criterios_julgamento": {
-  "item": "Critérios de julgamento das propostas, definindo claramente como o menor preço por item, o que está em linha com as práticas de licitação pública.",
-  "fonte": "Lei nº 14.133/2021, especificamente no artigo 45",
-  "subitens": [
-    {
-      "descricao": "Critérios de Julgamento",
-      "detalhe": "Foram definidos critérios de julgamento que orientam a análise das propostas apresentadas."
-    },
-    {
-      "descricao": "Validade da Proposta",
-      "detalhe": "Foi definido que a validade da proposta deve ser mantida durante o período estipulado no edital."
-    },
-    {
-      "descricao": "Condições de Preços",
-      "detalhe": "Foram definidas as condições de preços que devem ser atendidas para a aceitação das propostas."
-    }
-  ]
-},
-"responsabilidades_licitantes": {
-  "item": "As responsabilidades dos licitantes",
-  "fonte": "Lei nº 14.133/2021, especificamente nos artigos 56 e 57",
-  "subitens": [
-    {
-      "descricao": "Responsabilidade pela Proposta",
-      "detalhe": "Foi definida a responsabilidade pela proposta apresentada pelo licitante."
-    },
-    {
-      "descricao": "Cumprimento das Disposições",
-      "detalhe": "O licitante deve cumprir todas as disposições estabelecidas no edital e na legislação aplicável."
-    },
-    {
-      "descricao": "Declarações de Conformidade",
-      "detalhe": "Foi definida a necessidade de declarações que comprovem a conformidade do licitante com os requisitos legais."
-    },
-    {
-      "descricao": "Veracidade das Informações",
-      "detalhe": "Foi definida a veracidade das informações apresentadas pelo licitante em sua proposta."
-    }
-  ]
-},
-"garantias_penalidades": {
-  "item": "Garantias e Penalidades para os Licitantes",
-  "fonte": "Lei nº 14.133/2021, especificamente nos artigos 56 e 57",
-  "subitens": [
-    {
-      "descricao": "Garantias",
-      "detalhe": "Foi especificado que devem ser apresentadas garantias adequadas para a execução do contrato."
-    },
-    {
-      "descricao": "Penalidades",
-      "detalhe": "Foi especificado as penalidades e consequências do descumprimento das obrigações estabelecidas."
-    }
-  ]
+{
+  "habilitacao": {
+    "item": "Os documentos e requisitos necessários para a habilitação dos licitantes",
+    "fonte": "Artigos 62 a 70 da Lei nº 14.133/2021",
+    "subitens": [
+      {
+        "descricao": "Declarações e Exigências",
+        "detalhe": "O licitante deve apresentar uma declaração de que atende aos requisitos de habilitação."
+      },
+      {
+        "descricao": "Licença de Funcionamento",
+        "detalhe": "Licença de Funcionamento Estadual ou Municipal, emitida pelo Serviço de Vigilância Sanitária."
+      },
+      {
+        "descricao": "Comprovação de Regularidade",
+        "detalhe": "Foi definida a comprovação de regularidade das obrigações fiscais e trabalhistas."
+      }
+    ]
+  },
+  "criterios_julgamento": {
+    "item": "Critérios de julgamento das propostas, definindo claramente como o menor preço por item, o que está em linha com as práticas de licitação pública.",
+    "fonte": "Lei nº 14.133/2021, especificamente no artigo 45",
+    "subitens": [
+      {
+        "descricao": "Critérios de Julgamento",
+        "detalhe": "Foram definidos critérios de julgamento que orientam a análise das propostas apresentadas."
+      },
+      {
+        "descricao": "Validade da Proposta",
+        "detalhe": "Foi definido que a validade da proposta deve ser mantida durante o período estipulado no edital."
+      },
+      {
+        "descricao": "Condições de Preços",
+        "detalhe": "Foram definidas as condições de preços que devem ser atendidas para a aceitação das propostas."
+      }
+    ]
+  },
+  "responsabilidades_licitantes": {
+    "item": "As responsabilidades dos licitantes",
+    "fonte": "Lei nº 14.133/2021, especificamente nos artigos 56 e 57",
+    "subitens": [
+      {
+        "descricao": "Responsabilidade pela Proposta",
+        "detalhe": "Foi definida a responsabilidade pela proposta apresentada pelo licitante."
+      },
+      {
+        "descricao": "Cumprimento das Disposições",
+        "detalhe": "O licitante deve cumprir todas as disposições estabelecidas no edital e na legislação aplicável."
+      },
+      {
+        "descricao": "Declarações de Conformidade",
+        "detalhe": "Foi definida a necessidade de declarações que comprovem a conformidade do licitante com os requisitos legais."
+      },
+      {
+        "descricao": "Veracidade das Informações",
+        "detalhe": "Foi definida a veracidade das informações apresentadas pelo licitante em sua proposta."
+      }
+    ]
+  },
+  "garantias_penalidades": {
+    "item": "Garantias e Penalidades para os Licitantes",
+    "fonte": "Lei nº 14.133/2021, especificamente nos artigos 56 e 57",
+    "subitens": [
+      {
+        "descricao": "Garantias",
+        "detalhe": "Foi especificado que devem ser apresentadas garantias adequadas para a execução do contrato."
+      },
+      {
+        "descricao": "Penalidades",
+        "detalhe": "Foi especificado as penalidades e consequências do descumprimento das obrigações estabelecidas."
+      }
+    ]
+  }
 }
