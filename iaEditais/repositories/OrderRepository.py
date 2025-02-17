@@ -1,4 +1,6 @@
 from iaEditais.schemas.Order import Order, Release
+import json
+from psycopg.types.json import Jsonb
 from uuid import UUID
 from iaEditais.repositories import conn
 
@@ -49,7 +51,7 @@ def get_releases(
         filter_id = 'AND id = %(release_id)s'
 
     SCRIPT_SQL = f"""
-        SELECT id, order_id, taxonomies, taxonomy, taxonomy_score, created_at
+        SELECT id, order_id, taxonomy, created_at
         FROM releases
         WHERE 1 = 1
             {filter_id}
@@ -70,9 +72,12 @@ def delete_order(order_id: UUID):
 def post_release(release: Release):
     params = release.model_dump()
 
+    params['taxonomy'] = json.dumps(release.taxonomy, default=str)
+    params['taxonomy'] = Jsonb(json.loads(params['taxonomy']))
+
     SCRIPT_SQL = """
-        INSERT INTO releases (id, order_id, created_at)
-        VALUES (%(id)s, %(order_id)s, %(created_at)s);
+        INSERT INTO releases (id, order_id, taxonomy, created_at)
+        VALUES (%(id)s, %(order_id)s, %(taxonomy)s, %(created_at)s);
         """
 
     conn().exec(SCRIPT_SQL, params)

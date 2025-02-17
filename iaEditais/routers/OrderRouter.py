@@ -2,7 +2,7 @@ from fastapi import APIRouter, UploadFile, File
 from iaEditais.services import OrderService
 from http import HTTPStatus
 from uuid import UUID
-from iaEditais.schemas.Order import CreateOrder, Order
+from iaEditais.schemas.Order import CreateOrder, Order, Release
 
 
 router = APIRouter()
@@ -23,6 +23,19 @@ def delete_order(order_id: UUID):
     return OrderService.delete_order(order_id)
 
 
-@router.post('/order/{order_id}/release/', status_code=HTTPStatus.CREATED)
+@router.get(
+    '/order/{order_id}/release/',
+    status_code=HTTPStatus.OK,
+    response_model=list[Release],
+)
+def get_releases(order_id: UUID):
+    return OrderService.get_releases(order_id)
+
+
+@router.post(
+    '/order/{order_id}/release/',
+    status_code=HTTPStatus.CREATED,
+    response_model=Release,
+)
 def post_release(order_id: UUID, file: UploadFile = File(...)):
     return OrderService.post_release(order_id, file)

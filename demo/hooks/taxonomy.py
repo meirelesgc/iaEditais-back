@@ -7,9 +7,6 @@ def get_taxonomy(typification_id):
     return response.json()
 
 
-def get_detailed_taxonomy(taxonomy_id): ...
-
-
 def post_typification(name, sources):
     data = {
         'name': name,
@@ -27,31 +24,37 @@ def post_taxonomy(typification_id, title, description, selected_sources):
         'source': selected_sources,
     }
     httpx.post('http://localhost:8000/taxonomy/', json=data)
+    st.rerun()
 
 
 def delete_taxonomy(taxonomy_id):
     httpx.delete(f'http://localhost:8000/taxonomy/{taxonomy_id}/')
+    st.rerun()
 
 
 def delete_branch(branch_id):
     httpx.delete(f'http://localhost:8000/taxonomy/branch/{branch_id}/')
+    st.rerun()
 
 
 def delete_typification(typification_id):
     httpx.delete(f'http://localhost:8000/typification/{typification_id}/')
+    st.rerun()
 
 
 def put_taxonomy(taxonomy):
     httpx.put('http://localhost:8000/taxonomy/', json=taxonomy)
+    st.rerun()
 
 
 def put_typification(typ):
     httpx.put('http://localhost:8000/typification/', json=typ)
+    st.rerun()
 
 
 def put_branch(branch):
-    print(branch)
     httpx.put('http://localhost:8000/taxonomy/branch/', json=branch)
+    st.rerun()
 
 
 def get_branches_by_taxonomy_id(taxonomy_id) -> dict:
@@ -67,6 +70,7 @@ def post_branch(taxonomy_id, title, description):
         'taxonomy_id': taxonomy_id,
     }
     httpx.post('http://localhost:8000/taxonomy/branch/', json=data)
+    st.rerun()
 
 
 def get_typifications():

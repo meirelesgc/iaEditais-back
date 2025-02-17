@@ -24,10 +24,15 @@ def get_detailed_order(order_id):
     return response.json()
 
 
+def get_release(order_id):
+    print(f'http://localhost:8000/order/{order_id}/release/')
+    response = httpx.get(f'http://localhost:8000/order/{order_id}/release/')
+    return response.json()
+
+
 def post_release(uploaded_file, order_id):
-    data = {'order_id': order_id}
     files = {'file': (uploaded_file.name, uploaded_file, 'application/pdf')}
-    httpx.post('http://localhost:8000/order/release/', files=files, data=data, timeout=2000)  # fmt: skip
+    httpx.post(f'http://localhost:8000/order/{order_id}/release/', files=files, timeout=2000)  # fmt: skip
     st.rerun()
 
 

@@ -343,40 +343,20 @@ with tab3:
         if st.button('Enviar arquivo') and uploaded_file:
             order.post_release(uploaded_file, ord['id'])
 
-    @st.dialog('Visualizar Versões', width='large')
-    def show_release(release):
+    def view_release(release):
         st.header(f'Release ID: {release["id"]}')
         for taxonomy in release['taxonomy']:
-            st.subheader(f'Taxonomia: {taxonomy["title"]}')
-            st.write(taxonomy['description'])
-
-            for branch in taxonomy['branches']:
-                st.markdown(f'### {branch["title"]}')
-                st.write(branch['description'])
-
-                taxonomy_score = next(
-                    (
-                        t
-                        for t in release['taxonomy_score']
-                        if t['id'] == taxonomy['id']
-                    ),
-                    None,
-                )
-                if taxonomy_score:
-                    branch_score = next(
-                        (
-                            b
-                            for b in taxonomy_score['branches']
-                            if b['id'] == branch['id']
-                        ),
-                        None,
-                    )
-                    if branch_score:
-                        st.write(f'**Feedback:** {branch_score["feedback"]}')
-                        st.write(
-                            f'**Cumprido:** {"✅ Sim" if branch_score["fulfilled"] else "❌ Não"}'
-                        )
-                        st.markdown('---')
+            st.subheader(f'Taxonomia: {taxonomy["name"]}')
+            for subitem in taxonomy['taxonomy']:
+                st.write(f'### {subitem["title"]}')
+                st.write(subitem['description'])
+                for branch in subitem['branch']:
+                    fulfilled = branch['evaluate']['fulfilled']
+                    emote = '✅' if fulfilled else '❌'
+                    st.write(f'**Descrição:** {branch["description"]}')
+                    st.write(f'**Critério cumprido:** {emote}')
+                    st.write(f'**Feedback:** {branch["evaluate"]["feedback"]}')
+                    st.markdown('---')
 
     container = st.container()
     a, b = container.columns([6, 1])
@@ -390,41 +370,21 @@ with tab3:
 
     for ord in orders:
         container = st.container()
-        a, b = container.columns([6, 1])
-        a.button(ord['name'], use_container_width=True)
-        if b.button('🗑️ Remover Edital', use_container_width=True):
+        a, b, c = container.columns([5, 1, 1])
+        a.subheader(ord['name'])
+        if b.button(
+            '➕ Adicionar versão',
+            key=ord['id'],
+            use_container_width=True,
+        ):
+            create_release(ord)
+        if c.button(
+            '🗑️ Remover Edital',
+            use_container_width=True,
+            key=f'delete_{ord["id"]}',
+        ):
             order.delete_order(ord['id'])
-
-        with st.expander(f'📄 Detalhes do Edital - ID: {ord["id"]}'):
-            st.write(f'**Criado em:** {format_date(ord["created_at"])}')
-            update_at = (
-                format_date(ord['updated_at']) if ord['updated_at'] else 'N/A'
-            )
-            st.write(f'**Atualizado em:** {update_at}')
-            st.divider()
-
-            if st.button(
-                '➕ Adicionar Versão',
-                key=f'add_version_{ord["id"]}',
-                use_container_width=True,
-            ):
-                create_release(ord)
-            ord = order.get_detailed_order(ord['id'])
-            ord['releases'] = sorted(
-                ord['releases'],
-                key=lambda x: x['created_at'],
-            )
-            for release in ord['releases']:
-                container = st.container()
-                a, b = container.columns([6, 1])
-
-                if a.button(
-                    f'📄 Detalhes da análise - ID: {release["id"]}',
-                    key=f'show_versions_{release["id"]}',
-                    use_container_width=True,
-                ):
-                    show_release(release)
-                b.button(
-                    format_date(release['created_at']),
-                    use_container_width=True,
-                )
+        releases = order.get_release(ord['id'])
+        for rel in releases:
+            with st.expander('📝 Detalhes'):
+                view_release(rel)
