@@ -1,4 +1,5 @@
 import httpx
+import streamlit as st
 
 
 def get_taxonomy(typification_id):
@@ -15,6 +16,7 @@ def post_typification(name, sources):
         'source': [s.get('id') for s in sources],
     }
     httpx.post('http://localhost:8000/typification/', json=data)
+    st.rerun()
 
 
 def post_taxonomy(typification_id, title, description, selected_sources):

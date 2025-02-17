@@ -32,7 +32,7 @@ with tab1:
     @st.dialog('➕ Adicionar Fonte')
     def create_source():
         name = st.text_input('Nome da fonte')
-        description = st.text_input('Descrição da fonte')
+        description = st.text_area('Descrição da fonte')
         uploaded_file = st.file_uploader('Escolha um arquivo PDF', type='pdf')
 
         if st.button('Enviar'):
@@ -311,7 +311,11 @@ with tab2:
                 format_func=lambda x: x['name'],
                 default=pre_selected_sources,
             )
-            if st.button('✏️ Atualizar', use_container_width=True):
+            if st.button(
+                '✏️ Atualizar',
+                use_container_width=True,
+                key=f'update_{typ["id"]}_externo',
+            ):
                 typ['name'] = name
                 typ['source'] = [s['id'] for s in selected_sources]
                 taxonomy.put_typification(typ)
@@ -324,7 +328,11 @@ with tab3:
     def create_order():
         with st.form(key='create_order_form'):
             name = st.text_input('Nome do edital')
-            type = st.text_input('Tipo do edital')
+            type = st.multiselect(
+                'Tipo do edital',
+                options=typifications,
+                format_func=lambda t: t['name'],
+            )
             if st.form_submit_button('Adicionar Edital'):
                 order.post_order(name, type)
                 st.success('Edital criado com sucesso!')
@@ -332,13 +340,8 @@ with tab3:
     @st.dialog('Adicionar Versão')
     def create_release(ord):
         uploaded_file = st.file_uploader('Escolha um arquivo PDF', type='pdf')
-        taxonomies = st.multiselect(
-            'Escolha uma ou mais taxonomias',
-            options=taxonomy.get_taxonomy(),
-            format_func=lambda x: x['title'],
-        )
         if st.button('Enviar arquivo') and uploaded_file:
-            order.post_release(uploaded_file, ord['id'], taxonomies)
+            order.post_release(uploaded_file, ord['id'])
 
     @st.dialog('Visualizar Versões', width='large')
     def show_release(release):

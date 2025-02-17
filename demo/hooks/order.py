@@ -2,8 +2,9 @@ import httpx
 import streamlit as st
 
 
-def post_order(name, type):
-    data = {'name': name}
+def post_order(name, typification):
+    typification = [t['id'] for t in typification]
+    data = {'name': name, 'typification': typification}
     httpx.post('http://localhost:8000/order/', json=data)
     st.rerun()
 
@@ -23,9 +24,8 @@ def get_detailed_order(order_id):
     return response.json()
 
 
-def post_release(uploaded_file, order_id, taxonomies):
-    taxonomies = [tax['id'] for tax in taxonomies]
-    data = {'order_id': order_id, 'taxonomies': taxonomies}
+def post_release(uploaded_file, order_id):
+    data = {'order_id': order_id}
     files = {'file': (uploaded_file.name, uploaded_file, 'application/pdf')}
     httpx.post('http://localhost:8000/order/release/', files=files, data=data, timeout=2000)  # fmt: skip
     st.rerun()

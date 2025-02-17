@@ -6,7 +6,7 @@ from typing import Optional
 
 class CreateOrder(BaseModel):
     name: str
-    typification: list[UUID]
+    typification: list[UUID] = []
 
 
 class Order(CreateOrder):
