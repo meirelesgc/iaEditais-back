@@ -58,7 +58,6 @@ def main():
 
     if not orders:
         st.error("Nenhum edital encontrado.")
-
     for index, o in enumerate(orders):
         container = st.container()
         a, b, c = container.columns([5, 1, 1])
@@ -77,10 +76,14 @@ def main():
         ):
             order.delete_order(o["id"])
 
-        release_list = order.get_release(o["id"])
-        for index, r in enumerate(release_list):
-            st.header(f'{index + 1} - {r["id"][:8]} - {format_date(r["created_at"])}')
+        release_list = sorted(
+            order.get_release(o["id"]),
+            key=lambda r: r["created_at"],
+            reverse=True,
+        )
 
+        for index, r in enumerate(release_list):
+            st.header(f'{index + 1} - {format_date(r["created_at"])}')
             with st.expander("Detalhes"):
                 show_release(r)
                 if st.button("🗑️ Excluir", key=f'delete_{o["id"]}_{r["id"]}'):

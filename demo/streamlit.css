@@ -1,0 +1,5 @@
+html,
+body,
+[class*="st-"] {
+    font-size: 102% !important;
+}

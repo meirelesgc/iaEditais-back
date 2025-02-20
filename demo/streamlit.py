@@ -10,6 +10,8 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+with open("demo/streamlit.css", "r") as buffer:
+    st.html(f"<style>{buffer.read()}</style>")
 
 pages = {
     "Base de conhecimento": [

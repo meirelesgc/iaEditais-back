@@ -63,7 +63,8 @@ def main():
     if st.button("➕ Adicionar", use_container_width=True):
         create_taxonomy(t)
 
-    taxonomy_list = taxonomy.get_taxonomy(t["id"])
+    taxonomy_list = taxonomy.get_taxonomy(t["id"]) if t else []
+
     if not taxonomy_list:
         st.error("Nenhuma Taxonomia Encontrada.")
 

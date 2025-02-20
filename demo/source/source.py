@@ -22,7 +22,11 @@ def main():
             if name and description:
                 source.post_source(name, description, file)
 
-    source_list = source.get_source()
+    source_list = sorted(
+        source.get_source(),
+        key=lambda s: s["created_at"],
+        reverse=True,
+    )
 
     container = st.container()
     st.title("📌 Gestão de Fontes")
