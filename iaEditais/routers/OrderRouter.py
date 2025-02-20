@@ -8,23 +8,23 @@ from iaEditais.schemas.Order import CreateOrder, Order, Release
 router = APIRouter()
 
 
-@router.post('/order/', status_code=HTTPStatus.CREATED)
+@router.post("/order/", status_code=HTTPStatus.CREATED)
 def post_order(order: CreateOrder):
     return OrderService.post_order(order)
 
 
-@router.get('/order/', status_code=HTTPStatus.OK, response_model=list[Order])
+@router.get("/order/", status_code=HTTPStatus.OK, response_model=list[Order])
 def get_orders():
     return OrderService.get_orders()
 
 
-@router.delete('/order/{order_id}/', status_code=HTTPStatus.NO_CONTENT)
+@router.delete("/order/{order_id}/", status_code=HTTPStatus.NO_CONTENT)
 def delete_order(order_id: UUID):
     return OrderService.delete_order(order_id)
 
 
 @router.get(
-    '/order/{order_id}/release/',
+    "/order/{order_id}/release/",
     status_code=HTTPStatus.OK,
     response_model=list[Release],
 )
@@ -33,9 +33,17 @@ def get_releases(order_id: UUID):
 
 
 @router.post(
-    '/order/{order_id}/release/',
+    "/order/{order_id}/release/",
     status_code=HTTPStatus.CREATED,
     response_model=Release,
 )
 def post_release(order_id: UUID, file: UploadFile = File(...)):
     return OrderService.post_release(order_id, file)
+
+
+@router.delete(
+    "/order/release/{release_id}/",
+    status_code=HTTPStatus.NO_CONTENT,
+)
+def delete_release(release_id: UUID):
+    return OrderService.delete_release(release_id)

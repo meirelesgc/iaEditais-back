@@ -50,7 +50,8 @@ def main():
         format_func=lambda x: x["name"],
         label_visibility="collapsed",
     )
-    taxonomy_list = taxonomy.get_taxonomy(t["id"])
+    taxonomy_list = taxonomy.get_taxonomy(t["id"]) if t else []
+
     st.subheader("🪢 Taxonomia:")
     tx = st.selectbox(
         "🪢 Taxonomia:",
@@ -58,10 +59,10 @@ def main():
         format_func=lambda x: x["title"],
         label_visibility="collapsed",
     )
-    if st.button("➕ Adicionar", use_container_width=True):
+    if st.button("➕ Adicionar", use_container_width=True, disabled=not bool(tx)):
         add_branch(tx)
 
-    branch_list = taxonomy.get_branches(tx["id"])
+    branch_list = taxonomy.get_branches(tx["id"]) if tx else []
 
     if not branch_list:
         st.error("Nenhum ramo encontrado.")

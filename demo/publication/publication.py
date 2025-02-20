@@ -65,13 +65,13 @@ def main():
         a.subheader(o["name"])
 
         if b.button(
-            "➕ Adicionar versão",
+            "➕ Adicionar",
             key=o["id"],
             use_container_width=True,
         ):
             create_release(o)
         if c.button(
-            "🗑️ Remover Edital",
+            "🗑️ Excluir",
             use_container_width=True,
             key=f'delete_{o["id"]}',
         ):
@@ -80,5 +80,8 @@ def main():
         release_list = order.get_release(o["id"])
         for index, r in enumerate(release_list):
             st.header(f'{index + 1} - {r["id"][:8]} - {format_date(r["created_at"])}')
+
             with st.expander("Detalhes"):
                 show_release(r)
+                if st.button("🗑️ Excluir", key=f'delete_{o["id"]}_{r["id"]}'):
+                    order.delete_release(r["id"])
