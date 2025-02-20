@@ -1,5 +1,4 @@
 import httpx
-import streamlit as st
 
 
 def get_source():
@@ -17,7 +16,7 @@ def post_source(name, description, uploaded_file):
     headers = {'accept': 'application/json'}
     if not uploaded_file:
         httpx.post('http://127.0.0.1:8000/source/', headers=headers, data=data)
-        st.rerun()
+        ()
         return
 
     files = {'file': (uploaded_file.name, uploaded_file, 'application/pdf')}
@@ -27,9 +26,9 @@ def post_source(name, description, uploaded_file):
         files=files,
         data=data,
     )
-    st.rerun()
+    ()
 
 
 def delete_source(source_id):
     httpx.delete(f'http://localhost:8000/source/{source_id}/')
-    st.rerun()
+    ()
