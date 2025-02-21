@@ -16,7 +16,6 @@ def test_create_branch(client, create_branch):
 
 def test_get_branch_with_one_record(client, branch):
     response = client.get(f'/taxonomy/branch/{branch.taxonomy_id}/')
-
     assert response.status_code == HTTPStatus.OK
     assert len(response.json()) == 1
 

@@ -10,10 +10,9 @@ def get_loader(path: str):
     return PyPDFLoader(path).load()
 
 
-def analyze_release(release: Release) -> list:
+def analyze_release(release: Release) -> Release:
     model = get_model()
 
-    score = []
     loader = get_loader(f'storage/releases/{release.id}.pdf')
     rag = '\n\n---\n\n'.join(page.page_content for page in loader)
 
