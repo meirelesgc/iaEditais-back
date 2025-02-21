@@ -13,8 +13,13 @@ def main():
             return dt.strftime("%d/%m/%Y %H:%M:%S")
         return None
 
-    @st.dialog("Adicionar Taxonomia")
+    @st.dialog("Adicionar Taxonomia", width="large")
     def create_taxonomy(t):
+        st.button(
+            f"🧵 Tipificação **{t['name']}**",
+            disabled=True,
+            use_container_width=True,
+        )
         title = st.text_input("📝 Título:")
         description = st.text_area("📝 Descrição:")
         selected_sources = st.multiselect(
@@ -28,8 +33,13 @@ def main():
             selected_sources = [s["id"] for s in selected_sources]
             taxonomy.post_taxonomy(t["id"], title, description, selected_sources)
 
-    @st.dialog("Atualizar Taxonomia")
-    def update_taxonomy(tx):
+    @st.dialog("Atualizar Taxonomia", width="large")
+    def update_taxonomy(tx, t):
+        st.button(
+            f"🧵 Tipificação **{t['name']}**",
+            disabled=True,
+            use_container_width=True,
+        )
         title = st.text_input("Titulo:", value=tx["title"], key=f'title_{tx["id"]}')
         description = st.text_area("Descrição:", value=tx["description"])
         selected_sources = st.multiselect(
@@ -78,7 +88,7 @@ def main():
             key=f'update_{tx["id"]}',
             use_container_width=True,
         ):
-            update_taxonomy(tx)
+            update_taxonomy(tx, t)
         if c.button(
             "🗑️ Excluir",
             key=f'delete_{tx["id"]}',

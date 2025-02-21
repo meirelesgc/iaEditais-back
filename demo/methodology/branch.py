@@ -13,8 +13,18 @@ def main():
             return dt.strftime("%d/%m/%Y %H:%M:%S")
         return None
 
-    @st.dialog("Adicionar Ramo")
-    def add_branch(tx):
+    @st.dialog("Adicionar Ramo", width="large")
+    def add_branch(tx, t):
+        st.button(
+            f"🧵 Tipificação **{t['name']}**",
+            disabled=True,
+            use_container_width=True,
+        )
+        st.button(
+            f"🪢 Taxonomia **{tx['title']}**",
+            disabled=True,
+            use_container_width=True,
+        )
         title = st.text_input("Nome do ramo:", key=f'title_input_{tx["id"]}')
         description = st.text_area(
             "Descrição do ramo:",
@@ -23,8 +33,18 @@ def main():
         if st.button("➕ Adicionar", key=f'add_branch_{tx["id"]}'):
             taxonomy.post_branch(tx["id"], title, description)
 
-    @st.dialog("Atualizar Ramo")
-    def update_branch(br):
+    @st.dialog("Atualizar Ramo", width="large")
+    def update_branch(br, tx, t):
+        st.button(
+            f"🧵 Tipificação **{t['name']}**",
+            disabled=True,
+            use_container_width=True,
+        )
+        st.button(
+            f"🪢 Taxonomia **{tx['title']}**",
+            disabled=True,
+            use_container_width=True,
+        )
         title = st.text_input(
             "Nome do ramo:",
             key=f'title_input_{br["id"]}',
@@ -60,7 +80,7 @@ def main():
         label_visibility="collapsed",
     )
     if st.button("➕ Adicionar", use_container_width=True, disabled=not bool(tx)):
-        add_branch(tx)
+        add_branch(tx, t)
 
     branch_list = taxonomy.get_branches(tx["id"]) if tx else []
 
@@ -77,7 +97,7 @@ def main():
             key=f'update_{br["id"]}',
             use_container_width=True,
         ):
-            update_branch(br)
+            update_branch(br, tx, t)
         if c.button(
             "🗑️ Excluir",
             key=f'delete_{br["id"]}_externo',

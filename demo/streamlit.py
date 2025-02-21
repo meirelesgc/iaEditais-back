@@ -22,7 +22,7 @@ pages = {
         st.Page(taxonomy.main, title="Taxonomia", url_path="taxonomy"),
         st.Page(branch.main, title="Ramos", url_path="branch"),
     ],
-    "Analise": [st.Page(publication.main, title="Publicações", url_path="publication")],
+    "Análise": [st.Page(publication.main, title="Editais", url_path="order")],
 }
 
 st.navigation(pages).run()
