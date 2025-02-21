@@ -16,7 +16,7 @@ A documentação está organizada da seguinte forma:
 
 1. **[Introdução](index.md)**: Visão geral da API e seus objetivos  
 2. **[Recursos](resources/index.md)**: Principais funcionalidades e conceitos envolvidos no processo de validação de documentos  
-3. **[Desenvolvimento](dev/index.md)**: Informações técnicas para integração e uso da API  
+3. **[Desenvolvimento](dev/index.md)**: Informações técnicas para integração e uso da API
 
 ---  
 

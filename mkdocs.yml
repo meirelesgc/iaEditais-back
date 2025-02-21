@@ -3,13 +3,13 @@ repo_url: https://github.com/meirelesgc/fiotec-iaEditais.git
 repo_name: meirelesgc/fiotec-iaEditais
 
 nav:
-  - 'IaEditais': index.md
-  - 'Recursos': 
+  - 'Introdução': index.md
+  - 'Demonstração': 
     - 'Introdução': resources/index.md
     - 'Taxonomia': resources/taxonomy.md
-    - 'Ordens': resources/order.md
+    - 'Analise': resources/analysis.md
   - 'Desenvolvimento': dev/index.md
-  
+
 theme:
   name: material
   palette:
