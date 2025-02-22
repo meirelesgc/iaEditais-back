@@ -6,7 +6,7 @@ nav:
   - 'Introdução': index.md
   - 'Demonstração': 
     - 'Introdução': resources/index.md
-    - 'Taxonomia': resources/taxonomy.md
+    - 'Árvore de verificação': resources/tree.md
     - 'Analise': resources/analysis.md
   - 'Desenvolvimento': dev/index.md
 
