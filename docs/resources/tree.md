@@ -44,3 +44,37 @@ graph TD
     A2[Registro de Processo Administrativo em Sistema Informatizado] -->|Verifica| B2[O procedimento foi registrado corretamente?]
     A3[Exclusividade de Itens Inferiores a R$80.000,00 para ME/EPPs] -->|Checa| B3[Os itens foram destinados corretamente ou há justificativa válida?]
 ```
+
+## Exemplo Completo 🌳
+
+Abaixo, segue um exemplo consolidado da árvore de verificação em sua totalidade, representando o fluxo desde a tipificação até as ramificações finais:
+
+```mermaid
+graph TD
+    subgraph Tipificação
+        A1[Lei nº 14.133/2021, IN Seges 65/2021]
+        A[Comum a Todas as Contratações Diretas]
+    end
+
+    subgraph Taxonomia
+        B[Processo Administrativo]
+        B1[Aspectos sobre Abertura do Processo]
+        B2[Art. 18, Inciso XI] 
+    end
+
+    subgraph Ramo-1
+        C[Justificativa para Vedação à Participação de Consórcios]
+        C1[Há Justificativa para a Vedação?]
+    end
+
+    subgraph Ramo-2
+        D[Justificativa para Vedação à Participação de Consórcios]
+        D1[Há Justificativa para a Vedação?]
+    end
+
+    Tipificação --> Taxonomia 
+    Taxonomia --> Ramo-1
+    Taxonomia --> Ramo-2
+```  
+
+Esse modelo fornece um referencial para a análise dos editais 🚀
