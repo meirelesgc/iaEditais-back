@@ -9,7 +9,7 @@
       
       
       
-        <link rel="prev" href="../taxonomy/">
+        <link rel="prev" href="../tree/">
       
       
         <link rel="next" href="../../dev/">
@@ -20,7 +20,7 @@
     
     
       
-        <title>Ordens - iaEditais</title>
+        <title>Analise - iaEditais</title>
       
     
     
@@ -70,7 +70,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#ordens" class="md-skip">
+        <a href="#analisando-os-editais" class="md-skip">
           Pular para conteúdo
         </a>
       
@@ -104,7 +104,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Ordens
+              Analise
             
           </span>
         </div>
@@ -190,7 +190,7 @@
   
     
   
-  IaEditais
+  Introdução
 
       </a>
     </li>
@@ -209,7 +209,7 @@
         <a href="../" class="md-tabs__link">
           
   
-  Recursos
+  Demonstração
 
         </a>
       </li>
@@ -290,7 +290,7 @@
         
   
   <span class="md-ellipsis">
-    IaEditais
+    Introdução
     
   </span>
   
@@ -329,7 +329,7 @@
             
   
   <span class="md-ellipsis">
-    Recursos
+    Demonstração
     
   </span>
   
@@ -340,7 +340,7 @@
         <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_2">
             <span class="md-nav__icon md-icon"></span>
-            Recursos
+            Demonstração
           </label>
           <ul class="md-nav__list" data-md-scrollfix>
             
@@ -373,11 +373,11 @@
   
   
     <li class="md-nav__item">
-      <a href="../taxonomy/" class="md-nav__link">
+      <a href="../tree/" class="md-nav__link">
         
   
   <span class="md-ellipsis">
-    Taxonomia
+    Árvore de verificação
     
   </span>
   
@@ -404,16 +404,140 @@
         
       
       
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  <span class="md-ellipsis">
+    Analise
+    
+  </span>
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
       <a href="./" class="md-nav__link md-nav__link--active">
         
   
   <span class="md-ellipsis">
-    Ordens
+    Analise
     
   </span>
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Índice">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#rag-retrieval-augmented-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      RAG (Retrieval-Augmented Generation)?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#como-o-rag-e-aplicado-na-analise-de-editais" class="md-nav__link">
+    <span class="md-ellipsis">
+      Como o RAG é aplicado na análise de editais?
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Como o RAG é aplicado na análise de editais?">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-carregamento-e-armazenamento-do-edital" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Carregamento e Armazenamento do Edital
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-recuperacao-de-informacao" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Recuperação de Informação
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-geracao-e-avaliacao-de-respostas" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Geração e Avaliação de Respostas
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#melhores-praticas-para-utilizacao-do-processo" class="md-nav__link">
+    <span class="md-ellipsis">
+      Melhores Práticas para Utilização do Processo
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Melhores Práticas para Utilização do Processo">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-estruturar-a-arvore-de-verificacao" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Estruturar a Árvore de Verificação
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-revisar-e-refinar-o-feedback" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Revisar e Refinar o Feedback
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-iterar-e-aperfeicoar" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Iterar e Aperfeiçoar
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -468,6 +592,107 @@
     
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Índice
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#rag-retrieval-augmented-generation" class="md-nav__link">
+    <span class="md-ellipsis">
+      RAG (Retrieval-Augmented Generation)?
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#como-o-rag-e-aplicado-na-analise-de-editais" class="md-nav__link">
+    <span class="md-ellipsis">
+      Como o RAG é aplicado na análise de editais?
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Como o RAG é aplicado na análise de editais?">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-carregamento-e-armazenamento-do-edital" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Carregamento e Armazenamento do Edital
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-recuperacao-de-informacao" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Recuperação de Informação
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-geracao-e-avaliacao-de-respostas" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Geração e Avaliação de Respostas
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#melhores-praticas-para-utilizacao-do-processo" class="md-nav__link">
+    <span class="md-ellipsis">
+      Melhores Práticas para Utilização do Processo
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Melhores Práticas para Utilização do Processo">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-estruturar-a-arvore-de-verificacao" class="md-nav__link">
+    <span class="md-ellipsis">
+      1. Estruturar a Árvore de Verificação
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-revisar-e-refinar-o-feedback" class="md-nav__link">
+    <span class="md-ellipsis">
+      2. Revisar e Refinar o Feedback
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-iterar-e-aperfeicoar" class="md-nav__link">
+    <span class="md-ellipsis">
+      3. Iterar e Aperfeiçoar
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -485,8 +710,71 @@
   
 
 
-<h1 id="ordens">Ordens<a class="headerlink" href="#ordens" title="Permanent link">#</a></h1>
-<p>**Pensar em um nome melhor</p>
+<h1 id="analisando-os-editais">Analisando os editais<a class="headerlink" href="#analisando-os-editais" title="Permanent link">#</a></h1>
+<h2 id="rag-retrieval-augmented-generation">RAG (Retrieval-Augmented Generation)?<a class="headerlink" href="#rag-retrieval-augmented-generation" title="Permanent link">#</a></h2>
+<p>RAG (<em>Retrieval-Augmented Generation</em>) é uma abordagem que combina recuperação de informações com geração de texto para melhorar a precisão e relevância das respostas de modelos de linguagem. Em vez de confiar apenas no conhecimento pré-treinado do modelo, o RAG busca informações relevantes em uma base de dados antes de gerar uma resposta. Isso permite que o modelo forneça respostas mais precisas, especialmente em domínios específicos como o de análise de editais. Essa é a base para a implementação das verificações iaEditais.</p>
+<p>A técnica funciona em duas etapas principais:  </p>
+<ol>
+<li><strong>Recuperação de Documentos:</strong> O sistema busca trechos relevantes de documentos previamente armazenados.  </li>
+<li><strong>Geração de Respostas:</strong> O modelo de linguagem usa as informações recuperadas para gerar uma resposta mais informada e contextualizada.</li>
+</ol>
+<hr />
+<h2 id="como-o-rag-e-aplicado-na-analise-de-editais">Como o RAG é aplicado na análise de editais?<a class="headerlink" href="#como-o-rag-e-aplicado-na-analise-de-editais" title="Permanent link">#</a></h2>
+<p>O código implementa o RAG para realizar a análise automatizada de editais seguindo os seguintes passos:</p>
+<h3 id="1-carregamento-e-armazenamento-do-edital">1. <strong>Carregamento e Armazenamento do Edital</strong><a class="headerlink" href="#1-carregamento-e-armazenamento-do-edital" title="Permanent link">#</a></h3>
+<p>Quando um edital é carregado, ele é dividido em pequenos trechos (<em>chunks</em>), que são armazenados em um banco vetorial. Isso permite que o modelo encontre fragmentos específicos do documento durante a análise.  </p>
+<ul>
+<li>O arquivo PDF do edital é carregado e transformado em texto.  </li>
+<li>Esse texto é dividido em pedaços.  </li>
+<li>Cada trecho recebe um identificador único para rastrear sua posição no documento original.  </li>
+<li>Os trechos são armazenados em um banco de dados vetorial.  </li>
+</ul>
+<h3 id="2-recuperacao-de-informacao">2. <strong>Recuperação de Informação</strong><a class="headerlink" href="#2-recuperacao-de-informacao" title="Permanent link">#</a></h3>
+<p>Quando um critério de análise precisa ser avaliado, o sistema busca os trechos mais relevantes do edital usando um mecanismo de busca semântica.  </p>
+<ul>
+<li>O critério de análise é transformado em uma consulta (<em>query</em>).  </li>
+<li>O banco vetorial realiza uma busca por similaridade para encontrar os trechos mais relevantes do edital.  </li>
+<li>Apenas os trechos mais relevantes são passados para o modelo de linguagem, garantindo que ele analise informações contextualizadas e não partes irrelevantes do documento.  </li>
+</ul>
+<h3 id="3-geracao-e-avaliacao-de-respostas">3. <strong>Geração e Avaliação de Respostas</strong><a class="headerlink" href="#3-geracao-e-avaliacao-de-respostas" title="Permanent link">#</a></h3>
+<p>Com os trechos relevantes do edital em mãos, o modelo de linguagem é solicitado a avaliar se o critério analisado está presente, qual sua relevância e se há necessidade de ajustes.</p>
+<ul>
+<li>Um <strong>prompt estruturado</strong> é usado para guiar o modelo. Esse prompt fornece o contexto necessário e define as perguntas que o modelo deve responder.  </li>
+<li>O modelo de linguagem recebe os trechos extraídos e gera uma resposta estruturada, indicando:  </li>
+<li>Se o critério foi identificado no edital.  </li>
+<li>Se o critério está bem detalhado ou se precisa de ajustes.  </li>
+<li>
+<p>Recomendações para melhorar a redação do edital, caso necessário.  </p>
+</li>
+<li>
+<p>A resposta gerada é validada e armazenada junto ao critério analisado.  </p>
+</li>
+</ul>
+<hr />
+<h2 id="melhores-praticas-para-utilizacao-do-processo"><strong>Melhores Práticas para Utilização do Processo</strong><a class="headerlink" href="#melhores-praticas-para-utilizacao-do-processo" title="Permanent link">#</a></h2>
+<p>Para obter o máximo benefício da metodologia de análise de editais, siga estas etapas:  </p>
+<h3 id="1-estruturar-a-arvore-de-verificacao"><strong>1. Estruturar a Árvore de Verificação</strong><a class="headerlink" href="#1-estruturar-a-arvore-de-verificacao" title="Permanent link">#</a></h3>
+<p>Antes de iniciar a análise, certifique-se de que a árvore de verificação está bem definida. Para isso, é necessário:  </p>
+<ul>
+<li>
+<p><strong>Definir a tipificação do edital</strong>, garantindo que os critérios de análise sejam compatíveis com a legislação aplicável. Sempre que possível, incluir o arquivo de referência para essa tipificação, pois os dados fornecidos diretamente ao modelo são mais confiáveis do que aqueles provenientes do treinamento.  </p>
+</li>
+<li>
+<p><strong>Organizar a taxonomia</strong>, estruturando os critérios de forma lógica para facilitar a segmentação da análise. Especificar a fonte na qual essa taxonomia se baseia contribui para respostas mais precisas.  </p>
+</li>
+<li>
+<p><strong>Detalhar as ramificações</strong>, garantindo que cada critério contenha perguntas claras e objetivas. Cada ramo deve levar a um único resultado por pergunta (de forma temporária).  </p>
+</li>
+</ul>
+<h3 id="2-revisar-e-refinar-o-feedback"><strong>2. Revisar e Refinar o Feedback</strong><a class="headerlink" href="#2-revisar-e-refinar-o-feedback" title="Permanent link">#</a></h3>
+<ul>
+<li>Avaliar as respostas geradas pelo modelo e utilizá-las para revisar o edital de maneira estruturada.  </li>
+<li>Se necessário, ajustar os critérios ou refinar a árvore de verificação para aprimorar a precisão das análises futuras.  </li>
+</ul>
+<h3 id="3-iterar-e-aperfeicoar"><strong>3. Iterar e Aperfeiçoar</strong><a class="headerlink" href="#3-iterar-e-aperfeicoar" title="Permanent link">#</a></h3>
+<ul>
+<li>Os resultados de cada nova análise podem ser utilizados para aprimorar o modelo e a base de critérios, promovendo a melhoria contínua do processo.  </li>
+</ul>
 
 
 
