@@ -18,21 +18,25 @@ Antes de começar, certifique-se de ter os seguintes requisitos instalados:
 ### Instalação de Dependências  
 
 1. Instale o `pipx`:  
+
     ```sh
     pip install pipx
     ```  
 
 2. Use o `pipx` para instalar o `poetry`:  
+
     ```sh
     pipx install poetry
     ```  
 
 3. Instale as dependências do projeto:  
+
     ```sh
     poetry install
     ```  
 
 4. Ative o ambiente virtual:  
+
     ```sh
     poetry shell
     ```  
@@ -42,6 +46,7 @@ Antes de começar, certifique-se de ter os seguintes requisitos instalados:
 Após configurar o ambiente, siga os passos abaixo para executar o projeto localmente:  
 
 1. Inicie a aplicação:  
+
     ```sh
     task run
     ```  
@@ -55,11 +60,13 @@ Após configurar o ambiente, siga os passos abaixo para executar o projeto local
 Caso prefira executar o projeto em um contêiner Docker, siga as instruções abaixo:  
 
 1. Construa a imagem Docker:  
+
     ```sh
     docker build -t iaeditais .
     ```  
 
 2. Inicie o contêiner:  
+
     ```sh
     docker run -p 8000:8000 iaeditais
     ```  
@@ -73,13 +80,9 @@ Caso prefira executar o projeto em um contêiner Docker, siga as instruções ab
 Para garantir a qualidade do código, utilize as ferramentas de lint e testes antes de contribuir:  
 
 1. Execute os testes automatizados:  
+
     ```sh
     task test
-    ```  
-
-2. Verifique a formatação do código com `black`:  
-    ```sh
-    task lint
     ```  
 
 ## Contribuição  

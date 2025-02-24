@@ -14,7 +14,7 @@ def main():
 
     orders = order.get_order()
 
-    @st.dialog('Adicionar Edital')
+    @st.dialog('Adicionar Edital', width='large')
     def create_order():
         with st.form(key='create_order_form'):
             name = st.text_input('Nome do edital')
@@ -27,7 +27,7 @@ def main():
                 order.post_order(name, type)
                 st.success('Edital criado com sucesso!')
 
-    @st.dialog('Adicionar Versão')
+    @st.dialog('Adicionar Versão', width='large')
     def create_release(ord):
         uploaded_file = st.file_uploader('Escolha um arquivo PDF', type='pdf')
         if st.button('Enviar arquivo') and uploaded_file:
