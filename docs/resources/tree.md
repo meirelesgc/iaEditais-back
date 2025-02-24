@@ -77,4 +77,4 @@ graph TD
     Taxonomia --> Ramo-2
 ```  
 
-Esse modelo fornece um referencial para a análise dos editais 🚀
+Esse modelo fornece um bom referencial para a análise dos editais 🚀
