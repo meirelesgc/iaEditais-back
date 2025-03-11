@@ -21,8 +21,8 @@ def get_order(order_id: UUID = None) -> list[Order]:
     filter_id = str()
     if order_id:
         one = True
-        params["id"] = order_id
-        filter_id = "AND id = %(id)s"
+        params['id'] = order_id
+        filter_id = 'AND id = %(id)s'
 
     SCRIPT_SQL = f"""
         SELECT id, name, typification, created_at, updated_at
@@ -42,13 +42,13 @@ def get_releases(
     filter_id = str()
 
     if order_id:
-        params = {"order_id": order_id}
-        filter_id = "AND order_id = %(order_id)s"
+        params = {'order_id': order_id}
+        filter_id = 'AND order_id = %(order_id)s'
 
     if release_id:
         one = True
-        params = {"release_id": release_id}
-        filter_id = "AND id = %(release_id)s"
+        params = {'release_id': release_id}
+        filter_id = 'AND id = %(release_id)s'
 
     SCRIPT_SQL = f"""
         SELECT id, order_id, taxonomy, created_at
@@ -61,7 +61,7 @@ def get_releases(
 
 
 def delete_order(order_id: UUID):
-    params = {"id": order_id}
+    params = {'id': order_id}
     SCRIPT_SQL = """
         DELETE FROM orders 
         WHERE id = %(id)s;
@@ -72,8 +72,8 @@ def delete_order(order_id: UUID):
 def post_release(release: Release):
     params = release.model_dump()
 
-    params["taxonomy"] = json.dumps(release.taxonomy, default=str)
-    params["taxonomy"] = Jsonb(json.loads(params["taxonomy"]))
+    params['taxonomy'] = json.dumps(release.taxonomy, default=str)
+    params['taxonomy'] = Jsonb(json.loads(params['taxonomy']))
 
     SCRIPT_SQL = """
         INSERT INTO releases (id, order_id, taxonomy, created_at)
@@ -84,7 +84,7 @@ def post_release(release: Release):
 
 
 def delete_release(release_id: UUID):
-    params = {"id": release_id}
+    params = {'id': release_id}
     SCRIPT_SQL = """
         DELETE FROM releases 
         WHERE id = %(id)s;
