@@ -3,6 +3,8 @@ from iaEditais.schemas.Order import (
     Order,
     Release,
 )
+import os
+from fastapi.responses import FileResponse
 from fastapi import UploadFile
 from iaEditais.repositories import OrderRepository, TaxonomyRepository
 from iaEditais.integrations import Intergrations
@@ -69,3 +71,10 @@ def get_releases(order_id: UUID) -> list[Release]:
 
 def delete_release(release_id: UUID):
     OrderRepository.delete_release(release_id)
+
+
+def get_release_file(release_id: UUID = None):
+    file_path = f'storage/releases/{release_id}.pdf'
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail='File not found')
+    return FileResponse(file_path)

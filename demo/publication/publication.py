@@ -1,6 +1,7 @@
 import streamlit as st
 from hooks import taxonomy, publication as order
 from datetime import datetime
+from streamlit_pdf_viewer import pdf_viewer
 
 
 def main():
@@ -11,8 +12,6 @@ def main():
             dt = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S.%f')
             return dt.strftime('%d/%m/%Y %H:%M:%S')
         return None
-
-    orders = order.get_order()
 
     @st.dialog('Adicionar Edital', width='large')
     def create_order():
@@ -56,35 +55,49 @@ def main():
     if st.button('➕ Adicionar Edital', use_container_width=True):
         create_order()
 
+    orders = order.get_order()
+
     if not orders:
         st.error('Nenhum edital encontrado.')
-    for index, o in enumerate(orders):
-        container = st.container()
-        a, b, c = container.columns([5, 1, 1])
-        a.subheader(o['name'])
 
-        if b.button(
-            '➕ Adicionar',
+    o = st.selectbox(
+        'Selecione o edital', options=orders, format_func=lambda x: x['name']
+    )
+
+    if o:
+        if st.button(
+            '➕ Adicionar Versão',
             key=o['id'],
             use_container_width=True,
         ):
             create_release(o)
-        if c.button(
+
+        if st.button(
             '🗑️ Excluir',
             use_container_width=True,
             key=f'delete_{o["id"]}',
         ):
             order.delete_order(o['id'])
 
-        release_list = sorted(
-            order.get_release(o['id']),
+        releases = sorted(
+            order.get_release(o['id']) or [],
             key=lambda r: r['created_at'],
             reverse=True,
         )
 
-        for index, r in enumerate(release_list):
-            st.header(f'{index + 1} - {format_date(r["created_at"])}')
-            with st.expander('Detalhes'):
-                show_release(r)
-                if st.button('🗑️ Excluir', key=f'delete_{o["id"]}_{r["id"]}'):
-                    order.delete_release(r['id'])
+        r = st.selectbox(
+            'Selecione a versão',
+            options=releases,
+            format_func=lambda x: f'Edital {releases.index(x) + 1} - {format_date(x["created_at"])}',
+        )
+        if not releases:
+            st.error('Nenhuma versão encontrada.')
+
+        container = st.container()
+        a, b = container.columns([1, 1])
+
+        with a:
+            pdf_viewer(input=order.get_release_file(r['id']), width='100%')
+
+        with b:
+            show_release(r)

@@ -41,3 +41,11 @@ def post_release(uploaded_file, order_id):
 def delete_release(release_id):
     httpx.delete(f'{Settings().API}/order/release/{release_id}/', verify=False)
     st.rerun()
+
+
+def get_release_file(release_id):
+    result = httpx.get(
+        f'{Settings().API}/order/release/{release_id}/',
+        verify=False,
+    )
+    return result.content
