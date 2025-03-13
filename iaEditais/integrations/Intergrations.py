@@ -135,14 +135,9 @@ def evaluate_branch(
     }
     try:
         feedback = chain.invoke(input_variables)
-
-        print('Sucesso', feedback)
+        print('Sucesso')
     except OutputParserException:
-        feedback = {
-            'feedback': 'Erro na decodificação da resposta',
-            'fulfilled': False,
-        }
-        print('Erro', feedback)
+        print('Erro')
     finally:
         return feedback
 
