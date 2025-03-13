@@ -55,5 +55,5 @@ def delete_release(release_id: UUID):
     response_class=FileResponse,
     status_code=HTTPStatus.OK,
 )
-def get_source_file(release_id: UUID = None):
+def get_release_file(release_id: UUID = None):
     return OrderService.get_release_file(release_id)

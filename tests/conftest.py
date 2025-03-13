@@ -31,8 +31,13 @@ def setup(request):
     def connection_string(self):
         return f'postgresql://{postgres.username}:{postgres.password}@{postgres.get_container_host_ip()}:{postgres.get_exposed_port(5432)}/{postgres.dbname}'
 
+    def connection_string_psycopg3(self) -> str:
+        return f'postgresql+psycopg://{postgres.username}:{postgres.password}@{postgres.get_container_host_ip()}:{postgres.get_exposed_port(5432)}/{postgres.dbname}'
+
     request.addfinalizer(remove_container)
+
     Settings.get_connection_string = connection_string
+    Settings.get_connection_string_psycopg3 = connection_string_psycopg3
 
 
 @pytest.fixture(scope='function', autouse=True)

@@ -42,7 +42,7 @@ def test_create_release(
         create_branch(taxonomy_id=response.json()['id'])
 
     mocker.patch(
-        'iaEditais.integrations.OrderIntegrations.analyze_release',
+        'iaEditais.integrations.Integrations.analyze_release',
         side_effect=lambda release: release,
     )
 

@@ -23,6 +23,7 @@ def get_embedding_function():
 
 @cache
 def get_vector_store():
+    print(Settings().get_connection_string_psycopg3())
     return PGVector(
         embeddings=get_embedding_function(),
         collection_name='fiotec',

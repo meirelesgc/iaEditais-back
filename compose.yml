@@ -25,5 +25,7 @@ services:
       - fiotec-postgres
     volumes:
       - ./.env:/app/.env
+      - ./storage:/app/storage
+
 volumes:
   fiotec-postgres:

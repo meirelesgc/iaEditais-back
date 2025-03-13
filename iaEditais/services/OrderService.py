@@ -7,7 +7,7 @@ import os
 from fastapi.responses import FileResponse
 from fastapi import UploadFile
 from iaEditais.repositories import OrderRepository, TaxonomyRepository
-from iaEditais.integrations import Intergrations
+from iaEditais.integrations import Integrations
 from fastapi import HTTPException
 
 from uuid import UUID
@@ -59,8 +59,8 @@ def post_release(
 
     with open(f'storage/releases/{release.id}.pdf', 'wb') as buffer:
         buffer.write(file.file.read())
-    Intergrations.add_to_vector_store(f'storage/releases/{release.id}.pdf')
-    release = Intergrations.analyze_release(release)
+    Integrations.add_to_vector_store(f'storage/releases/{release.id}.pdf')
+    release = Integrations.analyze_release(release)
     OrderRepository.post_release(release)
     return release
 
