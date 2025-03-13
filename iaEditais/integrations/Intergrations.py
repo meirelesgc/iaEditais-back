@@ -7,6 +7,7 @@ from langchain_core.prompts import PromptTemplate
 from iaEditais.integrations import get_model, get_vector_store
 from langchain.schema.document import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain_core.exceptions import OutputParserException
 
 
 def load_documents(path):
@@ -132,7 +133,15 @@ def evaluate_branch(
         'taxonomy_branch_description': branch.get('description'),
         'query': 'Justifique sua resposta com base no conteúdo do edital.',
     }
-    return chain.invoke(input_variables)
+    try:
+        feedback = chain.invoke(input_variables)
+    except OutputParserException:
+        feedback = {
+            'feedback': 'Erro na decodificação da resposta',
+            'fulfilled': False,
+        }
+    finally:
+        return feedback
 
 
 def process_release_taxonomy(release: Release, db: Any, chain: Any) -> None:
