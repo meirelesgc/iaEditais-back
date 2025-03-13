@@ -93,14 +93,15 @@ def main():
         if not releases:
             st.error('Nenhuma versão encontrada.')
 
-        col1, col2 = st.columns(2, gap='small')
-        with col1:
-            pdf_viewer(
-                input=order.get_release_file(r['id']),
-                key=f'pdf_viewer_{r["id"]}',
-                width='100%',
-                height=1200,
-            )
-        with col2:
-            with st.container(height=1200):
-                show_release(r)
+        if r:
+            col1, col2 = st.columns(2, gap='small')
+            with col1:
+                pdf_viewer(
+                    input=order.get_release_file(r['id']),
+                    key=f'pdf_viewer_{r["id"]}',
+                    width='100%',
+                    height=1200,
+                )
+            with col2:
+                with st.container(height=1200):
+                    show_release(r)
