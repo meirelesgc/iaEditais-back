@@ -135,11 +135,14 @@ def evaluate_branch(
     }
     try:
         feedback = chain.invoke(input_variables)
+
+        print('Sucesso', feedback)
     except OutputParserException:
         feedback = {
             'feedback': 'Erro na decodificação da resposta',
             'fulfilled': False,
         }
+        print('Erro', feedback)
     finally:
         return feedback
 
@@ -147,7 +150,8 @@ def evaluate_branch(
 def process_release_taxonomy(release: Release, db: Any, chain: Any) -> None:
     for typification in release.taxonomy:
         for item in typification.get('taxonomy', []):
-            for branch in item.get('branch', []):
+            for _, branch in enumerate(item.get('branch', [])):
+                print(f'Número da revisão: {_}')
                 branch['evaluate'] = evaluate_branch(
                     branch, item, typification, release.id, db, chain
                 )

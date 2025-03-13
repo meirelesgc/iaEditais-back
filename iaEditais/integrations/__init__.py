@@ -7,7 +7,7 @@ from langchain_postgres import PGVector
 @cache
 def get_model():
     return ChatOpenAI(
-        model='gpt-4o',
+        model='gpt-4o-mini-2024-07-18',
         temperature=0,
         api_key=Settings().OPENAI_API_KEY,
     )
