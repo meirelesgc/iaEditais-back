@@ -1,7 +1,7 @@
 import streamlit as st
+from streamlit_pdf_viewer import pdf_viewer
 from hooks import taxonomy, publication as order
 from datetime import datetime
-from streamlit_pdf_viewer import pdf_viewer
 
 
 def main():
@@ -93,12 +93,14 @@ def main():
         if not releases:
             st.error('Nenhuma versão encontrada.')
 
-        if r:
-            container = st.container()
-            a, b = container.columns([1, 1])
-
-            with a:
-                pdf_viewer(input=order.get_release_file(r['id']), width='100%')
-
-            with b:
+        col1, col2 = st.columns(2, gap='small')
+        with col1:
+            pdf_viewer(
+                input=order.get_release_file(r['id']),
+                key=f'pdf_viewer_{r["id"]}',
+                width='100%',
+                height=1200,
+            )
+        with col2:
+            with st.container(height=1200):
                 show_release(r)
