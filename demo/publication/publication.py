@@ -36,13 +36,13 @@ def main():
 
     def show_release(r):
         for t in r['taxonomy']:
-            st.subheader('🧵 Tipificação:')
+            st.caption('🧵 Tipificação:')
             st.caption(t['name'])
             for tx in t['taxonomy']:
-                st.subheader('🪢 Taxonomia:')
+                st.write('🪢 Taxonomia:')
                 st.caption(tx['title'])
                 for br in tx['branch']:
-                    st.subheader('🪡 Ramo:')
+                    st.write('🪡 Ramo:')
                     st.caption(br['title'])
                     emote = '✅' if br['evaluate']['fulfilled'] else '❌'
                     st.write(f'Descrição: {br["description"]}')
