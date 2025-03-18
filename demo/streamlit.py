@@ -5,24 +5,29 @@ from publication import publication
 
 
 st.set_page_config(
-    page_title="Ia Editais",
-    page_icon="📄",
-    layout="wide",
-    initial_sidebar_state="expanded",
+    page_title='Ia Editais',
+    page_icon='📄',
+    layout='wide',
+    initial_sidebar_state='expanded',
 )
-with open("demo/streamlit.css", "r") as buffer:
-    st.html(f"<style>{buffer.read()}</style>")
+
+st.logo('storage/logo.png', size='large')
+
+with open('demo/streamlit.css', 'r') as buffer:
+    st.html(f'<style>{buffer.read()}</style>')
 
 pages = {
-    "Base de conhecimento": [
-        st.Page(source.main, title="Fontes", url_path="source", default=True),
+    'Base de conhecimento': [
+        st.Page(source.main, title='Fontes', url_path='source', default=True),
     ],
-    "Metodologia": [
-        st.Page(typification.main, title="Tipificação", url_path="typification"),
-        st.Page(taxonomy.main, title="Taxonomia", url_path="taxonomy"),
-        st.Page(branch.main, title="Ramos", url_path="branch"),
+    'Metodologia': [
+        st.Page(
+            typification.main, title='Tipificação', url_path='typification'
+        ),
+        st.Page(taxonomy.main, title='Taxonomia', url_path='taxonomy'),
+        st.Page(branch.main, title='Ramos', url_path='branch'),
     ],
-    "Análise": [st.Page(publication.main, title="Editais", url_path="order")],
+    'Análise': [st.Page(publication.main, title='Editais', url_path='order')],
 }
 
 st.navigation(pages).run()

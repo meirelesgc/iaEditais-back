@@ -8,10 +8,14 @@ Cada **árvore** é baseada em uma **tipificação** 🧵, que possui um título
 
 ```mermaid
 graph TD
-    A[Tipo de Edital] -->|Baseado em| B[Fonte do edital]
-    A1[Comum a Todas as Contratações Diretas] -->|Lei| B1[Lei nº 14.133/2021, IN Seges 65/2021]
-    A2[Comum a Todas as Contratações de Solução de TIC] -->|Norma| B2[Lei nº 14.133/2021, IN SGD/ME nº 94/2022]
-    A3[Específica para Contratação de Serviços com Dedicação Exclusiva de Mão de Obra] -->|Jurisprudência| B3[Lei nº 14.133/2021, Acórdão TCU 1207/2024]
+    A1[Contratação Direta]
+    A2[Contratação de Solução de TIC]
+    A3[Serviços com Dedicação Exclusiva de Mão de Obra]
+
+    A1 -->|Base legal| B1[Lei nº 14.133/2021, IN Seges 65/2021]
+    A2 -->|Base legal| B2[Lei nº 14.133/2021, IN SGD/ME nº 94/2022]
+    A3 -->|Base legal| B3[Lei nº 14.133/2021]
+    A3 -->|Jurisprudência| C1[Acórdão TCU 1207/2024]
 ```
 
 ## Taxonomia 🪢
@@ -20,16 +24,16 @@ No segundo nível, chamado **taxonomia**, cada item contém um nome, uma descri�
 
 ```mermaid
 graph TD
-    A[Taxonomia] -->|Contém| B[Descrição] -->|Baseado em| C[Subfonte]
+    A[Taxonomia] -->|Contém| B[Descrição] -->|Baseado em| C[Base Normativa]
 
-    A1[Processo Administrativo] -->|Inclui| A2[Aspectos sobre abertura do processo]
-    A2 -->|Referência| A3[Art. 18, XI, da Lei 14133/21, Art. 10 da IN Seges 65/2021]
+    A1[Orçamento Estimado da Contratação] -->|Inclui| A2[Informações sobre Valor Estimado e Formação de Preços]
+    A2 -->|Referência| A3[Art. 6º, inciso XXXI da Lei nº 14.133/2021]
 
-    A5[Forma Eletrônica] -->|Definição| A6[Uso de meio eletrônico]
+    A5[Forma Eletrônica] -->|Definido por| A6[Uso de Meio Eletrônico]
     A6 -->|Subfonte| A7[N/A]
 
-    A9[Designação de Agentes] -->|Abrange| A10[Critérios para escolha de responsáveis]
-    A10 -->|Referência| A11[Art. 25, §9º, da Lei 14133/21, Decreto 11430/23]
+    A9[Designação de Agentes] -->|Abrange| A10[Critérios para Escolha de Responsáveis]
+    A10 -->|Referência| A11[Art. 25, §9º, da Lei nº 14.133/2021, Decreto nº 11.430/2023]
 ```
 
 ## Ramificações 🪡
@@ -40,9 +44,9 @@ As **ramificações** representam subdivisões específicas dos temas a serem an
 graph TD
     A[Ramo] -->|Define| B[Descrição]
 
-    A1[Justificativa para Vedação de Participação de Consórcios] -->|Avalia| B1[Há justificativa para a vedação?]
-    A2[Registro de Processo Administrativo em Sistema Informatizado] -->|Verifica| B2[O procedimento foi registrado corretamente?]
-    A3[Exclusividade de Itens Inferiores a R$80.000,00 para ME/EPPs] -->|Checa| B3[Os itens foram destinados corretamente ou há justificativa válida?]
+    A1[Critérios para Definição do Orçamento] -->|Determina| B1[As referências de preços foram corretamente utilizadas?]
+    A2[Impacto na Modalidade de Contratação] -->|Analisa| B2[O orçamento impacta a escolha da modalidade licitatória?]
+    A3[Adequação ao Mercado] -->|Verifica| B3[O orçamento reflete os valores praticados no mercado?]
 ```
 
 ## Exemplo Completo 🌳
@@ -53,26 +57,26 @@ Abaixo, segue um exemplo consolidado da árvore de verificação em sua totalida
 graph TD
     subgraph Tipificação
         A1[Lei nº 14.133/2021, IN Seges 65/2021]
-        A[Comum a Todas as Contratações Diretas]
+        A[Comum a Todas as Contratações]
     end
 
     subgraph Taxonomia
-        B[Processo Administrativo]
-        B1[Aspectos sobre Abertura do Processo]
-        B2[Art. 18, Inciso XI] 
+        B[Orçamento estimado da contratação]
+        B1[Informações sobre o valor estimado da contratação e formação de preços]
+        B2[Artigo 6º, inciso XXXI da Lei nº 14.133/2021]
     end
 
     subgraph Ramo-1
-        C[Justificativa para Vedação à Participação de Consórcios]
-        C1[Há Justificativa para a Vedação?]
+        C[Critérios para Definição do Orçamento]
+        C1[As referências de preços foram corretamente utilizadas?]
     end
 
     subgraph Ramo-2
-        D[Justificativa para Vedação à Participação de Consórcios]
-        D1[Há Justificativa para a Vedação?]
+        D[Impacto na Modalidade de Contratação]
+        D1[O orçamento impacta a escolha da modalidade licitatória?]
     end
 
-    Tipificação --> Taxonomia 
+    Tipificação --> Taxonomia
     Taxonomia --> Ramo-1
     Taxonomia --> Ramo-2
 ```  
