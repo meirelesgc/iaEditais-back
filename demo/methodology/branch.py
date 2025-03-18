@@ -60,7 +60,7 @@ def main():
             br['description'] = description
             taxonomy.put_branch(br)
 
-    st.title('🪡 Gestão de Ramos')
+    st.header('🪡 Gestão de Ramos')
     st.divider()
 
     st.subheader('🧵 Tipificação:')

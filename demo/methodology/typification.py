@@ -41,7 +41,7 @@ def main():
             t['source'] = [s['id'] for s in selected_sources]
             taxonomy.put_typification(t)
 
-    st.title('🧵 Gestão de Tipificações')
+    st.header('🧵 Gestão de Tipificações')
 
     st.divider()
     if st.button('➕ Adicionar', use_container_width=True):
@@ -53,7 +53,7 @@ def main():
     for index, t in enumerate(typifications):
         container = st.container()
         a, b, c = container.columns([5, 1, 1])
-        a.header(f'{index + 1} - {t["name"]}')
+        a.subheader(f'{index + 1} - {t["name"]}')
 
         if b.button(
             '✏️ Atualizar',

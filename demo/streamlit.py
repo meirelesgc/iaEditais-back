@@ -13,9 +13,6 @@ st.set_page_config(
 
 st.logo('storage/logo.png', size='large')
 
-with open('demo/streamlit.css', 'r') as buffer:
-    st.html(f'<style>{buffer.read()}</style>')
-
 pages = {
     'Base de conhecimento': [
         st.Page(source.main, title='Fontes', url_path='source', default=True),

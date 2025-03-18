@@ -9,97 +9,101 @@ def main():
 
     def format_date(date_str):
         if isinstance(date_str, str):
-            dt = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S.%f")
-            return dt.strftime("%d/%m/%Y %H:%M:%S")
+            dt = datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S.%f')
+            return dt.strftime('%d/%m/%Y %H:%M:%S')
         return None
 
-    @st.dialog("Adicionar Taxonomia", width="large")
+    @st.dialog('Adicionar Taxonomia', width='large')
     def create_taxonomy(t):
         st.button(
-            f"🧵 Tipificação **{t['name']}**",
+            f'🧵 Tipificação **{t["name"]}**',
             disabled=True,
             use_container_width=True,
         )
-        title = st.text_input("📝 Título:")
-        description = st.text_area("📝 Descrição:")
+        title = st.text_input('📝 Título:')
+        description = st.text_area('📝 Descrição:')
         selected_sources = st.multiselect(
-            "📌 Fontes:",
+            '📌 Fontes:',
             options=source_list,
-            format_func=lambda x: x["name"],
+            format_func=lambda x: x['name'],
         )
         if st.button(
-            "➕ Adicionar", use_container_width=True, key="add_taxonomy_button"
+            '➕ Adicionar', use_container_width=True, key='add_taxonomy_button'
         ):
-            selected_sources = [s["id"] for s in selected_sources]
-            taxonomy.post_taxonomy(t["id"], title, description, selected_sources)
+            selected_sources = [s['id'] for s in selected_sources]
+            taxonomy.post_taxonomy(
+                t['id'], title, description, selected_sources
+            )
 
-    @st.dialog("Atualizar Taxonomia", width="large")
+    @st.dialog('Atualizar Taxonomia', width='large')
     def update_taxonomy(tx, t):
         st.button(
-            f"🧵 Tipificação **{t['name']}**",
+            f'🧵 Tipificação **{t["name"]}**',
             disabled=True,
             use_container_width=True,
         )
-        title = st.text_input("Titulo:", value=tx["title"], key=f'title_{tx["id"]}')
-        description = st.text_area("Descrição:", value=tx["description"])
+        title = st.text_input(
+            'Titulo:', value=tx['title'], key=f'title_{tx["id"]}'
+        )
+        description = st.text_area('Descrição:', value=tx['description'])
         selected_sources = st.multiselect(
-            "Fontes",
+            'Fontes',
             options=source_list,
             key=f'source_{tx["id"]}',
-            format_func=lambda s: s["name"],
-            default=[s for s in source_list if s["id"] in tx["source"]],
+            format_func=lambda s: s['name'],
+            default=[s for s in source_list if s['id'] in tx['source']],
         )
         if st.button(
-            "✏️ Atualizar",
+            '✏️ Atualizar',
             use_container_width=True,
             key=f'update_taxonomy_button_{tx["id"]}',
         ):
-            tx["title"] = title
-            tx["description"] = description
-            tx["source"] = [s["id"] for s in selected_sources]
+            tx['title'] = title
+            tx['description'] = description
+            tx['source'] = [s['id'] for s in selected_sources]
             taxonomy.put_taxonomy(tx)
 
-    st.title("🪢 Gestão de Taxonomias")
+    st.header('🪢 Gestão de Taxonomias')
     st.divider()
 
-    st.subheader("🧵 Tipificação:")
+    st.subheader('🧵 Tipificação:')
 
     t = st.selectbox(
-        "🧵 Tipificações:",
+        '🧵 Tipificações:',
         options=typifications,
-        format_func=lambda x: x["name"],
-        label_visibility="collapsed",
+        format_func=lambda x: x['name'],
+        label_visibility='collapsed',
     )
-    if st.button("➕ Adicionar", use_container_width=True):
+    if st.button('➕ Adicionar', use_container_width=True):
         create_taxonomy(t)
 
-    taxonomy_list = taxonomy.get_taxonomy(t["id"]) if t else []
+    taxonomy_list = taxonomy.get_taxonomy(t['id']) if t else []
 
     if not taxonomy_list:
-        st.error("Nenhuma Taxonomia Encontrada.")
+        st.error('Nenhuma Taxonomia Encontrada.')
 
     for index, tx in enumerate(taxonomy_list):
         container = st.container()
         a, b, c = container.columns([5, 1, 1])
-        a.header(f'{index + 1} - {tx["title"]}')
+        a.subheader(f'{index + 1} - {tx["title"]}')
 
         if b.button(
-            "✏️ Atualizar",
+            '✏️ Atualizar',
             key=f'update_{tx["id"]}',
             use_container_width=True,
         ):
             update_taxonomy(tx, t)
         if c.button(
-            "🗑️ Excluir",
+            '🗑️ Excluir',
             key=f'delete_{tx["id"]}',
             use_container_width=True,
         ):
-            taxonomy.delete_taxonomy(tx["id"])
+            taxonomy.delete_taxonomy(tx['id'])
 
-        with st.expander("Detalhes"):
-            st.subheader(f"Descrição: {tx['description']}")
+        with st.expander('Detalhes'):
+            st.subheader(f'Descrição: {tx["description"]}')
             st.subheader(
-                f"Fontes: {', '.join([s['name'] for s in source_list if s['id'] in tx['source']])}"
+                f'Fontes: {", ".join([s["name"] for s in source_list if s["id"] in tx["source"]])}'
             )
             st.subheader(f'Criado em: {format_date(t["created_at"])}')
             st.subheader(

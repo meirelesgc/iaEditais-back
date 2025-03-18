@@ -29,7 +29,7 @@ def main():
     )
 
     container = st.container()
-    st.title('📌 Gestão de Fontes')
+    st.header('📌 Gestão de Fontes')
 
     st.divider()
     if st.button('➕ Adicionar', use_container_width=True):
@@ -42,7 +42,7 @@ def main():
         container = st.container()
         a, b = container.columns([6, 1])
 
-        a.header(f'{index + 1} - {s["name"]}')
+        a.subheader(f'{index + 1} - {s["name"]}')
         if b.button(
             '🗑️ Excluir', key=f'exclude_{s["id"]}', use_container_width=True
         ):

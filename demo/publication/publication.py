@@ -50,7 +50,7 @@ def main():
                     st.write(f'Feedback: {br["evaluate"]["feedback"]}')
                     st.divider()
 
-    st.title('📊 Gestão de Editais')
+    st.header('📊 Gestão de Editais')
     st.divider()
     if st.button('➕ Adicionar Edital', use_container_width=True):
         create_order()
