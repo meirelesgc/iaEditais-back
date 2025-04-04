@@ -1,5 +1,5 @@
 from http import HTTPStatus
-from iaEditais.schemas.Taxonomy import Taxonomy
+from iaEditais.schemas.taxonomy import Taxonomy
 
 
 def test_create_taxonomy(client, create_taxonomy):

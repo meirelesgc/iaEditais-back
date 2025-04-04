@@ -1,10 +1,10 @@
-from iaEditais.schemas.Order import ReleaseFeedback, Release
-from iaEditais.repositories import SourceRepository
+from iaEditais.schemas.doc import ReleaseFeedback, Release
+from iaEditais.repositories import source_repository
 from typing import Any
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.prompts import PromptTemplate
-from iaEditais.integrations import get_model, get_vector_store
+from iaEditais.integrations.database import get_model, get_vector_store
 from langchain.schema.document import Document
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.exceptions import OutputParserException
@@ -113,7 +113,7 @@ def evaluate_branch(
     chain: Any,
 ) -> Any:
     source = []
-    for s in SourceRepository.get_source():
+    for s in source_repository.get_source():
         ss = item.get('source', []) + typification.get('source', [])
         if s['id'] in ss:
             source.append(s['name'])

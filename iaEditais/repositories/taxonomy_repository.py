@@ -1,9 +1,9 @@
-from iaEditais.schemas.Taxonomy import Taxonomy
+from iaEditais.schemas.taxonomy import Taxonomy
 from uuid import UUID
-from iaEditais.schemas.Branch import Branch
-from iaEditais.repositories import conn
+from iaEditais.schemas.branch import Branch
+from iaEditais.repositories.database import conn
 
-from iaEditais.schemas.Typification import Typification
+from iaEditais.schemas.typification import Typification
 
 
 def post_typification(typification: Typification):
@@ -17,7 +17,7 @@ def post_typification(typification: Typification):
 
 def get_typification(
     typification_id: UUID = None,
-    order_id: UUID = None,
+    doc_id: UUID = None,
 ):
     one = False
     params = {}
@@ -28,23 +28,23 @@ def get_typification(
         params = {'id': typification_id}
         filter_id = 'AND id = %(id)s'
 
-    join_order = str()
-    filter_order = str()
-    if order_id:
-        params = {'order_id': order_id}
-        join_order = """
-            INNER JOIN orders o 
+    join_doc = str()
+    filter_doc = str()
+    if doc_id:
+        params = {'doc_id': doc_id}
+        join_doc = """
+            INNER JOIN docs o 
                 ON t.id = ANY(o.typification)
             """
-        filter_order = 'AND o.id = %(order_id)s'
+        filter_doc = 'AND o.id = %(doc_id)s'
 
     SCRIPT_SQL = f"""
         SELECT t.id, t.name, t.source, t.created_at, t.updated_at 
         FROM typifications t
-            {join_order}
+            {join_doc}
         WHERE 1 = 1
             {filter_id}
-            {filter_order};
+            {filter_doc};
         """
     result = conn().select(SCRIPT_SQL, params, one)
     return result

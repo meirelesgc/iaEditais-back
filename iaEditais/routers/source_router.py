@@ -2,8 +2,8 @@ from fastapi import APIRouter, File, UploadFile, Form
 from fastapi.responses import FileResponse
 
 from uuid import UUID
-from iaEditais.schemas.Source import Source
-from iaEditais.services import SourceService
+from iaEditais.schemas.source import Source
+from iaEditais.services import source_service
 from http import HTTPStatus
 
 router = APIRouter()
@@ -19,7 +19,7 @@ def post_source(
     description: str = Form(...),
     file: UploadFile = File(None),
 ):
-    return SourceService.post_source(name, description, file)
+    return source_service.post_source(name, description, file)
 
 
 @router.get(
@@ -28,7 +28,7 @@ def post_source(
     status_code=HTTPStatus.OK,
 )
 def get_sources():
-    return SourceService.get_sources()
+    return source_service.get_sources()
 
 
 @router.get(
@@ -37,9 +37,9 @@ def get_sources():
     status_code=HTTPStatus.OK,
 )
 def get_source_file(source_id: UUID = None):
-    return SourceService.get_source_file(source_id)
+    return source_service.get_source_file(source_id)
 
 
 @router.delete('/source/{source_id}/', status_code=HTTPStatus.NO_CONTENT)
 def delete_source(source_id: UUID):
-    return SourceService.delete_source(source_id)
+    return source_service.delete_source(source_id)

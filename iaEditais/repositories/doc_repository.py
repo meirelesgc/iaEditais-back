@@ -1,32 +1,32 @@
-from iaEditais.schemas.Order import Order, Release
+from iaEditais.schemas.doc import Doc, Release
 import json
 from psycopg.types.json import Jsonb
 from uuid import UUID
-from iaEditais.repositories import conn
+from iaEditais.repositories.database import conn
 
 
-def post_order(order: Order) -> None:
-    params = order.model_dump()
+def post_doc(doc: Doc) -> None:
+    params = doc.model_dump()
     SCRIPT_SQL = """
-        INSERT INTO orders (id, name, typification, created_at, updated_at) 
+        INSERT INTO docs (id, name, typification, created_at, updated_at) 
         VALUES (%(id)s, %(name)s, %(typification)s, %(created_at)s, %(updated_at)s);
         """
     conn().exec(SCRIPT_SQL, params)
 
 
-def get_order(order_id: UUID = None) -> list[Order]:
+def get_doc(doc_id: UUID = None) -> list[Doc]:
     one = False
     params = {}
 
     filter_id = str()
-    if order_id:
+    if doc_id:
         one = True
-        params['id'] = order_id
+        params['id'] = doc_id
         filter_id = 'AND id = %(id)s'
 
     SCRIPT_SQL = f"""
         SELECT id, name, typification, created_at, updated_at
-        FROM orders
+        FROM docs
         WHERE 1 = 1
             {filter_id};
         """
@@ -35,15 +35,15 @@ def get_order(order_id: UUID = None) -> list[Order]:
 
 
 def get_releases(
-    order_id: UUID = None, release_id: UUID = None
+    doc_id: UUID = None, release_id: UUID = None
 ) -> list[Release] | Release:
     one = False
     params = {}
     filter_id = str()
 
-    if order_id:
-        params = {'order_id': order_id}
-        filter_id = 'AND order_id = %(order_id)s'
+    if doc_id:
+        params = {'doc_id': doc_id}
+        filter_id = 'AND doc_id = %(doc_id)s'
 
     if release_id:
         one = True
@@ -51,7 +51,7 @@ def get_releases(
         filter_id = 'AND id = %(release_id)s'
 
     SCRIPT_SQL = f"""
-        SELECT id, order_id, taxonomy, created_at
+        SELECT id, doc_id, taxonomy, created_at
         FROM releases
         WHERE 1 = 1
             {filter_id}
@@ -60,10 +60,10 @@ def get_releases(
     return results
 
 
-def delete_order(order_id: UUID):
-    params = {'id': order_id}
+def delete_doc(doc_id: UUID):
+    params = {'id': doc_id}
     SCRIPT_SQL = """
-        DELETE FROM orders 
+        DELETE FROM docs 
         WHERE id = %(id)s;
         """
     conn().exec(SCRIPT_SQL, params)
@@ -76,8 +76,8 @@ def post_release(release: Release):
     params['taxonomy'] = Jsonb(json.loads(params['taxonomy']))
 
     SCRIPT_SQL = """
-        INSERT INTO releases (id, order_id, taxonomy, created_at)
-        VALUES (%(id)s, %(order_id)s, %(taxonomy)s, %(created_at)s);
+        INSERT INTO releases (id, doc_id, taxonomy, created_at)
+        VALUES (%(id)s, %(doc_id)s, %(taxonomy)s, %(created_at)s);
         """
 
     conn().exec(SCRIPT_SQL, params)

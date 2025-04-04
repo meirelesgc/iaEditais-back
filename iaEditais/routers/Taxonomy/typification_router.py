@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 from uuid import UUID
-from iaEditais.services import TypificationService
+from iaEditais.services import typification_service
 from http import HTTPStatus
-from iaEditais.schemas.Typification import CreateTypification, Typification
+from iaEditais.schemas.typification import CreateTypification, Typification
 
 router = APIRouter()
 
@@ -13,7 +13,7 @@ router = APIRouter()
     response_model=Typification,
 )
 def post_type(typification: CreateTypification):
-    return TypificationService.post_typification(typification)
+    return typification_service.post_typification(typification)
 
 
 @router.get(
@@ -22,7 +22,7 @@ def post_type(typification: CreateTypification):
     response_model=list[Typification],
 )
 def get_type():
-    return TypificationService.get_typification()
+    return typification_service.get_typification()
 
 
 @router.get(
@@ -31,7 +31,7 @@ def get_type():
     response_model=Typification,
 )
 def get_detailed_typification(typification_id: UUID):
-    return TypificationService.get_typification(typification_id)
+    return typification_service.get_typification(typification_id)
 
 
 @router.put(
@@ -40,7 +40,7 @@ def get_detailed_typification(typification_id: UUID):
     response_model=Typification,
 )
 def put_typification(typification: Typification):
-    return TypificationService.put_typification(typification)
+    return typification_service.put_typification(typification)
 
 
 @router.delete(
@@ -48,4 +48,4 @@ def put_typification(typification: Typification):
     status_code=HTTPStatus.NO_CONTENT,
 )
 def delete_typification(typification_id: UUID):
-    return TypificationService.delete_typification(typification_id)
+    return typification_service.delete_typification(typification_id)

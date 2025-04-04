@@ -1,13 +1,13 @@
 from uuid import UUID
 from fastapi.responses import FileResponse
 import os
-from iaEditais.schemas.Source import Source
-from iaEditais.repositories import SourceRepository
+from iaEditais.schemas.source import Source
+from iaEditais.repositories import source_repository
 from fastapi import UploadFile, HTTPException
 
 
 def post_source(name: str, description, file: UploadFile):
-    names = [s['name'] for s in SourceRepository.get_source(name=name)]
+    names = [s['name'] for s in source_repository.get_source(name=name)]
 
     if name in names:
         raise HTTPException(
@@ -25,19 +25,19 @@ def post_source(name: str, description, file: UploadFile):
         with open(f'storage/sources/{source.id}.pdf', 'wb') as buffer:
             buffer.write(file.file.read())
 
-    SourceRepository.post_source(source)
+    source_repository.post_source(source)
     return source
 
 
 def get_sources():
-    return SourceRepository.get_source()
+    return source_repository.get_source()
 
 
 def delete_source(source_id: UUID):
-    source = SourceRepository.get_source(source_id)
+    source = source_repository.get_source(source_id)
     if source is None:
         raise HTTPException(status_code=404, detail='Source not found')
-    SourceRepository.delete_source(source_id)
+    source_repository.delete_source(source_id)
     file_path = f'storage/sources/{source_id}.pdf'
     if os.path.exists(file_path):
         os.remove(file_path)

@@ -1,6 +1,6 @@
 from http import HTTPStatus
 from datetime import datetime
-from iaEditais.schemas.Branch import Branch
+from iaEditais.schemas.branch import Branch
 
 
 def test_create_branch(client, create_branch):

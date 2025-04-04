@@ -4,12 +4,12 @@ from uuid import UUID, uuid4
 from typing import Optional
 
 
-class CreateOrder(BaseModel):
+class CreateDoc(BaseModel):
     name: str
     typification: list[UUID] = []
 
 
-class Order(CreateOrder):
+class Doc(CreateDoc):
     id: UUID = Field(default_factory=uuid4)
     name: str
     created_at: datetime = Field(default_factory=datetime.now)
@@ -18,12 +18,12 @@ class Order(CreateOrder):
 
 class Release(BaseModel):
     id: UUID = Field(default_factory=uuid4)
-    order_id: UUID
+    doc_id: UUID
     taxonomy: list
     created_at: datetime = Field(default_factory=datetime.now)
 
 
-class DetailedOrder(Order):
+class DetailedDoc(Doc):
     releases: list[Release]
 
 

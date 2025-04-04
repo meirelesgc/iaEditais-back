@@ -6,11 +6,11 @@ from iaEditais.config import Settings
 from fastapi.testclient import TestClient
 from testcontainers.postgres import PostgresContainer
 from iaEditais import app
-from iaEditais.repositories import conn
-from iaEditais.schemas.Typification import Typification
-from iaEditais.schemas.Taxonomy import Taxonomy
-from iaEditais.schemas.Branch import Branch
-from iaEditais.schemas.Order import Order
+from iaEditais.repositories.database import conn
+from iaEditais.schemas.typification import Typification
+from iaEditais.schemas.taxonomy import Taxonomy
+from iaEditais.schemas.branch import Branch
+from iaEditais.schemas.doc import Doc
 
 
 @pytest.fixture
@@ -225,8 +225,8 @@ def pdf():
 
 
 @pytest.fixture
-def order_data_factory():
-    def _factory(name='Test Order', typifications=[]):
+def doc_data_factory():
+    def _factory(name='Test Doc', typifications=[]):
         return {
             'name': name,
             'typifications': typifications or [],
@@ -236,9 +236,9 @@ def order_data_factory():
 
 
 @pytest.fixture
-def create_order(client, create_typification):
+def create_doc(client, create_typification):
     def _create(
-        name='Test Order',
+        name='Test Doc',
         typification_count=1,
     ):
         typifications = [
@@ -248,12 +248,12 @@ def create_order(client, create_typification):
             for _ in range(typification_count)
         ]
         data = {'name': name, 'typification': typifications}
-        return client.post('/order/', json=data)
+        return client.post('/doc/', json=data)
 
     return _create
 
 
 @pytest.fixture
-def order(client, create_order, branch):
-    response = create_order()
-    return Order(**response.json())
+def doc(client, create_doc, branch):
+    response = create_doc()
+    return Doc(**response.json())

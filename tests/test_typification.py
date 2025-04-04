@@ -1,4 +1,4 @@
-from iaEditais.schemas.Typification import Typification
+from iaEditais.schemas.typification import Typification
 
 from http import HTTPStatus
 

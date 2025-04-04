@@ -1,6 +1,6 @@
 from http import HTTPStatus
 from uuid import uuid4
-from iaEditais.schemas.Source import Source
+from iaEditais.schemas.source import Source
 
 
 def test_create_source(client, create_source):

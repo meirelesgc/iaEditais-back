@@ -1,8 +1,8 @@
 from fastapi import APIRouter
 from http import HTTPStatus
 from uuid import UUID
-from iaEditais.schemas.Taxonomy import CreateTaxonomy, Taxonomy
-from iaEditais.services import TaxonomyService
+from iaEditais.schemas.taxonomy import CreateTaxonomy, Taxonomy
+from iaEditais.services import taxonomy_service
 
 router = APIRouter()
 
@@ -13,7 +13,7 @@ router = APIRouter()
     response_model=Taxonomy,
 )
 def post_taxonomy(taxonomy: CreateTaxonomy):
-    return TaxonomyService.post_taxonomy(taxonomy)
+    return taxonomy_service.post_taxonomy(taxonomy)
 
 
 @router.get(
@@ -22,7 +22,7 @@ def post_taxonomy(taxonomy: CreateTaxonomy):
     response_model=list[Taxonomy],
 )
 def get_taxonomy():
-    return TaxonomyService.get_taxonomy()
+    return taxonomy_service.get_taxonomy()
 
 
 @router.get(
@@ -31,7 +31,7 @@ def get_taxonomy():
     response_model=list[Taxonomy],
 )
 def get_taxonomy_by_typification(typification_id: UUID):
-    return TaxonomyService.get_taxonomy(typification_id)
+    return taxonomy_service.get_taxonomy(typification_id)
 
 
 @router.put(
@@ -40,9 +40,9 @@ def get_taxonomy_by_typification(typification_id: UUID):
     response_model=Taxonomy,
 )
 def put_taxonomy(taxonomy: Taxonomy):
-    return TaxonomyService.put_taxonomy(taxonomy)
+    return taxonomy_service.put_taxonomy(taxonomy)
 
 
 @router.delete('/taxonomy/{taxonomy_id}/', status_code=HTTPStatus.NO_CONTENT)
 def delete_taxonomy(taxonomy_id: UUID):
-    return TaxonomyService.delete_taxonomy(taxonomy_id)
+    return taxonomy_service.delete_taxonomy(taxonomy_id)

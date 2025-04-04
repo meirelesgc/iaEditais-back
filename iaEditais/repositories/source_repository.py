@@ -1,6 +1,6 @@
-from iaEditais.repositories import conn
+from iaEditais.repositories.database import conn
 from uuid import UUID
-from iaEditais.schemas.Source import Source
+from iaEditais.schemas.source import Source
 
 
 def get_source(

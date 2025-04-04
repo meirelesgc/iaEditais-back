@@ -1,46 +1,46 @@
-from iaEditais.schemas.Taxonomy import Taxonomy, CreateTaxonomy
+from iaEditais.schemas.taxonomy import Taxonomy, CreateTaxonomy
 from uuid import UUID
 from datetime import datetime
-from iaEditais.schemas.Branch import Branch, CreateBranch
-from iaEditais.repositories import TaxonomyRepository
+from iaEditais.schemas.branch import Branch, CreateBranch
+from iaEditais.repositories import taxonomy_repository
 
 
 def post_taxonomy(taxonomy: CreateTaxonomy) -> Taxonomy:
     taxonomy = Taxonomy(**taxonomy.model_dump())
-    TaxonomyRepository.post_taxonomy(taxonomy)
+    taxonomy_repository.post_taxonomy(taxonomy)
     return taxonomy
 
 
 def get_taxonomy(typification_id: UUID = None) -> list[Taxonomy]:
-    taxonomies = TaxonomyRepository.get_taxonomy(typification_id)
+    taxonomies = taxonomy_repository.get_taxonomy(typification_id)
     return taxonomies
 
 
 def put_taxonomy(taxonomy: Taxonomy) -> Taxonomy:
     taxonomy.updated_at = datetime.now()
-    TaxonomyRepository.put_taxonomy(taxonomy)
+    taxonomy_repository.put_taxonomy(taxonomy)
     return taxonomy
 
 
 def delete_taxonomy(taxonomy_id) -> dict:
-    TaxonomyRepository.delete_taxonomy(taxonomy_id)
+    taxonomy_repository.delete_taxonomy(taxonomy_id)
     return {'message': 'Source deleted successfully'}
 
 
 def post_branch(branch: CreateBranch) -> Branch:
     branch = Branch(**branch.model_dump())
-    TaxonomyRepository.post_branch(branch)
+    taxonomy_repository.post_branch(branch)
     return branch
 
 
 def get_branches(taxonomy_id: UUID = None) -> list[Branch]:
-    return TaxonomyRepository.get_branches(taxonomy_id)
+    return taxonomy_repository.get_branches(taxonomy_id)
 
 
 def put_branch(branch: Branch) -> Branch:
-    return TaxonomyRepository.put_branch(branch)
+    return taxonomy_repository.put_branch(branch)
 
 
 def delete_branch(branch_id) -> dict:
-    TaxonomyRepository.delete_branch(branch_id)
+    taxonomy_repository.delete_branch(branch_id)
     return {'message': 'Source deleted successfully'}

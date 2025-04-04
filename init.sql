@@ -31,7 +31,7 @@ CREATE TABLE IF NOT EXISTS branches  (
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at timestamp
 );
-CREATE TABLE IF NOT EXISTS orders (
+CREATE TABLE IF NOT EXISTS docs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
     typification UUID[],
@@ -40,7 +40,7 @@ CREATE TABLE IF NOT EXISTS orders (
 );
 CREATE TABLE IF NOT EXISTS releases(
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
+    doc_id UUID REFERENCES docs(id) ON DELETE CASCADE,
     taxonomy JSONB NOT NULL,
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
