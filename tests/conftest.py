@@ -18,7 +18,7 @@ def client():
     return TestClient(app)
 
 
-postgres = PostgresContainer('ankane/pgvector')
+postgres = PostgresContainer('pgvector/pgvector:pg17')
 
 
 @pytest.fixture(scope='session', autouse=True)

@@ -60,3 +60,6 @@ addopts = '-p no:warnings'
 run = 'fastapi dev iaEditais'
 test = 'pytest -s -x --cov=iaEditais -vv; coverage html'
 mkdocs = 'mkdocs serve --dev-addr 0.0.0.0:8888'
+
+[tool.poetry]
+package-mode = false
