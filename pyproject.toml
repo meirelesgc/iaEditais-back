@@ -36,8 +36,6 @@ dependencies = [
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 
-[tool.poetry]
-package-mode = false
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.3.4"
@@ -61,5 +59,4 @@ addopts = '-p no:warnings'
 [tool.taskipy.tasks]
 run = 'fastapi dev iaEditais'
 test = 'pytest -s -x --cov=iaEditais -vv; coverage html'
-demo = 'streamlit run demo/streamlit.py'
 mkdocs = 'mkdocs serve --dev-addr 0.0.0.0:8888'
