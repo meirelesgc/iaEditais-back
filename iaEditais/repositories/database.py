@@ -1,9 +1,10 @@
+from functools import cache
+
 import psycopg
 import psycopg.rows
 from psycopg_pool import ConnectionPool
 
 from iaEditais.config import Settings
-from functools import cache
 
 
 class Connection:

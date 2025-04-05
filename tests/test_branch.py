@@ -1,5 +1,6 @@
-from http import HTTPStatus
 from datetime import datetime
+from http import HTTPStatus
+
 from iaEditais.schemas.branch import Branch
 
 

@@ -1,8 +1,9 @@
-from iaEditais.schemas.taxonomy import Taxonomy, CreateTaxonomy
-from uuid import UUID
 from datetime import datetime
-from iaEditais.schemas.branch import Branch, CreateBranch
+from uuid import UUID
+
 from iaEditais.repositories import taxonomy_repository
+from iaEditais.schemas.branch import Branch, CreateBranch
+from iaEditais.schemas.taxonomy import CreateTaxonomy, Taxonomy
 
 
 def post_taxonomy(taxonomy: CreateTaxonomy) -> Taxonomy:

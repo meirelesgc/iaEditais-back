@@ -1,6 +1,8 @@
-from fastapi import APIRouter
 from http import HTTPStatus
 from uuid import UUID
+
+from fastapi import APIRouter
+
 from iaEditais.schemas.taxonomy import CreateTaxonomy, Taxonomy
 from iaEditais.services import taxonomy_service
 

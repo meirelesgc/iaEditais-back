@@ -1,14 +1,15 @@
 from fastapi import FastAPI
+
 from iaEditais.config import Settings
-from iaEditais.routers.source_router import router as source_router
-from iaEditais.routers.taxonomy_router import (
-    router as taxonomy_router,
-)
 from iaEditais.routers.branch_router import (
     router as branch_router,
 )
 from iaEditais.routers.doc_router import (
     router as doc_router,
+)
+from iaEditais.routers.source_router import router as source_router
+from iaEditais.routers.taxonomy_router import (
+    router as taxonomy_router,
 )
 from iaEditais.routers.typification_router import (
     router as typification_router,

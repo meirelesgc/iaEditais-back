@@ -1,9 +1,11 @@
-from uuid import UUID
-from fastapi.responses import FileResponse
 import os
-from iaEditais.schemas.source import Source
+from uuid import UUID
+
+from fastapi import HTTPException, UploadFile
+from fastapi.responses import FileResponse
+
 from iaEditais.repositories import source_repository
-from fastapi import UploadFile, HTTPException
+from iaEditais.schemas.source import Source
 
 
 def post_source(name: str, description, file: UploadFile):

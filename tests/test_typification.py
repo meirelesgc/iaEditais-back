@@ -1,6 +1,6 @@
-from iaEditais.schemas.typification import Typification
-
 from http import HTTPStatus
+
+from iaEditais.schemas.typification import Typification
 
 
 def test_create_typification(client, create_typification):

@@ -1,8 +1,10 @@
-from iaEditais.schemas.doc import Doc, Release
 import json
-from psycopg.types.json import Jsonb
 from uuid import UUID
+
+from psycopg.types.json import Jsonb
+
 from iaEditais.repositories.database import conn
+from iaEditais.schemas.doc import Doc, Release
 
 
 def post_doc(doc: Doc) -> None:

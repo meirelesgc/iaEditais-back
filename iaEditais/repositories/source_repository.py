@@ -1,5 +1,6 @@
-from iaEditais.repositories.database import conn
 from uuid import UUID
+
+from iaEditais.repositories.database import conn
 from iaEditais.schemas.source import Source
 
 

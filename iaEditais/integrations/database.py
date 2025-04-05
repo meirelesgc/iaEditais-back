@@ -1,7 +1,9 @@
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from iaEditais.config import Settings
 from functools import cache
+
+from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_postgres import PGVector
+
+from iaEditais.config import Settings
 
 
 @cache

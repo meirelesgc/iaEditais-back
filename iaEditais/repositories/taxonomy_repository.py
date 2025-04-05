@@ -1,8 +1,8 @@
-from iaEditais.schemas.taxonomy import Taxonomy
 from uuid import UUID
-from iaEditais.schemas.branch import Branch
-from iaEditais.repositories.database import conn
 
+from iaEditais.repositories.database import conn
+from iaEditais.schemas.branch import Branch
+from iaEditais.schemas.taxonomy import Taxonomy
 from iaEditais.schemas.typification import Typification
 
 

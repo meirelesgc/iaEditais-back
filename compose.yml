@@ -3,8 +3,8 @@ services:
     image: pgvector/pgvector:pg17
     container_name: fiotec-postgres
     environment:
-      POSTGRES_USER: postgres
       POSTGRES_DB: fiotec
+      POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"

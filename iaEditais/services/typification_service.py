@@ -1,7 +1,8 @@
-from iaEditais.schemas.typification import CreateTypification, Typification
 from datetime import datetime
 from uuid import UUID
+
 from iaEditais.repositories import taxonomy_repository
+from iaEditais.schemas.typification import CreateTypification, Typification
 
 
 def post_typification(typification: CreateTypification) -> Typification:

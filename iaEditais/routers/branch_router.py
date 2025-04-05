@@ -1,8 +1,10 @@
-from fastapi import APIRouter
-from uuid import UUID
-from iaEditais.schemas.branch import CreateBranch, Branch
-from iaEditais.services import taxonomy_service
 from http import HTTPStatus
+from uuid import UUID
+
+from fastapi import APIRouter
+
+from iaEditais.schemas.branch import Branch, CreateBranch
+from iaEditais.services import taxonomy_service
 
 router = APIRouter()
 

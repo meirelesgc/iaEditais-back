@@ -1,8 +1,10 @@
-from fastapi import APIRouter
-from uuid import UUID
-from iaEditais.services import typification_service
 from http import HTTPStatus
+from uuid import UUID
+
+from fastapi import APIRouter
+
 from iaEditais.schemas.typification import CreateTypification, Typification
+from iaEditais.services import typification_service
 
 router = APIRouter()
 

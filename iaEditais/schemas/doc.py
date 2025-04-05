@@ -1,7 +1,8 @@
-from pydantic import Field, BaseModel
 from datetime import datetime
-from uuid import UUID, uuid4
 from typing import Optional
+from uuid import UUID, uuid4
+
+from pydantic import BaseModel, Field
 
 
 class CreateDoc(BaseModel):

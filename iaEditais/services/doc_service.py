@@ -1,16 +1,16 @@
+import os
+from uuid import UUID
+
+from fastapi import HTTPException, UploadFile
+from fastapi.responses import FileResponse
+
+from iaEditais.integrations import release_integration
+from iaEditais.repositories import doc_repository, taxonomy_repository
 from iaEditais.schemas.doc import (
     CreateDoc,
     Doc,
     Release,
 )
-import os
-from fastapi.responses import FileResponse
-from fastapi import UploadFile
-from iaEditais.repositories import doc_repository, taxonomy_repository
-from iaEditais.integrations import release_integration
-from fastapi import HTTPException
-
-from uuid import UUID
 
 
 def post_doc(doc: CreateDoc):

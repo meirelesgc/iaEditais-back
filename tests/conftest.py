@@ -1,16 +1,18 @@
-import pytest
 import os
 from uuid import uuid4
-from fpdf import FPDF
-from iaEditais.config import Settings
+
+import pytest
 from fastapi.testclient import TestClient
+from fpdf import FPDF
 from testcontainers.postgres import PostgresContainer
+
 from iaEditais import app
+from iaEditais.config import Settings
 from iaEditais.repositories.database import conn
-from iaEditais.schemas.typification import Typification
-from iaEditais.schemas.taxonomy import Taxonomy
 from iaEditais.schemas.branch import Branch
 from iaEditais.schemas.doc import Doc
+from iaEditais.schemas.taxonomy import Taxonomy
+from iaEditais.schemas.typification import Typification
 
 
 @pytest.fixture

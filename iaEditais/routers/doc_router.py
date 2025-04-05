@@ -1,10 +1,11 @@
-from fastapi import APIRouter, UploadFile, File
-from fastapi.responses import FileResponse
-from iaEditais.services import doc_service
 from http import HTTPStatus
 from uuid import UUID
-from iaEditais.schemas.doc import CreateDoc, Doc, Release
 
+from fastapi import APIRouter, File, UploadFile
+from fastapi.responses import FileResponse
+
+from iaEditais.schemas.doc import CreateDoc, Doc, Release
+from iaEditais.services import doc_service
 
 router = APIRouter()
 
