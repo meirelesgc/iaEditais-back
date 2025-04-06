@@ -34,7 +34,7 @@ def delete_doc(doc_id: UUID):
     return {'message': 'Doc deleted successfully'}
 
 
-def build_taxonomy(doc_id: UUID):
+def build_verification_tree(doc_id: UUID):
     taxonomy = taxonomy_repository.get_typification(doc_id=doc_id)
     for typification in taxonomy:
         typification_id = typification.get('id')
@@ -55,13 +55,11 @@ def post_release(
         raise HTTPException(
             status_code=400, detail='Only .pdf files are allowed.'
         )
-    release = Release(doc_id=doc_id, taxonomy=build_taxonomy(doc_id))
+    release = Release(doc_id=doc_id, taxonomy=build_verification_tree(doc_id))
 
     with open(f'storage/releases/{release.id}.pdf', 'wb') as buffer:
         buffer.write(file.file.read())
-    release_integration.add_to_vector_store(
-        f'storage/releases/{release.id}.pdf'
-    )
+    release_integration.add_to_vector_store(f'storage/releases/{release.id}.pdf')
     release = release_integration.analyze_release(release)
     doc_repository.post_release(release)
     return release

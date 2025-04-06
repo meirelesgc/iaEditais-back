@@ -63,9 +63,7 @@ def source_data_factory():
     ):
         return {
             'data': {'name': name, 'description': description},
-            'files': {
-                'file': ('testfile.pdf', file_content, 'application/pdf')
-            },
+            'files': {'file': ('testfile.pdf', file_content, 'application/pdf')},
         }
 
     return _factory
@@ -244,9 +242,7 @@ def create_doc(client, create_typification):
         typification_count=1,
     ):
         typifications = [
-            create_typification(f'Test Typification {uuid4()}')
-            .json()
-            .get('id')
+            create_typification(f'Test Typification {uuid4()}').json().get('id')
             for _ in range(typification_count)
         ]
         data = {'name': name, 'typification': typifications}

@@ -33,7 +33,7 @@ def get_typification(
     if doc_id:
         params = {'doc_id': doc_id}
         join_doc = """
-            INNER JOIN docs o 
+            INNER JOIN docs o
                 ON t.id = ANY(o.typification)
             """
         filter_doc = 'AND o.id = %(doc_id)s'
