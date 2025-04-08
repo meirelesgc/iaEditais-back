@@ -1,3 +1,4 @@
+import csv
 import os
 import threading
 import time
@@ -129,8 +130,8 @@ def load_documents(path):
 
 def split_documents(documents: list[Document]):
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=80,
-        chunk_overlap=8,
+        chunk_size=2000,
+        chunk_overlap=200,
         length_function=len,
         is_separator_regex=False,
     )
@@ -261,6 +262,46 @@ def process_release(
                 branch['duration'] = time_callback.durations[_]
 
 
+def format_benchmarks(benchmarks):
+    formatd_benchmarks = []
+    for benchmark in benchmarks:
+        for typification in benchmark['verification_tree']:
+            for taxonomy in typification['taxonomy']:
+                for branche in taxonomy['branch']:
+                    formated_branch = {
+                        'id': benchmark.get('id'),
+                        'model': benchmark.get('model'),
+                        'embedding_model': benchmark.get('embedding_model'),
+                        'total_input_tokens': benchmark.get('usage').get(
+                            'input_tokens'
+                        ),
+                        'total_output_tokens': benchmark.get('usage').get(
+                            'output_tokens'
+                        ),
+                        'total_total_tokens': benchmark.get('usage').get(
+                            'total_tokens'
+                        ),
+                        'total_duration': benchmark.get('duration'),
+                        'typification': taxonomy.get('name'),
+                        'taxonomy': taxonomy.get('title'),
+                        'taxonomy_description': taxonomy.get('description'),
+                        'branch': branche.get('title'),
+                        'branch_description': branche.get('description'),
+                        'feedback': branche.get('feedback').get('fulfilled'),
+                        'feedback_description': branche.get('feedback').get(
+                            'feedback'
+                        ),
+                        'input_tokens': branche.get('usage').get('input_tokens'),
+                        'output_tokens': branche.get('usage').get(
+                            'output_tokens'
+                        ),
+                        'total_tokens': branche.get('usage').get('total_tokens'),
+                        'duration': branche.get('duration'),
+                    }
+                    formatd_benchmarks.append(formated_branch)
+    return formatd_benchmarks
+
+
 if __name__ == '__main__':
     os.environ['OPENAI_API_KEY'] = Settings().OPENAI_API_KEY
     os.environ['GOOGLE_API_KEY'] = Settings().GOOGLE_API_KEY
@@ -271,12 +312,11 @@ if __name__ == '__main__':
     embedding_models = []
 
     providers = [
-        benchmark_Ollama,
         benchmark_Google,
         benchmark_OpenAi,
         benchmark_Deepseek,
+        benchmark_Ollama,
     ]
-    providers = [benchmark_Ollama]
 
     for provider in providers:
         _models, _embedding_models = provider()
@@ -285,9 +325,12 @@ if __name__ == '__main__':
 
     PATH = 'storage/benchmark'
     for file in os.listdir(PATH):
+        print('Analisando o arquivo: ', file)
+        print('Utilizando modelos:')
         for _model, _embedding_model in product(models, embedding_models):
             _model_object, _model_name = _model()
             _embedding_object, _embedding_name = _embedding_model()
+            print(f'[{_model_name} x {_embedding_name}]')
 
             vector_store = InMemoryVectorStore(_embedding_object)
 
@@ -297,11 +340,15 @@ if __name__ == '__main__':
                 verification_tree=build_verification_tree(),
             )
 
+            print('Adicionando a VectorStore | Start')
             add_to_vector_store(f'{PATH}/{file}', vector_store)
+            print('Adicionando a VectorStore | End')
             chain = build_prompt_chain(_model_object)
             input_vars = build_vars(vector_store, benchmark)
+            print('Processando a carga | Start')
             process_release(chain, benchmark, input_vars)
+            print('Processando a carga | End')
             benchmarks.append(benchmark.model_dump())
-
+    benchmarks = format_benchmarks(benchmarks)
     PATH = 'storage/benchmark/benchmark.csv'
-    pd.DataFrame(benchmarks).to_csv(PATH, index=False)
+    pd.DataFrame(benchmarks).to_csv(PATH, index=False, quoting=csv.QUOTE_ALL)
