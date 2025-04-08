@@ -3,6 +3,7 @@ import os
 import threading
 import time
 from itertools import product
+from time import sleep
 from typing import Any, Dict, List
 from uuid import UUID, uuid4
 
@@ -77,6 +78,9 @@ class TimingCallbackHandler(BaseCallbackHandler):
             start_time = self.start_times.pop(run_id, None)
             if start_time is not None:
                 duration = end_time - start_time
+                quota = 14 - duration
+                if quota > 0:
+                    sleep(quota)
                 self.durations.append(duration)
 
     def get_average_duration(self) -> float:
@@ -317,6 +321,7 @@ if __name__ == '__main__':
         benchmark_Deepseek,
         benchmark_Ollama,
     ]
+    providers = [benchmark_Deepseek]
 
     for provider in providers:
         _models, _embedding_models = provider()
@@ -350,5 +355,5 @@ if __name__ == '__main__':
             print('Processando a carga | End')
             benchmarks.append(benchmark.model_dump())
     benchmarks = format_benchmarks(benchmarks)
-    PATH = 'storage/benchmark/benchmark.csv'
+    PATH = 'storage/benchmark/benchmark.deepseek.csv'
     pd.DataFrame(benchmarks).to_csv(PATH, index=False, quoting=csv.QUOTE_ALL)

@@ -4,18 +4,8 @@ from langchain_google_genai import (
 )
 
 
-def get_model_001():
-    model = 'gemini-2.0-flash-001'
-    return ChatGoogleGenerativeAI(model=model), model
-
-
 def get_model_002():
     model = 'gemini-2.0-flash'
-    return ChatGoogleGenerativeAI(model=model), model
-
-
-def get_model_003():
-    model = 'gemini-2.5-pro-exp-03-25'
     return ChatGoogleGenerativeAI(model=model), model
 
 
@@ -30,6 +20,6 @@ def get_embed_003():
 
 
 def main():
-    models = [get_model_001, get_model_002, get_model_003]
+    models = [get_model_002]
     embed_models = [get_embed_001]
     return models, embed_models
