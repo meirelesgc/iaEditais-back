@@ -65,13 +65,11 @@ class TimingCallbackHandler(BaseCallbackHandler):
     def on_llm_start(
         self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
     ) -> None:
-        print('[START]', end=' ')
         run_id = kwargs.get('run_id', str(time.time_ns()))
         with self._lock:
             self.start_times[run_id] = time.perf_counter()
 
     def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
-        print('[END]', end=' ')
         run_id = kwargs.get('run_id', str(time.time_ns()))
         end_time = time.perf_counter()
         with self._lock:
@@ -271,7 +269,7 @@ def format_benchmarks(benchmarks):
     for benchmark in benchmarks:
         for typification in benchmark['verification_tree']:
             for taxonomy in typification['taxonomy']:
-                for branche in taxonomy['branch']:
+                for branch in taxonomy['branch']:
                     formated_branch = {
                         'id': benchmark.get('id'),
                         'model': benchmark.get('model'),
@@ -289,18 +287,18 @@ def format_benchmarks(benchmarks):
                         'typification': taxonomy.get('name'),
                         'taxonomy': taxonomy.get('title'),
                         'taxonomy_description': taxonomy.get('description'),
-                        'branch': branche.get('title'),
-                        'branch_description': branche.get('description'),
-                        'feedback': branche.get('feedback').get('fulfilled'),
-                        'feedback_description': branche.get('feedback').get(
+                        'branch': branch.get('title'),
+                        'branch_description': branch.get('description'),
+                        'feedback': branch.get('feedback').get('fulfilled'),
+                        'feedback_description': branch.get('feedback').get(
                             'feedback'
                         ),
-                        'input_tokens': branche.get('usage').get('input_tokens'),
-                        'output_tokens': branche.get('usage').get(
+                        'input_tokens': branch.get('usage').get('input_tokens'),
+                        'output_tokens': branch.get('usage').get(
                             'output_tokens'
                         ),
-                        'total_tokens': branche.get('usage').get('total_tokens'),
-                        'duration': branche.get('duration'),
+                        'total_tokens': branch.get('usage').get('total_tokens'),
+                        'duration': branch.get('duration'),
                     }
                     formatd_benchmarks.append(formated_branch)
     return formatd_benchmarks
@@ -316,12 +314,11 @@ if __name__ == '__main__':
     embedding_models = []
 
     providers = [
+        benchmark_Ollama,
         benchmark_Google,
         benchmark_OpenAi,
         benchmark_Deepseek,
-        benchmark_Ollama,
     ]
-    providers = [benchmark_Deepseek]
 
     for provider in providers:
         _models, _embedding_models = provider()
@@ -330,6 +327,8 @@ if __name__ == '__main__':
 
     PATH = 'storage/benchmark'
     for file in os.listdir(PATH):
+        if not file.endswith('.pdf'):
+            continue
         print('Analisando o arquivo: ', file)
         print('Utilizando modelos:')
         for _model, _embedding_model in product(models, embedding_models):
@@ -354,6 +353,11 @@ if __name__ == '__main__':
             process_release(chain, benchmark, input_vars)
             print('Processando a carga | End')
             benchmarks.append(benchmark.model_dump())
-    benchmarks = format_benchmarks(benchmarks)
-    PATH = 'storage/benchmark/benchmark.deepseek.csv'
-    pd.DataFrame(benchmarks).to_csv(PATH, index=False, quoting=csv.QUOTE_ALL)
+
+    csv_benchmarks = format_benchmarks(benchmarks)
+    PATH = 'storage/benchmark/benchmark.csv'
+    pd.DataFrame(csv_benchmarks).to_csv(
+        PATH,
+        index=False,
+        quoting=csv.QUOTE_ALL,
+    )
