@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class CreateDoc(BaseModel):
     name: str
-    typification: list[UUID] = []
+    typification: list[UUID]
 
 
 class Doc(CreateDoc):

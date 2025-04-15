@@ -15,6 +15,10 @@ from iaEditais.schemas.doc import (
 
 def post_doc(doc: CreateDoc):
     doc = Doc(**doc.model_dump())
+    if len(doc.typification) < 1:
+        raise HTTPException(
+            status_code=400, detail='At least one typification must be selected.'
+        )
     doc_repository.post_doc(doc)
     return doc
 
