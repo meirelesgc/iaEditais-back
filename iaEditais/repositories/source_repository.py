@@ -47,3 +47,16 @@ def delete_source(source_id: UUID) -> None:
         DELETE FROM sources WHERE id = %(id)s;
         """
     conn().exec(SCRIPT_SQL, params)
+
+
+def put_source(source: Source):
+    params = source.model_dump()
+    SCRIPT_SQL = """
+        UPDATE public.sources
+        SET name = %(name)s,
+            description = %(description)s,
+            has_file = %(has_file)s,
+            updated_at = %(updated_at)s
+        WHERE id = %(id)s;
+        """
+    conn().exec(SCRIPT_SQL, params)

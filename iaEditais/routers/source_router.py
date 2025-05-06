@@ -23,6 +23,16 @@ def post_source(
     return source_service.post_source(name, description, file)
 
 
+@router.put('/source/', status_code=HTTPStatus.OK, response_model=Source)
+def put_source(source: Source):
+    return source_service.put_source(source)
+
+
+@router.put('/source/{source_id}/')
+def put_source_file(source_id: UUID, file: UploadFile = File(None)):
+    return source_service.put_source_file(source_id, file)
+
+
 @router.get(
     '/source/',
     response_model=list[Source],

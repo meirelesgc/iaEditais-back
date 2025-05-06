@@ -63,6 +63,7 @@ def post_release(
 
     with open(f'storage/releases/{release.id}.pdf', 'wb') as buffer:
         buffer.write(file.file.read())
+
     release_integration.add_to_vector_store(f'storage/releases/{release.id}.pdf')
     release = release_integration.analyze_release(release)
     doc_repository.post_release(release)

@@ -1,4 +1,5 @@
 import os
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import HTTPException, UploadFile
@@ -6,6 +7,21 @@ from fastapi.responses import FileResponse
 
 from iaEditais.repositories import source_repository
 from iaEditais.schemas.source import Source
+
+
+def put_source(source: Source):
+    source.updated_at = datetime.now()
+    source_repository.put_source(source)
+    return source
+
+
+def put_source_file(id: UUID, file: UploadFile):
+    if not file.filename.endswith('.pdf'):
+        raise HTTPException(
+            status_code=400, detail='Only .pdf files are allowed.'
+        )
+    with open(f'storage/sources/{id}.pdf', 'wb') as buffer:
+        buffer.write(file.file.read())
 
 
 def post_source(name: str, description, file: UploadFile):

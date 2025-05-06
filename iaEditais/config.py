@@ -1,3 +1,5 @@
+from typing import Optional
+
 from pydantic_settings import BaseSettings
 
 
@@ -11,8 +13,8 @@ class Settings(BaseSettings):
     ROOT_PATH: str = ''
 
     OPENAI_API_KEY: str
-    GOOGLE_API_KEY: str
-    DEEPSEEK_API_KEY: str
+    GOOGLE_API_KEY: Optional[str] = None
+    DEEPSEEK_API_KEY: Optional[str] = None
 
     class Config:
         env_file = '.env'
