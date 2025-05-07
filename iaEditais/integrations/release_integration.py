@@ -1,4 +1,6 @@
 from typing import Any
+from fastapi import HTTPException
+from sqlalchemy.exc import IntegrityError
 
 from langchain.schema.document import Document
 from langchain_community.document_loaders import PyPDFLoader
@@ -21,7 +23,14 @@ def add_to_vector_store(path):
     documents = load_documents(path)
     chunks = split_documents(documents)
     db = get_vector_store()
-    db.add_documents(chunks)
+    try:
+        db.add_documents(chunks)
+    except IntegrityError as E:
+        print('IntegrityErro    r', '\n\n', E)
+        raise HTTPException(
+            status_code=415,
+            detail='At least one typification must be selected.',
+        )
 
 
 def split_documents(documents: list[Document]):
