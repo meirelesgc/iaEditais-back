@@ -1,13 +1,13 @@
 from typing import Any
-from fastapi import HTTPException
-from sqlalchemy.exc import IntegrityError
 
+from fastapi import HTTPException
 from langchain.schema.document import Document
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_core.exceptions import OutputParserException
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from sqlalchemy.exc import IntegrityError
 
 from iaEditais.integrations.database import get_model, get_vector_store
 from iaEditais.repositories import source_repository
@@ -15,7 +15,7 @@ from iaEditais.schemas.doc import Release, ReleaseFeedback
 
 
 def load_documents(path):
-    document_loader = PyPDFLoader(path)
+    document_loader = PyMuPDFLoader(path)
     return document_loader.load()
 
 

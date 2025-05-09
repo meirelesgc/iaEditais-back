@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-
+from datetime import datetime
 from iaEditais.config import Settings
 from iaEditais.routers.branch_router import (
     router as branch_router,
@@ -19,6 +19,18 @@ app = FastAPI(
     root_path=Settings().ROOT_PATH,
     title='IA Editais',
 )
+
+
+@app.middleware('http')
+async def log_requests(request, call_next):
+    start_time = datetime.now()
+    response = await call_next(request)
+    process_time = datetime.now() - start_time
+    print(
+        f'Request {request.method} {request.url} - Tempo de execução: {process_time}'
+    )
+    return response
+
 
 app.include_router(source_router, tags=['Source'])
 app.include_router(taxonomy_router, tags=['Taxonomy'])
