@@ -1,13 +1,22 @@
-from typing import Any
+import threading
+import time
+from typing import Any, Dict, List
 
 from fastapi import HTTPException
+from langchain.callbacks.base import BaseCallbackHandler
 from langchain.schema.document import Document
+from langchain.schema.runnable import RunnableLambda
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_core.exceptions import OutputParserException
+from langchain_core.messages import AIMessage
+from langchain_core.messages.ai import UsageMetadata, add_usage
 from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.outputs import ChatGeneration, LLMResult
 from langchain_core.prompts import PromptTemplate
+from langchain_core.runnables import Runnable
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sqlalchemy.exc import IntegrityError
+from typing_extensions import override
 
 from iaEditais.integrations.database import get_model, get_vector_store
 from iaEditais.repositories import source_repository
@@ -68,7 +77,7 @@ def calculate_chunk_ids(chunks):
 def build_prompt_chain() -> Any:
     TEMPLATE = """
         <Edital>
-        {rag}
+        {docs}
         </Edital>
 
         Você é um analista especializado em avaliação de editais do serviço público brasileiro. Sua tarefa é verificar a presença e relevância dos seguintes critérios no edital fornecido:
@@ -97,7 +106,7 @@ def build_prompt_chain() -> Any:
     prompt = PromptTemplate(
         template=TEMPLATE,
         input_variables=[
-            'rag',
+            'docs',
             'taxonomy_title',
             'taxonomy_description',
             'taxonomy_source',
@@ -156,25 +165,142 @@ async def evaluate_branch(  # noqa: PLR0913, PLR0917
         return feedback
 
 
-async def process_release_taxonomy(
-    conn, release: Release, db: Any, chain: Any
-) -> None:
-    for typification in release.taxonomy:
-        for item in typification.get('taxonomy', []):
-            for _, branch in enumerate(item.get('branch', [])):
-                branch['evaluate'] = await evaluate_branch(
-                    conn, branch, item, typification, release.id, db, chain
+class TimingCallbackHandler(BaseCallbackHandler):
+    def __init__(self) -> None:
+        super().__init__()
+        self._lock = threading.Lock()
+        self.start_times: Dict[str, float] = {}
+        self.durations: list[float] = []
+
+    def on_llm_start(
+        self, serialized: Dict[str, Any], prompts: List[str], **kwargs: Any
+    ) -> None:
+        run_id = kwargs.get('run_id', str(time.time_ns()))
+        with self._lock:
+            self.start_times[run_id] = time.perf_counter()
+
+    def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
+        run_id = kwargs.get('run_id', str(time.time_ns()))
+        end_time = time.perf_counter()
+        with self._lock:
+            start_time = self.start_times.pop(run_id, None)
+            if start_time is not None:
+                duration = end_time - start_time
+                quota = 14 - duration
+                if quota > 0:
+                    # sleep(quota)
+                    pass
+                self.durations.append(duration)
+
+    def get_average_duration(self) -> float:
+        with self._lock:
+            if not self.durations:
+                return 0.0
+            return sum(self.durations) / len(self.durations)
+
+    def __repr__(self) -> str:
+        return f'Avg duration: {self.get_average_duration():.4f}s, Count: {len(self.durations)}'  # noqa: E501
+
+
+class UsageMetadataCallbackHandler(BaseCallbackHandler):
+    def __init__(self) -> None:
+        super().__init__()
+        self._lock = threading.Lock()
+        self.usage_metadata: dict[str, UsageMetadata] = {}
+        self.usage_metadata_list: list[UsageMetadata] = []
+
+    @override
+    def __repr__(self) -> str:
+        return str(self.usage_metadata)
+
+    def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
+        try:
+            generation = response.generations[0][0]
+        except IndexError:
+            generation = None
+
+        usage_metadata = None
+        if isinstance(generation, ChatGeneration):
+            try:
+                message = generation.message
+                if isinstance(message, AIMessage):
+                    usage_metadata = message.usage_metadata
+            except AttributeError:
+                pass
+
+        if usage_metadata:
+            with self._lock:
+                self.usage_metadata = add_usage(
+                    self.usage_metadata, usage_metadata
                 )
+                self.usage_metadata_list.append(usage_metadata)
 
 
-def build_vars():
+def safe_wrapper(chain: Runnable):
+    def _safe_invoke(input_item):
+        try:
+            return chain.invoke(input_item)
+        except OutputParserException:
+            return {
+                'feedback': 'Não foi possível gerar feedback para este item.',
+                'fulfilled': False,
+            }
+
+    return RunnableLambda(_safe_invoke)
+
+
+async def process_release_taxonomy(chain, release, input_vars):
+    time_callback = TimingCallbackHandler()
+    usage_callback = UsageMetadataCallbackHandler()
+    safe_chain = safe_wrapper(chain)
+    response = safe_chain.batch(
+        input_vars, config={'callbacks': [usage_callback, time_callback]}
+    )
+    for typification in release.taxonomy:
+        for taxonomy in typification.get('taxonomy', []):
+            for _, branch in enumerate(taxonomy.get('branch', [])):
+                branch['evaluate'] = response[_]
+                branch['usage'] = usage_callback.usage_metadata_list[_]
+                branch['duration'] = time_callback.durations[_]
+
+
+async def process_branch(conn, typification, taxonomy, branch, vector_store):
+    source_ids = typification.get('source', []) + taxonomy.get('source', [])
+    sources = []
+
+    for source in await source_repository.get_source(conn):
+        if source.get('id') in source_ids:
+            sources.append(source.get('name'))
+
+    docs = []
+    query = f'{branch.get("title")} {branch.get("description")}'
+    for d in vector_store.similarity_search(query, k=3):
+        docs.append(d.page_content)
+
+    return {
+        'docs': docs,
+        'taxonomy_title': taxonomy.get('title'),
+        'taxonomy_description': taxonomy.get('description'),
+        'taxonomy_source': sources,
+        'taxonomy_branch_title': branch.get('title'),
+        'taxonomy_branch_description': branch.get('description'),
+        'query': 'Justifique sua resposta com base no conteúdo do edital.',
+    }
+
+
+async def build_vars(conn, release, vectorstore):
     input_vars = list()
+    for typification in release.taxonomy:
+        for taxonomy in typification.get('taxonomy', []):
+            for branch in taxonomy.get('branch', []):
+                _branch = await process_branch(conn, typification, taxonomy, branch, vectorstore)  # fmt: skip # noqa: E261, E501
+                input_vars.append(_branch)  # fmt: skip # noqa: E261, E501
     return input_vars
 
 
 async def analyze_release(conn, release: Release) -> Release:
     db = get_vector_store()
     chain = build_prompt_chain()
-    input_vars = build_vars(release)
-    await process_release_taxonomy(conn, release, db, chain)
+    input_vars = await build_vars(conn, release, db)
+    await process_release_taxonomy(chain, release, input_vars)
     return release
