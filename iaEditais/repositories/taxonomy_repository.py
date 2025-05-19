@@ -1,21 +1,22 @@
 from uuid import UUID
 
-from iaEditais.repositories.database import conn
+from iaEditais.core.connection import Connection
 from iaEditais.schemas.branch import Branch
 from iaEditais.schemas.taxonomy import Taxonomy
 from iaEditais.schemas.typification import Typification
 
 
-def post_typification(typification: Typification):
+async def post_typification(conn, typification: Typification):
     params = typification.model_dump()
     SCRIPT_SQL = """
-        INSERT INTO typifications (id, name, source, created_at) 
+        INSERT INTO typifications (id, name, source, created_at)
         VALUES (%(id)s, %(name)s, %(source)s, %(created_at)s);
         """
-    conn().exec(SCRIPT_SQL, params)
+    await conn.exec(SCRIPT_SQL, params)
 
 
-def get_typification(
+async def get_typification(
+    conn: Connection,
     typification_id: UUID = None,
     doc_id: UUID = None,
 ):
@@ -33,56 +34,56 @@ def get_typification(
     if doc_id:
         params = {'doc_id': doc_id}
         join_doc = """
-            INNER JOIN docs o 
+            INNER JOIN docs o
                 ON t.id = ANY(o.typification)
             """
         filter_doc = 'AND o.id = %(doc_id)s'
 
     SCRIPT_SQL = f"""
-        SELECT t.id, t.name, t.source, t.created_at, t.updated_at 
+        SELECT t.id, t.name, t.source, t.created_at, t.updated_at
         FROM typifications t
             {join_doc}
         WHERE 1 = 1
             {filter_id}
             {filter_doc};
         """
-    result = conn().select(SCRIPT_SQL, params, one)
-    return result
+    return await conn.select(SCRIPT_SQL, params, one)
 
 
-def put_typification(typification: Typification):
+async def put_typification(conn, typification: Typification):
     params = typification.model_dump()
 
     SCRIPT_SQL = """
-        UPDATE typifications 
-        SET name = %(name)s, 
+        UPDATE typifications
+        SET name = %(name)s,
             created_at = %(created_at)s,
             source = %(source)s,
             updated_at = %(updated_at)s
         WHERE id = %(id)s;
         """
-    conn().exec(SCRIPT_SQL, params)
+    await conn.exec(SCRIPT_SQL, params)
 
 
-def delete_typification(typification_id: UUID):
+async def delete_typification(conn, typification_id: UUID):
     params = {'id': typification_id}
     SCRIPT_SQL = """
-        DELETE FROM typifications 
+        DELETE FROM typifications
         WHERE id = %(id)s;
         """
-    conn().exec(SCRIPT_SQL, params)
+    await conn.exec(SCRIPT_SQL, params)
 
 
-def post_taxonomy(taxonomy: Taxonomy) -> None:
+async def post_taxonomy(conn, taxonomy: Taxonomy) -> None:
     params = taxonomy.model_dump()
     SCRIPT_SQL = """
         INSERT INTO taxonomies (typification_id, id, title, description, source)
         VALUES (%(typification_id)s, %(id)s, %(title)s, %(description)s, %(source)s);
         """
-    conn().exec(SCRIPT_SQL, params)
+    await conn.exec(SCRIPT_SQL, params)
 
 
-def get_taxonomy(
+async def get_taxonomy(
+    conn: Connection,
     typification_id: UUID = None,
     taxonomy_id: UUID = None,
     taxonomies: list[UUID] = None,
@@ -107,49 +108,51 @@ def get_taxonomy(
         filter_id = 'AND id = ANY(%(taxonomies)s)'
 
     SCRIPT_SQL = f"""
-        SELECT typification_id, id, title, description, source, created_at, updated_at 
+        SELECT typification_id, id, title, description, source, created_at, updated_at
         FROM taxonomies
         WHERE 1 = 1
             {filter_type}
             {filter_id};
         """
 
-    result = conn().select(SCRIPT_SQL, params, one=one)
+    result = await conn.select(SCRIPT_SQL, params, one=one)
     return result
 
 
-def post_branch(branch: Branch) -> None:
+async def post_branch(conn, branch: Branch) -> None:
     params = branch.model_dump()
     SCRIPT_SQL = """
         INSERT INTO branches (id, taxonomy_id, title, description, created_at)
         VALUES (%(id)s, %(taxonomy_id)s, %(title)s, %(description)s, %(created_at)s);
         """
-    conn().exec(SCRIPT_SQL, params)
+    await conn.exec(SCRIPT_SQL, params)
 
 
-def put_taxonomy(taxonomy: Taxonomy) -> str:
+async def put_taxonomy(conn, taxonomy: Taxonomy) -> str:
     params = taxonomy.model_dump()
 
-    SCRIPT_SQL = """ 
-        UPDATE taxonomies SET 
-            title = %(title)s, 
+    SCRIPT_SQL = """
+        UPDATE taxonomies SET
+            title = %(title)s,
             description = %(description)s,
-            source = %(source)s, 
+            source = %(source)s,
             updated_at = %(updated_at)s
         WHERE id = %(id)s;
         """
-    conn().exec(SCRIPT_SQL, params)
+    await conn.exec(SCRIPT_SQL, params)
 
 
-def delete_taxonomy(taxonomy_id: UUID) -> None:
+async def delete_taxonomy(conn, taxonomy_id: UUID) -> None:
     params = {'id': taxonomy_id}
-    SCRIPT_SQL = """ 
+    SCRIPT_SQL = """
         DELETE FROM taxonomies WHERE id = %(id)s;
         """
-    conn().exec(SCRIPT_SQL, params)
+    await conn.exec(SCRIPT_SQL, params)
 
 
-def get_branches(taxonomy_id: UUID = None) -> list[Branch]:
+async def get_branches(
+    conn: Connection, taxonomy_id: UUID = None
+) -> list[Branch]:
     params = {}
     filter_id = str()
 
@@ -163,11 +166,11 @@ def get_branches(taxonomy_id: UUID = None) -> list[Branch]:
         WHERE 1 = 1
             {filter_id}
         """
-    result = conn().select(SCRIPT_SQL, params)
+    result = await conn.select(SCRIPT_SQL, params)
     return result
 
 
-def put_branch(branch: Branch) -> Branch:
+async def put_branch(conn, branch: Branch) -> Branch:
     params = branch.model_dump()
     SCRIPT_SQL = """
         UPDATE branches
@@ -177,14 +180,14 @@ def put_branch(branch: Branch) -> Branch:
             updated_at = NOW()
         WHERE id = %(id)s;
         """
-    conn().exec(SCRIPT_SQL, params)
+    await conn.exec(SCRIPT_SQL, params)
     return branch
 
 
-def delete_branch(branch_id: UUID) -> None:
+async def delete_branch(conn, branch_id: UUID) -> None:
     params = {'id': branch_id}
     SCRIPT_SQL = """
         DELETE FROM branches
         WHERE id = %(id)s;
         """
-    conn().exec(SCRIPT_SQL, params)
+    await conn.exec(SCRIPT_SQL, params)

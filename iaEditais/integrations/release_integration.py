@@ -1,11 +1,13 @@
 from typing import Any
 
+from fastapi import HTTPException
 from langchain.schema.document import Document
-from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_core.exceptions import OutputParserException
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_text_splitters import RecursiveCharacterTextSplitter
+from sqlalchemy.exc import IntegrityError
 
 from iaEditais.integrations.database import get_model, get_vector_store
 from iaEditais.repositories import source_repository
@@ -13,7 +15,7 @@ from iaEditais.schemas.doc import Release, ReleaseFeedback
 
 
 def load_documents(path):
-    document_loader = PyPDFLoader(path)
+    document_loader = PyMuPDFLoader(path)
     return document_loader.load()
 
 
@@ -21,7 +23,14 @@ def add_to_vector_store(path):
     documents = load_documents(path)
     chunks = split_documents(documents)
     db = get_vector_store()
-    db.add_documents(chunks)
+    try:
+        db.add_documents(chunks)
+    except IntegrityError as E:
+        print('IntegrityErro    r', '\n\n', E)
+        raise HTTPException(
+            status_code=415,
+            detail='At least one typification must be selected.',
+        )
 
 
 def split_documents(documents: list[Document]):

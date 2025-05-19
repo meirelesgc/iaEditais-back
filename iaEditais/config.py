@@ -2,13 +2,11 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    DATABASE: str = 'simcc'
+    DATABASE: str = 'fiotec'
     PG_USER: str = 'postgres'
     PASSWORD: str = 'postgres'
     HOST: str = 'localhost'
     PORT: int = 5432
-
-    ROOT_PATH: str = ''
 
     OPENAI_API_KEY: str
 
