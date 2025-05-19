@@ -66,7 +66,7 @@ async def post_release(
         buffer.write(file.file.read())
 
     release_integration.add_to_vector_store(f'storage/releases/{release.id}.pdf')
-    release = release_integration.analyze_release(release)
+    release = await release_integration.analyze_release(conn, release)
     await doc_repository.post_release(conn, release)
     return release
 

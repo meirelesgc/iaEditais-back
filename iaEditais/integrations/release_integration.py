@@ -115,7 +115,8 @@ def build_prompt_chain() -> Any:
     return chain
 
 
-def evaluate_branch(
+async def evaluate_branch(  # noqa: PLR0913, PLR0917
+    conn,
     branch: dict,
     item: dict,
     typification: dict,
@@ -124,7 +125,7 @@ def evaluate_branch(
     chain: Any,
 ) -> Any:
     source = []
-    for s in source_repository.get_source():
+    for s in await source_repository.get_source(conn):
         ss = item.get('source', []) + typification.get('source', [])
         if s['id'] in ss:
             source.append(s['name'])
@@ -155,17 +156,25 @@ def evaluate_branch(
         return feedback
 
 
-def process_release_taxonomy(release: Release, db: Any, chain: Any) -> None:
+async def process_release_taxonomy(
+    conn, release: Release, db: Any, chain: Any
+) -> None:
     for typification in release.taxonomy:
         for item in typification.get('taxonomy', []):
             for _, branch in enumerate(item.get('branch', [])):
-                branch['evaluate'] = evaluate_branch(
-                    branch, item, typification, release.id, db, chain
+                branch['evaluate'] = await evaluate_branch(
+                    conn, branch, item, typification, release.id, db, chain
                 )
 
 
-def analyze_release(release: Release) -> Release:
+def build_vars():
+    input_vars = list()
+    return input_vars
+
+
+async def analyze_release(conn, release: Release) -> Release:
     db = get_vector_store()
     chain = build_prompt_chain()
-    process_release_taxonomy(release, db, chain)
+    input_vars = build_vars(release)
+    await process_release_taxonomy(conn, release, db, chain)
     return release
