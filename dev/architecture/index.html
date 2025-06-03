@@ -6,10 +6,10 @@
 <meta charset="utf-8"/>
 <meta content="width=device-width,initial-scale=1" name="viewport"/>
 <link href="../" rel="prev"/>
-<link href="../analysis/" rel="next"/>
+<link href="../../api/" rel="next"/>
 <link href="../../assets/images/favicon.png" rel="icon"/>
 <meta content="mkdocs-1.6.1, mkdocs-material-9.6.14" name="generator"/>
-<title>Árvore de verificação - iaEditais</title>
+<title>Arquitetura - iaEditais</title>
 <link href="../../assets/stylesheets/main.342714a4.min.css" rel="stylesheet"/>
 <link href="../../assets/stylesheets/palette.06af60db.min.css" rel="stylesheet"/>
 <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
@@ -22,7 +22,7 @@
 <input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
 <label class="md-overlay" for="__drawer"></label>
 <div data-md-component="skip">
-<a class="md-skip" href="#arvore-de-verificacao">
+<a class="md-skip" href="#arquitetura">
           Pular para conteúdo
         </a>
 </div>
@@ -46,7 +46,7 @@
 <div class="md-header__topic" data-md-component="header-topic">
 <span class="md-ellipsis">
             
-              Árvore de verificação
+              Arquitetura
             
           </span>
 </div>
@@ -109,8 +109,8 @@
 
       </a>
 </li>
-<li class="md-tabs__item md-tabs__item--active">
-<a class="md-tabs__link" href="../">
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../resources/">
           
   
   
@@ -118,8 +118,8 @@
 
         </a>
 </li>
-<li class="md-tabs__item">
-<a class="md-tabs__link" href="../../dev/">
+<li class="md-tabs__item md-tabs__item--active">
+<a class="md-tabs__link" href="../">
           
   
   
@@ -172,25 +172,67 @@
   </span>
 </a>
 </li>
-<li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
-<input checked="" class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
-<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
 <span class="md-ellipsis">
     Demonstração
     
   </span>
 <span class="md-nav__icon md-icon"></span>
 </label>
-<nav aria-expanded="true" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<nav aria-expanded="false" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
 <label class="md-nav__title" for="__nav_2">
 <span class="md-nav__icon md-icon"></span>
             Demonstração
           </label>
 <ul class="md-nav__list" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="../">
+<a class="md-nav__link" href="../../resources/">
 <span class="md-ellipsis">
     Introdução
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../resources/tree/">
+<span class="md-ellipsis">
+    Árvore de verificação
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../resources/analysis/">
+<span class="md-ellipsis">
+    Analise
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_3" type="checkbox"/>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+<span class="md-ellipsis">
+    Desenvolvimento
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            Desenvolvimento
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../">
+<span class="md-ellipsis">
+    Ambiente
     
   </span>
 </a>
@@ -199,14 +241,14 @@
 <input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
 <label class="md-nav__link md-nav__link--active" for="__toc">
 <span class="md-ellipsis">
-    Árvore de verificação
+    Arquitetura
     
   </span>
 <span class="md-nav__icon md-icon"></span>
 </label>
 <a class="md-nav__link md-nav__link--active" href="./">
 <span class="md-ellipsis">
-    Árvore de verificação
+    Arquitetura
     
   </span>
 </a>
@@ -217,30 +259,16 @@
     </label>
 <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#tipificacao">
+<a class="md-nav__link" href="#componentes-principais">
 <span class="md-ellipsis">
-      Tipificação 🧵
+      Componentes Principais
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#taxonomia">
+<a class="md-nav__link" href="#fluxo-de-analise-de-um-documento">
 <span class="md-ellipsis">
-      Taxonomia 🪢
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#ramificacoes">
-<span class="md-ellipsis">
-      Ramificações 🪡
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#exemplo-completo">
-<span class="md-ellipsis">
-      Exemplo Completo 🌳
+      Fluxo de Análise de um Documento
     </span>
 </a>
 </li>
@@ -248,49 +276,7 @@
 </nav>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="../analysis/">
-<span class="md-ellipsis">
-    Analise
-    
-  </span>
-</a>
-</li>
-</ul>
-</nav>
-</li>
-<li class="md-nav__item md-nav__item--nested">
-<input class="md-nav__toggle md-toggle" id="__nav_3" type="checkbox"/>
-<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
-<span class="md-ellipsis">
-    Desenvolvimento
-    
-  </span>
-<span class="md-nav__icon md-icon"></span>
-</label>
-<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
-<label class="md-nav__title" for="__nav_3">
-<span class="md-nav__icon md-icon"></span>
-            Desenvolvimento
-          </label>
-<ul class="md-nav__list" data-md-scrollfix="">
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../dev/">
-<span class="md-ellipsis">
-    Ambiente
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../dev/architecture/">
-<span class="md-ellipsis">
-    Arquitetura
-    
-  </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="../../dev/database.md">
+<a class="md-nav__link" href="../database.md">
 <span class="md-ellipsis">
     Banco de Dados
     
@@ -323,30 +309,16 @@
     </label>
 <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
 <li class="md-nav__item">
-<a class="md-nav__link" href="#tipificacao">
+<a class="md-nav__link" href="#componentes-principais">
 <span class="md-ellipsis">
-      Tipificação 🧵
+      Componentes Principais
     </span>
 </a>
 </li>
 <li class="md-nav__item">
-<a class="md-nav__link" href="#taxonomia">
+<a class="md-nav__link" href="#fluxo-de-analise-de-um-documento">
 <span class="md-ellipsis">
-      Taxonomia 🪢
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#ramificacoes">
-<span class="md-ellipsis">
-      Ramificações 🪡
-    </span>
-</a>
-</li>
-<li class="md-nav__item">
-<a class="md-nav__link" href="#exemplo-completo">
-<span class="md-ellipsis">
-      Exemplo Completo 🌳
+      Fluxo de Análise de um Documento
     </span>
 </a>
 </li>
@@ -357,72 +329,83 @@
 </div>
 <div class="md-content" data-md-component="content">
 <article class="md-content__inner md-typeset">
-<h1 id="arvore-de-verificacao">Árvore de Verificação<a class="headerlink" href="#arvore-de-verificacao" title="Permanent link">#</a></h1>
-<p>A <strong>árvore</strong> do <strong>iaEditais</strong> é uma estrutura organizada que padroniza a validação e revisão de editais, tornando o processo mais eficiente e estruturado. 🌳  </p>
-<h2 id="tipificacao">Tipificação 🧵<a class="headerlink" href="#tipificacao" title="Permanent link">#</a></h2>
-<p>Cada <strong>árvore</strong> é baseada em uma <strong>tipificação</strong> 🧵, que possui um título e pode estar vinculada a uma fonte específica, como uma lei ou norma interna. Essa tipificação também está associada ao edital, garantindo coerência na análise.  </p>
+<h1 id="arquitetura">Arquitetura<a class="headerlink" href="#arquitetura" title="Permanent link">#</a></h1>
+<p>A plataforma <strong>iaEditais</strong> é estruturada em um conjunto de serviços coesos que operam de forma integrada para fornecer a funcionalidade de análise de editais. A arquitetura é baseada em uma API central, um banco de dados relacional/vetorial e integrações com serviços de IA.</p>
+<h2 id="componentes-principais">Componentes Principais<a class="headerlink" href="#componentes-principais" title="Permanent link">#</a></h2>
 <pre class="mermaid"><code>graph TD
-    A1[Contratação Direta]
-    A2[Contratação de Solução de TIC]
-    A3[Serviços com Dedicação Exclusiva de Mão de Obra]
-
-    A1 --&gt;|Base legal| B1[Lei nº 14.133/2021, IN Seges 65/2021]
-    A2 --&gt;|Base legal| B2[Lei nº 14.133/2021, IN SGD/ME nº 94/2022]
-    A3 --&gt;|Base legal| B3[Lei nº 14.133/2021]
-    A3 --&gt;|Jurisprudência| C1[Acórdão TCU 1207/2024]
-</code></pre>
-<h2 id="taxonomia">Taxonomia 🪢<a class="headerlink" href="#taxonomia" title="Permanent link">#</a></h2>
-<p>No segundo nível, chamado <strong>taxonomia</strong>, cada item contém um nome, uma descrição, uma subfonte (opcional) e seus respectivos ramos (<em>branches</em>), que estruturam a segmentação da análise.</p>
-<pre class="mermaid"><code>graph TD
-    A[Taxonomia] --&gt;|Contém| B[Descrição] --&gt;|Baseado em| C[Base Normativa]
-
-    A1[Orçamento Estimado da Contratação] --&gt;|Inclui| A2[Informações sobre Valor Estimado e Formação de Preços]
-    A2 --&gt;|Referência| A3[Art. 6º, inciso XXXI da Lei nº 14.133/2021]
-
-    A5[Forma Eletrônica] --&gt;|Definido por| A6[Uso de Meio Eletrônico]
-    A6 --&gt;|Subfonte| A7[N/A]
-
-    A9[Designação de Agentes] --&gt;|Abrange| A10[Critérios para Escolha de Responsáveis]
-    A10 --&gt;|Referência| A11[Art. 25, §9º, da Lei nº 14.133/2021, Decreto nº 11.430/2023]
-</code></pre>
-<h2 id="ramificacoes">Ramificações 🪡<a class="headerlink" href="#ramificacoes" title="Permanent link">#</a></h2>
-<p>As <strong>ramificações</strong> representam subdivisões específicas dos temas a serem analisados. Localizadas na extremidade da árvore, contêm descrições detalhadas dos aspectos do edital que precisam ser verificados. Aqui, você deve adicionar as questões que serão submetidas ao modelo, recebendo um retorno positivo, negativo e um feedback.  </p>
-<pre class="mermaid"><code>graph TD
-    A[Ramo] --&gt;|Define| B[Descrição]
-
-    A1[Critérios para Definição do Orçamento] --&gt;|Determina| B1[As referências de preços foram corretamente utilizadas?]
-    A2[Impacto na Modalidade de Contratação] --&gt;|Analisa| B2[O orçamento impacta a escolha da modalidade licitatória?]
-    A3[Adequação ao Mercado] --&gt;|Verifica| B3[O orçamento reflete os valores praticados no mercado?]
-</code></pre>
-<h2 id="exemplo-completo">Exemplo Completo 🌳<a class="headerlink" href="#exemplo-completo" title="Permanent link">#</a></h2>
-<p>Abaixo, segue um exemplo consolidado da árvore de verificação em sua totalidade, representando o fluxo desde a tipificação até as ramificações finais:</p>
-<pre class="mermaid"><code>graph TD
-    subgraph Tipificação
-        A1[Lei nº 14.133/2021, IN Seges 65/2021]
-        A[Comum a Todas as Contratações]
+    subgraph "Cliente (UI/Integração)"
+        A[Usuário/Aplicação]
     end
 
-    subgraph Taxonomia
-        B[Orçamento estimado da contratação]
-        B1[Informações sobre o valor estimado da contratação e formação de preços]
-        B2[Artigo 6º, inciso XXXI da Lei nº 14.133/2021]
+    subgraph "API (FastAPI)"
+        B[Routers]
+        C[Services]
+        D[Repositories]
     end
 
-    subgraph Ramo-1
-        C[Critérios para Definição do Orçamento]
-        C1[As referências de preços foram corretamente utilizadas?]
+    subgraph "Inteligência Artificial (LangChain)"
+        E[LLM Service - OpenAI]
+        F[Embedding Model]
+        G[Vector Store - PGVector]
     end
 
-    subgraph Ramo-2
-        D[Impacto na Modalidade de Contratação]
-        D1[O orçamento impacta a escolha da modalidade licitatória?]
+    subgraph "Banco de Dados (PostgreSQL)"
+        H[Tabelas Relacionais]
+        I[Tabelas Vetoriais]
     end
 
-    Tipificação --&gt; Taxonomia
-    Taxonomia --&gt; Ramo-1
-    Taxonomia --&gt; Ramo-2
+    A --&gt; B
+    B --&gt; C
+    C --&gt; D
+    C -- Análise de Documento --&gt; E
+    D -- SQL --&gt; H
+
+    subgraph "Fluxo RAG"
+        C -- Armazenar/Buscar Chunks --&gt; F
+        F -- Embeddings --&gt; G
+        G -- Vetores --&gt; I
+        E -- Busca por Similaridade --&gt; G
+    end
 </code></pre>
-<p>Esse modelo fornece um bom referencial para a análise dos editais 🚀</p>
+<ol>
+<li>
+<p><strong>API (FastAPI)</strong>: O núcleo do sistema, responsável por expor os endpoints RESTful. A aplicação é dividida em três camadas principais:</p>
+<ul>
+<li><strong>Routers (<code>iaEditais/routers</code>)</strong>: Definem os endpoints da API, lidam com a validação de dados de entrada (usando Pydantic) e encaminham as requisições para a camada de serviço.</li>
+<li><strong>Services (<code>iaEditais/services</code>)</strong>: Contêm a lógica de negócio. Orquestram as operações, manipulam os dados e se comunicam com a camada de repositório e com as integrações externas (como a de IA).</li>
+<li><strong>Repositories (<code>iaEditais/repositories</code>)</strong>: Abstraem o acesso ao banco de dados. Contêm as queries SQL para manipulação e consulta dos dados, separando a lógica de negócio da persistência.</li>
+</ul>
+</li>
+<li>
+<p><strong>Banco de Dados (PostgreSQL + pgvector)</strong>: Atua como a camada de persistência.</p>
+<ul>
+<li><strong>Tabelas Relacionais</strong>: Armazenam os dados estruturados do sistema, como fontes, tipificações, taxonomias, ramos e documentos. O esquema é definido em <code>init.sql</code>.</li>
+<li><strong>Banco Vetorial (<code>pgvector</code>)</strong>: Integrado ao PostgreSQL, armazena os embeddings (vetores) dos trechos de documentos. É essencial para a funcionalidade de busca por similaridade do RAG.</li>
+</ul>
+</li>
+<li>
+<p><strong>Integração de IA (LangChain)</strong>: Componente responsável pela análise de conteúdo dos documentos.</p>
+<ul>
+<li><strong>Embedding Model</strong>: Utiliza <code>text-embedding-3-large</code> da OpenAI para converter os textos dos documentos em vetores numéricos (embeddings).</li>
+<li><strong>LLM (Large Language Model)</strong>: Usa o modelo <code>gpt-4o-mini</code> da OpenAI para interpretar o conteúdo recuperado do edital e gerar a análise com base nos critérios definidos na árvore de verificação.</li>
+<li><strong>RAG Pipeline (<code>release_integration.py</code>)</strong>: Quando um documento é submetido para análise, ele é segmentado em <em>chunks</em>, transformado em vetores e armazenado. Para cada critério (ramo) da árvore, o sistema busca os <em>chunks</em> mais relevantes no banco vetorial e os fornece como contexto para o LLM gerar um feedback.</li>
+</ul>
+</li>
+</ol>
+<h2 id="fluxo-de-analise-de-um-documento">Fluxo de Análise de um Documento<a class="headerlink" href="#fluxo-de-analise-de-um-documento" title="Permanent link">#</a></h2>
+<ol>
+<li><strong>Upload e Armazenamento</strong>: Um usuário envia um arquivo PDF através do endpoint <code>POST /doc/{doc_id}/release/</code>.</li>
+<li><strong>Segmentação e Vetorização</strong>: O serviço <code>doc_service</code> chama a <code>release_integration</code>. O arquivo PDF é carregado, dividido em <em>chunks</em> de texto e cada <em>chunk</em> é convertido em um vetor (embedding) pelo modelo de embedding.</li>
+<li><strong>Persistência Vetorial</strong>: Os <em>chunks</em> e seus respectivos vetores são salvos na coleção do PGVector.</li>
+<li><strong>Construção da Árvore</strong>: O sistema recupera a árvore de verificação associada ao documento.</li>
+<li><strong>Análise RAG por Ramo</strong>: Para cada ramo (critério específico) na árvore:<ul>
+<li>A descrição do ramo é usada como uma <em>query</em> para buscar os <em>chunks</em> mais relevantes no banco vetorial.</li>
+<li>Um prompt estruturado, contendo os <em>chunks</em> recuperados e a descrição do critério, é enviado ao LLM.</li>
+<li>O LLM retorna uma avaliação (se o critério foi atendido) e um feedback, que são armazenados.</li>
+</ul>
+</li>
+<li><strong>Retorno</strong>: O resultado completo da análise é persistido na tabela <code>releases</code> e retornado ao usuário.</li>
+</ol>
 </article>
 </div>
 <script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
