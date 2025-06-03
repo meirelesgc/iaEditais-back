@@ -1,7 +1,3 @@
-Aqui está a versão revisada e concluída da sua página de configuração do ambiente:  
-
----
-
 # Configuração do Ambiente  
 
 Este guia explica como configurar o ambiente para executar e desenvolver a API **iaEditais**.  
@@ -10,8 +6,7 @@ Este guia explica como configurar o ambiente para executar e desenvolver a API *
 
 Antes de começar, certifique-se de ter os seguintes requisitos instalados:  
 
-- **Python 3.7 ou superior**  
-- **pipx** para instalar pacotes Python isoladamente  
+- **Python 3.7 ou superior** - **pipx** para instalar pacotes Python isoladamente  
 - **Poetry** para gerenciamento de dependências  
 - **Docker** (opcional, para execução em contêiner)  
 
@@ -93,4 +88,4 @@ Contribuições são bem-vindas! Para colaborar:
 2. Crie uma branch para suas alterações  
 3. Envie um pull request para análise  
 
-Se encontrar problemas ou tiver sugestões, abra uma issue no repositório.  
+Se encontrar problemas ou tiver sugestões, abra uma issue no repositório.

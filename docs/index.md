@@ -22,4 +22,4 @@ A documentação está organizada da seguinte forma:
 
 Caso tenha dúvidas ou precise de suporte, entre em contato com nossa equipe através do canal oficial de atendimento.  
 
-Aproveite os recursos do **iaEditais** para transformar a gestão de editais e elevar os padrões de eficiência e conformidade na administração pública.  
+Aproveite os recursos do **iaEditais** para transformar a gestão de editais e elevar os padrões de eficiência e conformidade na administração pública.

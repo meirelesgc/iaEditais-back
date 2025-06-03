@@ -8,7 +8,11 @@ nav:
     - 'Introdução': resources/index.md
     - 'Árvore de verificação': resources/tree.md
     - 'Analise': resources/analysis.md
-  - 'Desenvolvimento': dev/index.md
+  - 'Desenvolvimento': 
+    - 'Ambiente': dev/index.md
+    - 'Arquitetura': dev/architecture.md
+    - 'Banco de Dados': dev/database.md
+  - 'Referência da API': api/index.md
 
 theme:
   name: material
