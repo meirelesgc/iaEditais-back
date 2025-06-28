@@ -20,14 +20,14 @@ Cria uma nova fonte de informação. Opcionalmente, pode receber um arquivo PDF.
     - `name` (str): Nome da fonte.
     - `description` (str): Descrição da fonte.
     - `file` (UploadFile, opcional): Arquivo PDF associado à fonte.
-- **Response Model**: `iaEditais.schemas.source.Source`
+- **Response Model**: `iaEditais.models.source.Source`
 - **Status Code**: `201 CREATED`
 
 ### `GET /source/`
 
 Retorna a lista de todas as fontes cadastradas.
 
-- **Response Model**: `list[iaEditais.schemas.source.Source]`
+- **Response Model**: `list[iaEditais.models.source.Source]`
 - **Status Code**: `200 OK`
 
 ### `GET /source/{source_id}/`
@@ -42,8 +42,8 @@ Retorna o arquivo PDF associado a uma fonte específica.
 
 Atualiza os dados de uma fonte.
 
-- **Request Body**: `iaEditais.schemas.source.Source`
-- **Response Model**: `iaEditais.schemas.source.Source`
+- **Request Body**: `iaEditais.models.source.Source`
+- **Response Model**: `iaEditais.models.source.Source`
 - **Status Code**: `200 OK`
 
 ### `DELETE /source/{source_id}/`
@@ -64,15 +64,15 @@ Gerencia a estrutura da árvore de verificação, composta por `Typification`, `
 Representa a categoria geral de um edital (ex: "Contratação Direta").
 
 - **`POST /typification/`**: Cria uma nova tipificação.
-    - **Request Model**: `iaEditais.schemas.typification.CreateTypification`
-    - **Response Model**: `iaEditais.schemas.typification.Typification`
+    - **Request Model**: `iaEditais.models.typification.CreateTypification`
+    - **Response Model**: `iaEditais.models.typification.Typification`
 - **`GET /typification/`**: Retorna todas as tipificações.
-    - **Response Model**: `list[iaEditais.schemas.typification.Typification]`
+    - **Response Model**: `list[iaEditais.models.typification.Typification]`
 - **`GET /typification/{typification_id}/`**: Retorna uma tipificação específica.
-    - **Response Model**: `iaEditais.schemas.typification.Typification`
+    - **Response Model**: `iaEditais.models.typification.Typification`
 - **`PUT /typification/`**: Atualiza uma tipificação.
-    - **Request Model**: `iaEditais.schemas.typification.Typification`
-    - **Response Model**: `iaEditais.schemas.typification.Typification`
+    - **Request Model**: `iaEditais.models.typification.Typification`
+    - **Response Model**: `iaEditais.models.typification.Typification`
 - **`DELETE /typification/{typification_id}/`**: Deleta uma tipificação.
     - **Status Code**: `204 NO CONTENT`
 
@@ -81,13 +81,13 @@ Representa a categoria geral de um edital (ex: "Contratação Direta").
 Representa os critérios principais de análise dentro de uma tipificação.
 
 - **`POST /taxonomy/`**: Cria uma nova taxonomia.
-    - **Request Model**: `iaEditais.schemas.taxonomy.CreateTaxonomy`
-    - **Response Model**: `iaEditais.schemas.taxonomy.Taxonomy`
+    - **Request Model**: `iaEditais.models.taxonomy.CreateTaxonomy`
+    - **Response Model**: `iaEditais.models.taxonomy.Taxonomy`
 - **`GET /taxonomy/{typification_id}/`**: Retorna as taxonomias de uma tipificação.
-    - **Response Model**: `list[iaEditais.schemas.taxonomy.Taxonomy]`
+    - **Response Model**: `list[iaEditais.models.taxonomy.Taxonomy]`
 - **`PUT /taxonomy/`**: Atualiza uma taxonomia.
-    - **Request Model**: `iaEditais.schemas.taxonomy.Taxonomy`
-    - **Response Model**: `iaEditais.schemas.taxonomy.Taxonomy`
+    - **Request Model**: `iaEditais.models.taxonomy.Taxonomy`
+    - **Response Model**: `iaEditais.models.taxonomy.Taxonomy`
 - **`DELETE /taxonomy/{taxonomy_id}/`**: Deleta uma taxonomia.
     - **Status Code**: `204 NO CONTENT`
 
@@ -96,13 +96,13 @@ Representa os critérios principais de análise dentro de uma tipificação.
 Representa os critérios específicos (perguntas) a serem verificados em uma taxonomia.
 
 - **`POST /taxonomy/branch/`**: Cria uma nova ramificação.
-    - **Request Model**: `iaEditais.schemas.branch.CreateBranch`
-    - **Response Model**: `iaEditais.schemas.branch.Branch`
+    - **Request Model**: `iaEditais.models.branch.CreateBranch`
+    - **Response Model**: `iaEditais.models.branch.Branch`
 - **`GET /taxonomy/branch/{taxonomy_id}/`**: Retorna as ramificações de uma taxonomia.
-    - **Response Model**: `list[iaEditais.schemas.branch.Branch]`
+    - **Response Model**: `list[iaEditais.models.branch.Branch]`
 - **`PUT /taxonomy/branch/`**: Atualiza uma ramificação.
-    - **Request Model**: `iaEditais.schemas.branch.Branch`
-    - **Response Model**: `iaEditais.schemas.branch.Branch`
+    - **Request Model**: `iaEditais.models.branch.Branch`
+    - **Response Model**: `iaEditais.models.branch.Branch`
 - **`DELETE /taxonomy/branch/{branch_id}/`**: Deleta uma ramificação.
     - **Status Code**: `204 NO CONTENT`
 
@@ -116,15 +116,15 @@ Gerencia os documentos (editais) a serem analisados.
 
 Cria um novo documento para análise, associando-o a uma ou mais tipificações.
 
-- **Request Model**: `iaEditais.schemas.doc.CreateDoc`
-- **Response Model**: `iaEditais.schemas.doc.Doc`
+- **Request Model**: `iaEditais.models.doc.CreateDoc`
+- **Response Model**: `iaEditais.models.doc.Doc`
 - **Status Code**: `201 CREATED`
 
 ### `GET /doc/`
 
 Retorna a lista de todos os documentos.
 
-- **Response Model**: `list[iaEditais.schemas.doc.Doc]`
+- **Response Model**: `list[iaEditais.models.doc.Doc]`
 - **Status Code**: `200 OK`
 
 ### `DELETE /doc/{doc_id}/`
@@ -151,7 +151,7 @@ Inicia uma nova análise para um documento. O processo envolve:
 
 - **Path Parameter**: `doc_id` (UUID).
 - **Request Body**: `file` (UploadFile).
-- **Response Model**: `iaEditais.schemas.doc.Release`
+- **Response Model**: `iaEditais.models.doc.Release`
 - **Status Code**: `201 CREATED`
 
 ### `GET /doc/{doc_id}/release/`
@@ -159,7 +159,7 @@ Inicia uma nova análise para um documento. O processo envolve:
 Retorna o histórico de análises de um documento.
 
 - **Path Parameter**: `doc_id` (UUID).
-- **Response Model**: `list[iaEditais.schemas.doc.Release]`
+- **Response Model**: `list[iaEditais.models.doc.Release]`
 - **Status Code**: `200 OK`
 
 ### `GET /doc/release/{release_id}/`

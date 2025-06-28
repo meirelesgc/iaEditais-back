@@ -1,16 +1,44 @@
 from uuid import UUID
 
 from iaEditais.core.connection import Connection
-from iaEditais.schemas.branch import Branch
-from iaEditais.schemas.taxonomy import Taxonomy
-from iaEditais.schemas.typification import Typification
+from iaEditais.models.branch_model import Branch
 
 
-async def post_typification(conn, typification: Typification):
+async def post_typification(conn, typification):
     params = typification.model_dump()
     SCRIPT_SQL = """
-        INSERT INTO typifications (id, name, source, created_at)
-        VALUES (%(id)s, %(name)s, %(source)s, %(created_at)s);
+        INSERT INTO typifications (id, name, created_at)
+        VALUES (%(id)s, %(name)s, %(created_at)s);
+        """
+    await conn.exec(SCRIPT_SQL, params)
+
+
+async def post_typification_sources(conn, typification):
+    params = typification.model_dump()
+    params = [{'id': params['id'], 'source_id': s} for s in params['source']]
+
+    SCRIPT_SQL = """
+        INSERT INTO typification_sources (typification_id, source_id)
+        VALUES (%(id)s, %(source_id)s);
+        """
+    await conn.executemany(SCRIPT_SQL, params)
+
+
+async def delete_typification_sources(conn, typification):
+    params = {'typification_id': typification.id}
+    SCRIPT_SQL = """
+        DELETE FROM typification_sources
+        WHERE typification_id = %(typification_id)s;
+        """
+    await conn.exec(SCRIPT_SQL, params)
+
+
+async def delete_typification(conn, typification_id: UUID):
+    params = {'id': typification_id}
+    SCRIPT_SQL = """
+        UPDATE typifications
+        SET deleted_at = NOW()
+        WHERE id = %(id)s;
         """
     await conn.exec(SCRIPT_SQL, params)
 
@@ -40,24 +68,27 @@ async def get_typification(
         filter_doc = 'AND o.id = %(doc_id)s'
 
     SCRIPT_SQL = f"""
-        SELECT t.id, t.name, t.source, t.created_at, t.updated_at
+        SELECT t.id, t.name, ARRAY_REMOVE(ARRAY_AGG(ts.source_id), NULL)
+            AS source, t.created_at, t.updated_at
         FROM typifications t
+            LEFT JOIN typification_sources ts
+                ON t.id = ts.typification_id
             {join_doc}
         WHERE 1 = 1
+            AND t.deleted_at IS NULL
             {filter_id}
-            {filter_doc};
+            {filter_doc}
+        GROUP BY t.id;
         """
     return await conn.select(SCRIPT_SQL, params, one)
 
 
-async def put_typification(conn, typification: Typification):
+async def put_typification(conn, typification):
     params = typification.model_dump()
 
     SCRIPT_SQL = """
         UPDATE typifications
         SET name = %(name)s,
-            created_at = %(created_at)s,
-            source = %(source)s,
             updated_at = %(updated_at)s
         WHERE id = %(id)s;
         """
@@ -73,11 +104,31 @@ async def delete_typification(conn, typification_id: UUID):
     await conn.exec(SCRIPT_SQL, params)
 
 
-async def post_taxonomy(conn, taxonomy: Taxonomy) -> None:
+async def post_taxonomy(conn, taxonomy) -> None:
     params = taxonomy.model_dump()
     SCRIPT_SQL = """
-        INSERT INTO taxonomies (typification_id, id, title, description, source)
-        VALUES (%(typification_id)s, %(id)s, %(title)s, %(description)s, %(source)s);
+        INSERT INTO taxonomies (typification_id, id, title, description)
+        VALUES (%(typification_id)s, %(id)s, %(title)s, %(description)s);
+        """
+    await conn.exec(SCRIPT_SQL, params)
+
+
+async def post_taxonomy_sources(conn, typification):
+    params = typification.model_dump()
+    params = [{'id': params['id'], 'source_id': s} for s in params['source']]
+
+    SCRIPT_SQL = """
+        INSERT INTO taxonomy_sources (taxonomy_id, source_id)
+        VALUES (%(id)s, %(source_id)s);
+        """
+    await conn.executemany(SCRIPT_SQL, params)
+
+
+async def delete_taxonomy_sources(conn, typification):
+    params = typification.model_dump()
+    SCRIPT_SQL = """
+        DELETE FROM taxonomy_sources
+        WHERE taxonomy_id = %(id)s;
         """
     await conn.exec(SCRIPT_SQL, params)
 
@@ -87,7 +138,7 @@ async def get_taxonomy(
     typification_id: UUID = None,
     taxonomy_id: UUID = None,
     taxonomies: list[UUID] = None,
-) -> list[Taxonomy]:
+):
     one = False
     params = {}
 
@@ -108,11 +159,16 @@ async def get_taxonomy(
         filter_id = 'AND id = ANY(%(taxonomies)s)'
 
     SCRIPT_SQL = f"""
-        SELECT typification_id, id, title, description, source, created_at, updated_at
-        FROM taxonomies
+        SELECT tx.typification_id, tx.id, tx.title, tx.description,
+            ARRAY_REMOVE(ARRAY_AGG(txs.source_id), NULL) AS source,
+            tx.created_at, tx.updated_at
+        FROM taxonomies tx
+            LEFT JOIN taxonomy_sources txs
+                ON tx.id = txs.taxonomy_id
         WHERE 1 = 1
             {filter_type}
-            {filter_id};
+            {filter_id}
+        GROUP BY tx.id;
         """
 
     result = await conn.select(SCRIPT_SQL, params, one=one)
@@ -128,14 +184,13 @@ async def post_branch(conn, branch: Branch) -> None:
     await conn.exec(SCRIPT_SQL, params)
 
 
-async def put_taxonomy(conn, taxonomy: Taxonomy) -> str:
+async def put_taxonomy(conn, taxonomy) -> str:
     params = taxonomy.model_dump()
 
     SCRIPT_SQL = """
         UPDATE taxonomies SET
             title = %(title)s,
             description = %(description)s,
-            source = %(source)s,
             updated_at = %(updated_at)s
         WHERE id = %(id)s;
         """
@@ -145,14 +200,14 @@ async def put_taxonomy(conn, taxonomy: Taxonomy) -> str:
 async def delete_taxonomy(conn, taxonomy_id: UUID) -> None:
     params = {'id': taxonomy_id}
     SCRIPT_SQL = """
-        DELETE FROM taxonomies WHERE id = %(id)s;
+        UPDATE taxonomies
+        SET deleted_at = NOW()
+        WHERE id = %(id)s;
         """
     await conn.exec(SCRIPT_SQL, params)
 
 
-async def get_branches(
-    conn: Connection, taxonomy_id: UUID = None
-) -> list[Branch]:
+async def get_branches(conn: Connection, taxonomy_id: UUID = None):
     params = {}
     filter_id = str()
 
@@ -187,7 +242,8 @@ async def put_branch(conn, branch: Branch) -> Branch:
 async def delete_branch(conn, branch_id: UUID) -> None:
     params = {'id': branch_id}
     SCRIPT_SQL = """
-        DELETE FROM branches
+        UPDATE branches
+        SET deleted_at = NOW()
         WHERE id = %(id)s;
         """
     await conn.exec(SCRIPT_SQL, params)

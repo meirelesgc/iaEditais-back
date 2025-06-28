@@ -6,8 +6,8 @@ from fastapi.responses import FileResponse
 
 from iaEditais.core.connection import Connection
 from iaEditais.integrations import release_integration
-from iaEditais.repositories import doc_repository, taxonomy_repository
-from iaEditais.schemas.doc import CreateDoc, Doc, Release
+from iaEditais.models.doc import CreateDoc, Doc, Release
+from iaEditais.repositories import doc_repository, tree_repository
 
 
 async def post_doc(conn: Connection, doc: CreateDoc):
@@ -36,17 +36,15 @@ async def delete_doc(conn: Connection, doc_id: UUID):
 
 
 async def build_verification_tree(conn: Connection, doc_id: UUID):
-    taxonomy = await taxonomy_repository.get_typification(conn, doc_id=doc_id)
+    taxonomy = await tree_repository.get_typification(conn, doc_id=doc_id)
     for typification in taxonomy:
         typification_id = typification.get('id')
-        typification['taxonomy'] = await taxonomy_repository.get_taxonomy(
+        typification['taxonomy'] = await tree_repository.get_taxonomy(
             conn, typification_id
         )
         for item in typification['taxonomy']:
             item_id = item.get('id')
-            item['branch'] = await taxonomy_repository.get_branches(
-                conn, item_id
-            )
+            item['branch'] = await tree_repository.get_branches(conn, item_id)
     return taxonomy
 
 

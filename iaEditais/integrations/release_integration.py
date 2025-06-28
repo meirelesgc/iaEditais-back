@@ -19,8 +19,8 @@ from sqlalchemy.exc import IntegrityError
 from typing_extensions import override
 
 from iaEditais.integrations.database import get_model, get_vector_store
+from iaEditais.models.doc import Release, ReleaseFeedback
 from iaEditais.repositories import source_repository
-from iaEditais.schemas.doc import Release, ReleaseFeedback
 
 
 def load_documents(path):
@@ -134,7 +134,7 @@ async def evaluate_branch(  # noqa: PLR0913, PLR0917
     chain: Any,
 ) -> Any:
     source = []
-    for s in await source_repository.get_source(conn):
+    for s in await source_repository.source_get(conn):
         ss = item.get('source', []) + typification.get('source', [])
         if s['id'] in ss:
             source.append(s['name'])
@@ -268,7 +268,7 @@ async def process_branch(conn, typification, taxonomy, branch, vector_store):
     source_ids = typification.get('source', []) + taxonomy.get('source', [])
     sources = []
 
-    for source in await source_repository.get_source(conn):
+    for source in await source_repository.source_get(conn):
         if source.get('id') in source_ids:
             sources.append(source.get('name'))
 

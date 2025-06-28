@@ -3,8 +3,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from iaEditais.core.database import conn
-from iaEditais.routers import doc, source
-from iaEditais.routers.tree import branch, taxonomy, typification
+from iaEditais.routers import doc
+from iaEditais.routers.tree import branch, source, taxonomy, typification
 
 
 @asynccontextmanager

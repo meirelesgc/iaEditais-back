@@ -3,11 +3,24 @@ from pathlib import Path
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
+from starlette.datastructures import UploadFile as StarletteUploadFile
 from testcontainers.postgres import PostgresContainer
 
 from iaEditais.app import app
 from iaEditais.core.connection import Connection
 from iaEditais.core.database import get_conn
+from iaEditais.services import (
+    source_service,
+    taxonomy_service,
+    typification_service,
+)
+from iaEditais.services import taxonomy_service as taxonomy_services
+from tests.factories import (
+    branch_factory,
+    source_factory,
+    taxonomy_factory,
+    typification_factory,
+)
 
 
 @pytest.fixture(scope='session', autouse=True)
@@ -43,18 +56,58 @@ def client(conn):
 
 
 @pytest.fixture
-def create_source(client):
-    async def _create_source(
-        name='default_name',
-        description='default_description',
-        **kwargs,
-    ):
-        file_path = Path('storage/tests/source.pdf')
-        data = {'name': name, 'description': description}
-        with file_path.open('rb') as f:
-            file = {'file': f}
-
-            response = client.post('/source/', files=file, data=data)
-        return response.json()
+def create_source(conn):
+    async def _create_source(**kwargs):
+        source = source_factory.CreateSourceFactory(**kwargs)
+        source = await source_service.source_post(conn, source)
+        return source
 
     return _create_source
+
+
+@pytest.fixture
+def create_source_with_upload(conn):
+    async def _create_source_with_upload(**kwargs):
+        source = source_factory.CreateSourceFactory(**kwargs)
+        source = await source_service.source_post(conn, source)
+
+        path = Path('tests/storage/sample.pdf')
+        with path.open('rb') as f:
+            upload_file = StarletteUploadFile(filename='sample.pdf', file=f)
+            await source_service.source_upload_post(conn, source.id, upload_file)
+
+        return source
+
+    return _create_source_with_upload
+
+
+@pytest.fixture
+def create_typification(conn):
+    async def _create_typification(**kwargs):
+        typification = typification_factory.CreateTypificationFactory(**kwargs)
+        typification = await typification_service.type_post(conn, typification)
+        return typification
+
+    return _create_typification
+
+
+@pytest.fixture
+def create_taxonomy(conn):
+    async def _create_taxonomy(typification, **kwargs):
+        kwargs['typification_id'] = typification.id
+        taxonomy = taxonomy_factory.CreateTaxonomyFactory(**kwargs)
+        taxonomy = await taxonomy_service.post_taxonomy(conn, taxonomy)
+        return taxonomy
+
+    return _create_taxonomy
+
+
+@pytest.fixture
+def create_branch(conn):
+    async def _create_branch(taxonomy, **kwargs):
+        kwargs['taxonomy_id'] = taxonomy.id
+        branch = branch_factory.CreateBranchFactory(**kwargs)
+        branch = await taxonomy_services.post_branch(conn, branch)
+        return branch
+
+    return _create_branch

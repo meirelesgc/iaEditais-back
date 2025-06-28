@@ -6,7 +6,7 @@ from fastapi.responses import FileResponse
 
 from iaEditais.core.connection import Connection
 from iaEditais.core.database import get_conn
-from iaEditais.schemas.doc import CreateDoc, Doc, Release
+from iaEditais.models.doc import CreateDoc, Doc, Release
 from iaEditais.services import doc_service
 
 router = APIRouter()

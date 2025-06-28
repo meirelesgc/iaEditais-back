@@ -6,11 +6,30 @@ from fastapi import HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from iaEditais.core.connection import Connection
+from iaEditais.models import source_model
 from iaEditais.repositories import source_repository
-from iaEditais.schemas.source import Source
 
 
-async def put_source(conn, source: Source):
+async def source_upload_delete(conn, source_id):
+    source = await source_repository.source_get(conn, source_id)
+    if not source:
+        raise HTTPException(status_code=404, detail='Source not found')
+
+    file_path = f'storage/sources/{source_id}.pdf'
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail='File not found')
+
+    os.remove(file_path)
+
+    source = source_model.Source(**source)
+    source.has_file = False
+    await source_repository.put_source(conn, source)
+
+    return {'message': 'File deleted successfully'}
+
+
+async def source_put(conn, source):
+    source = source_model.Source(**source.model_dump())
     source.updated_at = datetime.now()
     await source_repository.put_source(conn, source)
     return source
@@ -25,33 +44,45 @@ async def put_source_file(id: UUID, file: UploadFile):
         buffer.write(file.file.read())
 
 
-async def post_source(
+async def source_post(
     conn: Connection,
-    name: str,
-    description,
-    file: UploadFile,
+    source: source_model.CreateSource,
 ):
-    source = Source(name=name, description=description)
-
-    if file:
-        if not file.filename.endswith('.pdf'):
-            raise HTTPException(
-                status_code=400, detail='Only .pdf files are allowed.'
-            )
-        source.has_file = True
-        with open(f'storage/sources/{source.id}.pdf', 'wb') as buffer:
-            buffer.write(file.file.read())
-
-    await source_repository.post_source(conn, source)
+    source = source_model.Source(**source.model_dump())
+    await source_repository.souce_post(conn, source)
     return source
 
 
-async def get_sources(conn):
-    return await source_repository.get_source(conn)
+async def source_upload_post(
+    conn: Connection,
+    source_id: int,
+    file: UploadFile,
+):
+    if not file.filename.endswith('.pdf'):
+        raise HTTPException(
+            status_code=400, detail='Only .pdf files are allowed.'
+        )
+
+    source = await source_repository.source_get(conn, source_id)
+    source = source_model.Source(**source)
+
+    if not source:
+        raise HTTPException(status_code=404, detail='Source not found')
+
+    source.has_file = True
+    with open(f'storage/sources/{source.id}.pdf', 'wb') as buffer:
+        buffer.write(file.file.read())
+
+    await source_repository.put_source(conn, source)
+    return {'message': 'File uploaded successfully'}
 
 
-async def delete_source(conn, source_id: UUID):
-    source = await source_repository.get_source(conn, source_id)
+async def source_get(conn, source_id):
+    return await source_repository.source_get(conn, source_id)
+
+
+async def source_delete(conn, source_id: UUID):
+    source = await source_repository.source_get(conn, source_id)
     if source is None:
         raise HTTPException(status_code=404, detail='Source not found')
     await source_repository.delete_source(conn, source_id)
@@ -61,7 +92,7 @@ async def delete_source(conn, source_id: UUID):
     return {'message': 'Source deleted successfully'}
 
 
-def get_source_file(source_id: UUID):
+def source_upload_get(source_id: UUID):
     file_path = f'storage/sources/{source_id}.pdf'
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail='File not found')

@@ -4,7 +4,7 @@ from uuid import UUID
 from psycopg.types.json import Jsonb
 
 from iaEditais.core.connection import Connection
-from iaEditais.schemas.doc import Doc, Release
+from iaEditais.models.doc import Doc, Release
 
 
 async def post_doc(conn: Connection, doc: Doc) -> None:

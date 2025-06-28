@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends
 
 from iaEditais.core.connection import Connection
 from iaEditais.core.database import get_conn
-from iaEditais.schemas.taxonomy import CreateTaxonomy, Taxonomy
+from iaEditais.models.taxonomy_model import CreateTaxonomy, Taxonomy
 from iaEditais.services import taxonomy_service
 
 router = APIRouter()
