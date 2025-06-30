@@ -1,7 +1,9 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
+from iaEditais.config import Settings
 from iaEditais.core.database import conn
 from iaEditais.routers import doc
 from iaEditais.routers.tree import branch, source, taxonomy, typification
@@ -20,6 +22,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[Settings().CLIENT],
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
 
 app.include_router(source.router, tags=['Source'])
 app.include_router(taxonomy.router, tags=['Taxonomy'])

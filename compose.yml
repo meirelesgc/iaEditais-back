@@ -11,6 +11,11 @@ services:
     volumes:
       - fiotec-postgres:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: [ "CMD", "pg_isready", "-U", "postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   fiotec-iaeditais:
     image: gleidsoncosta/fiotec-iaeditais:latest
@@ -20,7 +25,8 @@ services:
     depends_on:
       - fiotec-postgres
     volumes:
-      - ./storage:/app/storage
+      - ./.env:/app/.env:r
+      - ./storage:/app/storage:rw
 
 volumes:
   fiotec-postgres:

@@ -1,3 +1,4 @@
+from pydantic import HttpUrl
 from pydantic_settings import BaseSettings
 
 
@@ -9,6 +10,8 @@ class Settings(BaseSettings):
     PORT: int = 5432
 
     OPENAI_API_KEY: str
+
+    CLIENT: HttpUrl = 'http://localhost:3000'
 
     class Config:
         env_file = '.env'
