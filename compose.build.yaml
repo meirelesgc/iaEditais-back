@@ -13,13 +13,17 @@ services:
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 
   fiotec-iaeditais:
-    image: gleidsoncosta/fiotec-iaeditais:latest
+    image: fiotec-iaeditais
     container_name: fiotec-iaeditais
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     depends_on:
       - fiotec-postgres
     volumes:
+      - ./.env:/app/.env
       - ./storage:/app/storage
 
 volumes:
