@@ -20,7 +20,6 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
-      - "8501:8501"
     depends_on:
       - fiotec-postgres
     volumes:
