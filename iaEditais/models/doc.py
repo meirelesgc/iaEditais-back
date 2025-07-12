@@ -29,11 +29,18 @@ class DetailedDoc(Doc):
 
 
 class ReleaseFeedback(BaseModel):
-    """Modelo para avaliar a conformidade de um edital com um requisito específico."""
+    """Modelo para avaliar a conformidade de um edital com um requisito
+    específico."""
 
     feedback: str = Field(
-        description='Parecer detalhado sobre a conformidade do edital com o critério avaliado.'
+        description=(
+            'Parecer detalhado sobre a conformidade do edital com o'
+            ' critério avaliado.'
+        )
     )
     fulfilled: bool = Field(
-        description='Indica se o edital atende ao requisito especificado (True para cumprido, False para não cumprido).'
+        description=(
+            'Indica se o edital atende ao requisito especificado '
+            '(True para cumprido, False para não cumprido).'
+        )
     )

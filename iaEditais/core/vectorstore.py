@@ -7,7 +7,6 @@ from iaEditais.config import Settings
 connection_url = Settings()._get_connection_string()
 
 vectorstore = PGVector(
-    # embeddings=OllamaEmbeddings(model='qwen2.5-coder:1.5b-base'),
     embeddings=OpenAIEmbeddings(
         model='text-embedding-3-small',
         api_key=Settings().OPENAI_API_KEY,

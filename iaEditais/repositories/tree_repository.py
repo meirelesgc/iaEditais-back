@@ -95,15 +95,6 @@ async def put_typification(conn, typification):
     await conn.exec(SCRIPT_SQL, params)
 
 
-async def delete_typification(conn, typification_id: UUID):
-    params = {'id': typification_id}
-    SCRIPT_SQL = """
-        DELETE FROM typifications
-        WHERE id = %(id)s;
-        """
-    await conn.exec(SCRIPT_SQL, params)
-
-
 async def post_taxonomy(conn, taxonomy) -> None:
     params = taxonomy.model_dump()
     SCRIPT_SQL = """
@@ -179,7 +170,8 @@ async def post_branch(conn, branch: Branch) -> None:
     params = branch.model_dump()
     SCRIPT_SQL = """
         INSERT INTO branches (id, taxonomy_id, title, description, created_at)
-        VALUES (%(id)s, %(taxonomy_id)s, %(title)s, %(description)s, %(created_at)s);
+        VALUES (%(id)s, %(taxonomy_id)s, %(title)s, %(description)s,
+            %(created_at)s);
         """
     await conn.exec(SCRIPT_SQL, params)
 

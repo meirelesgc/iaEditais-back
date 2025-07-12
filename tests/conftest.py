@@ -13,6 +13,7 @@ from iaEditais.services import (
     source_service,
     taxonomy_service,
     typification_service,
+    unit_service,
     user_service,
 )
 from iaEditais.services import taxonomy_service as taxonomy_services
@@ -21,6 +22,7 @@ from tests.factories import (
     source_factory,
     taxonomy_factory,
     typification_factory,
+    unit_factory,
     user_factory,
 )
 
@@ -159,3 +161,13 @@ def auth_header(get_token):
         return {'Authorization': f'Bearer {get_token(user)}'}
 
     return _auth_header
+
+
+@pytest.fixture
+def create_unit(conn):
+    async def _create_unit():
+        unit = unit_factory.CreateUnitFactory()
+        unit = await unit_service.unit_post(conn, unit)
+        return unit
+
+    return _create_unit

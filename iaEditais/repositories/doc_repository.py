@@ -11,7 +11,8 @@ async def post_doc(conn: Connection, doc: Doc) -> None:
     params = doc.model_dump()
     SCRIPT_SQL = """
         INSERT INTO docs (id, name, typification, created_at, updated_at)
-        VALUES (%(id)s, %(name)s, %(typification)s, %(created_at)s, %(updated_at)s);
+        VALUES (%(id)s, %(name)s, %(typification)s, %(created_at)s,
+            %(updated_at)s);
         """
     await conn.exec(SCRIPT_SQL, params)
 

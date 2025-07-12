@@ -100,7 +100,7 @@ def build_prompt_chain() -> Any:
         {format_instructions}
 
         {query}
-        """
+        """  # noqa: E501
 
     parser = JsonOutputParser(pydantic_object=ReleaseFeedback)
     prompt = PromptTemplate(

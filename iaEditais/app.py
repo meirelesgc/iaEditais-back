@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from iaEditais.config import Settings
 from iaEditais.core.database import conn
-from iaEditais.routers import doc, user
+from iaEditais.routers import doc, unit, user
 from iaEditais.routers.tree import branch, source, taxonomy, typification
 
 
@@ -37,6 +37,7 @@ app.include_router(branch.router, tags=['Branch'])
 app.include_router(doc.router, tags=['Doc'])
 app.include_router(typification.router, tags=['Typification'])
 app.include_router(user.router, tags=['User'])
+app.include_router(unit.router, tags=['Unit'])
 
 
 @app.get('/')
