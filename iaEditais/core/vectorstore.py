@@ -1,7 +1,8 @@
 # from langchain_ollama import OllamaEmbeddings
-from arrange.config import Settings
 from langchain_openai import OpenAIEmbeddings
 from langchain_postgres import PGVector
+
+from iaEditais.config import Settings
 
 connection_url = Settings()._get_connection_string()
 

@@ -13,6 +13,7 @@ from iaEditais.services import (
     source_service,
     taxonomy_service,
     typification_service,
+    user_service,
 )
 from iaEditais.services import taxonomy_service as taxonomy_services
 from tests.factories import (
@@ -20,6 +21,7 @@ from tests.factories import (
     source_factory,
     taxonomy_factory,
     typification_factory,
+    user_factory,
 )
 
 
@@ -111,3 +113,49 @@ def create_branch(conn):
         return branch
 
     return _create_branch
+
+
+@pytest.fixture
+def create_user(conn):
+    async def _create_user(**kwargs):
+        raw_user = user_factory.CreateUserFactory(**kwargs)
+        password = raw_user.password
+        created_user = await user_service.post_user(
+            conn, raw_user, access_level='DEFAULT'
+        )
+        created_user.password = password
+        return created_user
+
+    return _create_user
+
+
+@pytest.fixture
+def create_admin_user(conn):
+    async def _create_admin_user(**kwargs):
+        raw_user = user_factory.CreateUserFactory(**kwargs)
+        password = raw_user.password
+        created_user = await user_service.post_user(
+            conn, raw_user, access_level='ADMIN'
+        )
+        created_user.password = password
+        return created_user
+
+    return _create_admin_user
+
+
+@pytest.fixture
+def get_token(client):
+    def _get_token(user):
+        data = {'username': user.email, 'password': user.password}
+        response = client.post('/token/', data=data)
+        return response.json()['access_token']
+
+    return _get_token
+
+
+@pytest.fixture
+def auth_header(get_token):
+    def _auth_header(user):
+        return {'Authorization': f'Bearer {get_token(user)}'}
+
+    return _auth_header
