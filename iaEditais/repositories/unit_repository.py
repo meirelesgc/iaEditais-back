@@ -24,3 +24,24 @@ async def unit_get(conn, id):
             {filters}
         """
     return await conn.select(SCRIPT_SQL, params, one)
+
+
+async def unit_put(conn, unit):
+    params = unit.model_dump()
+    SCRIPT_SQL = """
+        UPDATE units
+        SET name = %(name)s,
+            location = %(location)s,
+            updated_at = %(updated_at)s
+        WHERE id = %(id)s;
+        """
+    await conn.exec(SCRIPT_SQL, params)
+
+
+async def unit_delete(conn, id):
+    params = {'id': id}
+    SCRIPT_SQL = """
+        DELETE FROM units
+        WHERE id = %(id)s;
+        """
+    await conn.exec(SCRIPT_SQL, params)

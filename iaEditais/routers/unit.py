@@ -1,7 +1,7 @@
 from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from iaEditais.core.connection import Connection
 from iaEditais.core.database import get_conn
@@ -38,7 +38,10 @@ async def unit_get(conn: Connection = Depends(get_conn)):
     response_model=unit_model.UnitResponse,
 )
 async def unit_get_detail(id: UUID, conn: Connection = Depends(get_conn)):
-    return await unit_service.unit_get(conn, id)
+    unit = await unit_service.unit_get(conn, id)
+    if not unit:
+        raise HTTPException(status_code=404, detail='Unit not found')
+    return unit
 
 
 @router.put(
@@ -46,10 +49,13 @@ async def unit_get_detail(id: UUID, conn: Connection = Depends(get_conn)):
     status_code=HTTPStatus.OK,
     response_model=unit_model.UnitResponse,
 )
-async def unit_put(unit: unit_model.Unit, conn: Connection = Depends(get_conn)):
+async def unit_put(
+    unit: unit_model.UnitUpdate,
+    conn: Connection = Depends(get_conn),
+):
     return await unit_service.unit_put(conn, unit)
 
 
 @router.delete('/unit/{id}/', status_code=HTTPStatus.NO_CONTENT)
 async def unit_delete(id: UUID, conn: Connection = Depends(get_conn)):
-    await unit_service.unit_delete(conn, id)
+    return await unit_service.unit_delete(conn, id)

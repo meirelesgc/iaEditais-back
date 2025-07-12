@@ -17,6 +17,12 @@ class Unit(BaseModel):
     updated_at: datetime | None = None
 
 
+class UnitUpdate(BaseModel):
+    id: UUID
+    name: str
+    location: str | None
+
+
 class UnitResponse(BaseModel):
     id: UUID
     name: str

@@ -44,3 +44,22 @@ async def test_unit_get_detail(client, create_unit):
     response = client.get(f'/unit/{unit.id}/')
     assert response.status_code == HTTPStatus.OK
     assert unit_model.Unit(**response.json())
+
+
+@pytest.mark.asyncio
+async def test_unit_put(client, create_unit):
+    unit = await create_unit()
+    unit.name = 'New Name'
+    response = client.put('/unit/', json=unit.model_dump(mode='json'))
+    assert response.status_code == HTTPStatus.OK
+    assert unit_model.UnitResponse(**response.json())
+
+
+@pytest.mark.asyncio
+async def test_unit_delete(client, create_unit):
+    unit = await create_unit()
+    response = client.delete(f'/unit/{unit.id}/')
+    assert response.status_code == HTTPStatus.NO_CONTENT
+
+    response = client.get(f'/unit/{unit.id}/')
+    assert response.status_code == HTTPStatus.NOT_FOUND
