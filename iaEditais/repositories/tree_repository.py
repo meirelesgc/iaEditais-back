@@ -51,21 +51,23 @@ async def get_typification(
     one = False
     params = {}
 
-    filter_id = str()
+    filter_id = ''
     if typification_id:
         one = True
-        params = {'id': typification_id}
-        filter_id = 'AND id = %(id)s'
+        params['id'] = typification_id
+        filter_id = 'AND t.id = %(id)s'
 
-    join_doc = str()
-    filter_doc = str()
+    join_doc = ''
+    filter_doc = ''
     if doc_id:
-        params = {'doc_id': doc_id}
+        params['doc_id'] = doc_id
         join_doc = """
-            INNER JOIN docs o
-                ON t.id = ANY(o.typification)
-            """
-        filter_doc = 'AND o.id = %(doc_id)s'
+            INNER JOIN doc_typifications dt
+                ON t.id = dt.typification_id
+            INNER JOIN docs d
+                ON dt.doc_id = d.id
+        """
+        filter_doc = 'AND d.id = %(doc_id)s'
 
     SCRIPT_SQL = f"""
         SELECT t.id, t.name, ARRAY_REMOVE(ARRAY_AGG(ts.source_id), NULL)
@@ -79,7 +81,7 @@ async def get_typification(
             {filter_id}
             {filter_doc}
         GROUP BY t.id;
-        """
+    """
     return await conn.select(SCRIPT_SQL, params, one)
 
 

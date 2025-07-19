@@ -9,7 +9,9 @@ from testcontainers.postgres import PostgresContainer
 from iaEditais.app import app
 from iaEditais.core.connection import Connection
 from iaEditais.core.database import get_conn
+from iaEditais.models import doc as doc_model
 from iaEditais.services import (
+    doc_service,
     source_service,
     taxonomy_service,
     typification_service,
@@ -19,6 +21,7 @@ from iaEditais.services import (
 from iaEditais.services import taxonomy_service as taxonomy_services
 from tests.factories import (
     branch_factory,
+    doc_factory,
     source_factory,
     taxonomy_factory,
     typification_factory,
@@ -171,3 +174,27 @@ def create_unit(conn):
         return unit
 
     return _create_unit
+
+
+@pytest.fixture
+def create_doc(conn, create_typification):
+    async def _create_doc():
+        typification = await create_typification()
+        doc_data = doc_factory.CreateDocFactory(typification=[typification.id])
+        doc = await doc_service.post_doc(conn, doc_data)
+        return doc
+
+    return _create_doc
+
+
+@pytest.fixture
+def create_release(client):
+    async def _create_release(doc: doc_model.Doc):
+        doc_id = str(doc.id)
+        path = 'tests/storage/sample.pdf'
+        with open(path, 'rb') as f:
+            files = {'file': (path, f, 'application/pdf')}
+            response = client.post(f'/doc/{doc_id}/release/', files=files)
+        return doc_model.Release(**response.json())
+
+    return _create_release

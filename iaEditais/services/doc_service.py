@@ -12,11 +12,12 @@ from iaEditais.repositories import doc_repository, tree_repository
 
 async def post_doc(conn: Connection, doc: CreateDoc):
     doc = Doc(**doc.model_dump())
-    if len(doc.typification) < 1:
+    if len(doc.typification) == 0:
         raise HTTPException(
             status_code=400, detail='At least one typification must be selected.'
         )
     await doc_repository.post_doc(conn, doc)
+    await doc_repository.post_doc_typification(conn, doc)
     return doc
 
 

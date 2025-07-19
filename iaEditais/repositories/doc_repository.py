@@ -10,11 +10,21 @@ from iaEditais.models.doc import Doc, Release
 async def post_doc(conn: Connection, doc: Doc) -> None:
     params = doc.model_dump()
     SCRIPT_SQL = """
-        INSERT INTO docs (id, name, typification, created_at, updated_at)
-        VALUES (%(id)s, %(name)s, %(typification)s, %(created_at)s,
+        INSERT INTO docs (id, name, created_at, updated_at)
+        VALUES (%(id)s, %(name)s, %(created_at)s,
             %(updated_at)s);
         """
     await conn.exec(SCRIPT_SQL, params)
+
+
+async def post_doc_typification(conn: Connection, doc: Doc):
+    for _ in doc.typification:
+        params = {'id': doc.id, 'ty_id': _}
+        SCRIPT_SQL = """
+            INSERT INTO doc_typifications (doc_id, typification_id)
+            VALUES (%(id)s, %(ty_id)s);
+            """
+        await conn.exec(SCRIPT_SQL, params)
 
 
 async def get_doc(conn: Connection, doc_id: UUID = None) -> list[Doc]:
@@ -28,11 +38,16 @@ async def get_doc(conn: Connection, doc_id: UUID = None) -> list[Doc]:
         filter_id = 'AND id = %(id)s'
 
     SCRIPT_SQL = f"""
-        SELECT id, name, typification, created_at, updated_at
-        FROM docs
+        SELECT d.id, d.name, ARRAY_AGG(dt.typification_id) AS typification,
+            d.created_at, d.updated_at
+        FROM docs d
+        LEFT JOIN doc_typifications dt
+            ON d.id = dt.doc_id
         WHERE 1 = 1
-            {filter_id};
-        """
+            {filter_id}
+        GROUP BY d.id;
+    """
+
     results = conn.select(SCRIPT_SQL, params, one)
     return await results
 
