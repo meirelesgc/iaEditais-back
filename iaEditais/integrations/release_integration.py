@@ -188,7 +188,6 @@ class TimingCallbackHandler(BaseCallbackHandler):
                 duration = end_time - start_time
                 quota = 14 - duration
                 if quota > 0:
-                    # sleep(quota)
                     pass
                 self.durations.append(duration)
 

@@ -10,7 +10,7 @@ from iaEditais.models.doc import CreateDoc, Doc, Release
 from iaEditais.repositories import doc_repository, tree_repository
 
 
-async def post_doc(conn: Connection, doc: CreateDoc):
+async def doc_post(conn: Connection, doc: CreateDoc):
     doc = Doc(**doc.model_dump())
     if len(doc.typification) == 0:
         raise HTTPException(
@@ -21,7 +21,7 @@ async def post_doc(conn: Connection, doc: CreateDoc):
     return doc
 
 
-async def get_docs(conn: Connection):
+async def doc_get(conn: Connection):
     return await doc_repository.get_doc(conn)
 
 

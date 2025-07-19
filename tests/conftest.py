@@ -181,7 +181,7 @@ def create_doc(conn, create_typification):
     async def _create_doc():
         typification = await create_typification()
         doc_data = doc_factory.CreateDocFactory(typification=[typification.id])
-        doc = await doc_service.post_doc(conn, doc_data)
+        doc = await doc_service.doc_post(conn, doc_data)
         return doc
 
     return _create_doc

@@ -61,7 +61,7 @@ async def test_release_delete(client, create_doc, create_release):
     doc = await create_doc()
     release = await create_release(doc)
 
-    response = client.delete(f'/doc/release/{release.id}/')
+    response = client.delete(f'/doc/{doc.id}/release/{release.id}/')
     assert response.status_code == HTTPStatus.NO_CONTENT
 
     response = client.get(f'/doc/{doc.id}/release/')
@@ -74,7 +74,7 @@ async def test_get_release_file(client, create_doc, create_release):
     doc = await create_doc()
     release = await create_release(doc)
 
-    response = client.get(f'/doc/release/{release.id}/')
+    response = client.get(f'/doc/{doc.id}/release/{release.id}/')
 
     assert response.status_code == HTTPStatus.OK
     assert response.headers['content-type'] == 'application/pdf'
