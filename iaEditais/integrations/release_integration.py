@@ -18,8 +18,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sqlalchemy.exc import IntegrityError
 from typing_extensions import override
 
-from iaEditais.integrations.database import get_model, get_vector_store
-from iaEditais.models.doc import Release, ReleaseFeedback
+from iaEditais.models.doc import ReleaseFeedback
 from iaEditais.repositories import source_repository
 
 
@@ -28,14 +27,12 @@ def load_documents(path):
     return document_loader.load()
 
 
-def add_to_vector_store(path):
+async def add_to_vector_store(path, vectorstore):
     documents = load_documents(path)
     chunks = split_documents(documents)
-    db = get_vector_store()
     try:
-        db.add_documents(chunks)
-    except IntegrityError as E:
-        print('IntegrityErro    r', '\n\n', E)
+        await vectorstore.aadd_documents(chunks)
+    except IntegrityError:
         raise HTTPException(
             status_code=415,
             detail='At least one typification must be selected.',
@@ -74,7 +71,7 @@ def calculate_chunk_ids(chunks):
     return chunks
 
 
-def build_prompt_chain() -> Any:
+def build_prompt_chain(model):
     TEMPLATE = """
         <Edital>
         {docs}
@@ -119,7 +116,6 @@ def build_prompt_chain() -> Any:
             'format_instructions': parser.get_format_instructions()
         },
     )
-    model = get_model()
     chain = prompt | model | parser
     return chain
 
@@ -297,9 +293,8 @@ async def build_vars(conn, release, vectorstore):
     return input_vars
 
 
-async def analyze_release(conn, release: Release) -> Release:
-    db = get_vector_store()
-    chain = build_prompt_chain()
-    input_vars = await build_vars(conn, release, db)
+async def analyze_release(conn, release, vectorstore, model):
+    chain = build_prompt_chain(model)
+    input_vars = await build_vars(conn, release, vectorstore)
     await process_release_taxonomy(chain, release, input_vars)
     return release

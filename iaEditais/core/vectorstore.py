@@ -4,7 +4,7 @@ from langchain_postgres import PGVector
 
 from iaEditais.config import Settings
 
-connection_url = Settings()._get_connection_string()
+connection_url = Settings().get_connection_string_psycopg3()
 
 vectorstore = PGVector(
     embeddings=OpenAIEmbeddings(

@@ -1,7 +1,7 @@
 import os
 from uuid import UUID
 
-from fastapi import HTTPException, UploadFile
+from fastapi import HTTPException
 from fastapi.responses import FileResponse
 
 from iaEditais.core.connection import Connection
@@ -49,11 +49,7 @@ async def build_verification_tree(conn: Connection, doc_id: UUID):
     return taxonomy
 
 
-async def post_release(
-    conn: Connection,
-    doc_id: UUID,
-    file: UploadFile,
-) -> Release:
+async def post_release(conn, vectorstore, model, doc_id, file) -> Release:
     if not file.filename.endswith('.pdf'):
         raise HTTPException(
             status_code=400, detail='Only .pdf files are allowed.'
@@ -64,8 +60,12 @@ async def post_release(
     with open(f'storage/releases/{release.id}.pdf', 'wb') as buffer:
         buffer.write(file.file.read())
 
-    release_integration.add_to_vector_store(f'storage/releases/{release.id}.pdf')
-    release = await release_integration.analyze_release(conn, release)
+    await release_integration.add_to_vector_store(
+        f'storage/releases/{release.id}.pdf', vectorstore
+    )
+    release = await release_integration.analyze_release(
+        conn, release, vectorstore, model
+    )
     await doc_repository.post_release(conn, release)
     return release
 

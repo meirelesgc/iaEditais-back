@@ -1,14 +1,21 @@
+import json
 from pathlib import Path
+from typing import override
 
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
+from langchain_community.embeddings import FakeEmbeddings
+from langchain_core.language_models.fake_chat_models import FakeChatModel
+from langchain_postgres import PGVector
 from starlette.datastructures import UploadFile as StarletteUploadFile
 from testcontainers.postgres import PostgresContainer
 
 from iaEditais.app import app
 from iaEditais.core.connection import Connection
 from iaEditais.core.database import get_conn
+from iaEditais.core.model import get_model
+from iaEditais.core.vectorstore import get_vectorstore
 from iaEditais.models import doc as doc_model
 from iaEditais.services import (
     doc_service,
@@ -53,12 +60,43 @@ async def conn(postgres):
     await conn.disconnect()
 
 
+@pytest_asyncio.fixture
+async def model():
+    class FakeModel(FakeChatModel):
+        @override
+        def _call(self, messages, stop=None, run_manager=None, **kwargs) -> str:
+            return json.dumps({})
+
+    return FakeModel()
+
+
+@pytest_asyncio.fixture
+async def vectorstore(postgres):
+    connection_url = f'postgresql+psycopg://{postgres.username}:{postgres.password}@{postgres.get_container_host_ip()}:{postgres.get_exposed_port(5432)}/{postgres.dbname}'
+    vectorstore = PGVector(
+        embeddings=FakeEmbeddings(size=256),
+        connection=connection_url,
+        use_jsonb=True,
+        async_mode=True,
+    )
+
+    yield vectorstore
+
+
 @pytest.fixture
-def client(conn):
+def client(conn, model, vectorstore):
     async def get_conn_override():
         yield conn
 
+    async def get_vectorstore_override():
+        yield vectorstore
+
+    async def get_model_override():
+        yield model
+
     app.dependency_overrides[get_conn] = get_conn_override
+    app.dependency_overrides[get_model] = get_model_override
+    app.dependency_overrides[get_vectorstore] = get_vectorstore_override
     return TestClient(app)
 
 

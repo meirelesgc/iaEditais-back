@@ -3,9 +3,13 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, UploadFile
 from fastapi.responses import FileResponse
+from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.vectorstores import VectorStore
 
 from iaEditais.core.connection import Connection
 from iaEditais.core.database import get_conn
+from iaEditais.core.model import get_model
+from iaEditais.core.vectorstore import get_vectorstore
 from iaEditais.models.doc import CreateDoc, Doc, Release
 from iaEditais.services import doc_service
 
@@ -39,8 +43,10 @@ async def release_post(
     doc_id: UUID,
     file: UploadFile = File(...),
     conn: Connection = Depends(get_conn),
+    vectorstore: VectorStore = Depends(get_vectorstore),
+    model: BaseChatModel = Depends(get_model),
 ):
-    return await doc_service.post_release(conn, doc_id, file)
+    return await doc_service.post_release(conn, vectorstore, model, doc_id, file)
 
 
 @router.get(
