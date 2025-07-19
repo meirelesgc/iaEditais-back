@@ -14,6 +14,7 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.outputs import ChatGeneration, LLMResult
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import Runnable
+from langchain_core.vectorstores import VectorStore
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sqlalchemy.exc import IntegrityError
 from typing_extensions import override
@@ -257,9 +258,12 @@ async def process_release_taxonomy(chain, release, input_vars):
                 branch['evaluate'] = response[_]
                 branch['usage'] = usage_callback.usage_metadata_list[_]
                 branch['duration'] = time_callback.durations[_]
+                print(branch)
 
 
-async def process_branch(conn, typification, taxonomy, branch, vector_store):
+async def process_branch(
+    conn, typification, taxonomy, branch, vector_store: VectorStore
+):
     source_ids = typification.get('source', []) + taxonomy.get('source', [])
     sources = []
 
@@ -269,7 +273,8 @@ async def process_branch(conn, typification, taxonomy, branch, vector_store):
 
     docs = []
     query = f'{branch.get("title")} {branch.get("description")}'
-    for d in vector_store.similarity_search(query, k=3):
+    chunks = await vector_store.asimilarity_search(query=query, k=3)
+    for d in chunks:
         docs.append(d.page_content)
 
     return {
