@@ -277,12 +277,14 @@ async def process_release_taxonomy(chain, release, input_vars, key, redis):
         input_vars,
         config={'callbacks': [usage_callback, time_callback, step_callback]},
     )
+
     for typification in release.taxonomy:
         for taxonomy in typification.get('taxonomy', []):
             for _, branch in enumerate(taxonomy.get('branch', [])):
                 branch['evaluate'] = response[_]
                 branch['usage'] = usage_callback.usage_metadata_list[_]
                 branch['duration'] = time_callback.durations[_]
+                branch['pages'] = input_vars[_]['pages']
 
 
 async def process_branch(
@@ -296,11 +298,14 @@ async def process_branch(
             sources.append(source.get('name'))
 
     docs = []
+    pages = []
     query = f'{branch.get("title")} {branch.get("description")}'
     for d in await vector_store.asimilarity_search(query=query, k=3):
         docs.append(d.page_content)
+        pages.append(d.metadata['page'])
 
     return {
+        'pages': pages,
         'docs': docs,
         'taxonomy_title': taxonomy.get('title'),
         'taxonomy_description': taxonomy.get('description'),
