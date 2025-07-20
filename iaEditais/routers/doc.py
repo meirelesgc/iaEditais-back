@@ -1,11 +1,20 @@
 from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import (
+    APIRouter,
+    Depends,
+    File,
+    UploadFile,
+    WebSocket,
+    WebSocketDisconnect,
+)
 from fastapi.responses import FileResponse
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.vectorstores import VectorStore
+from redis.asyncio import Redis
 
+from iaEditais.core.cache import get_cache
 from iaEditais.core.connection import Connection
 from iaEditais.core.database import get_conn
 from iaEditais.core.model import get_model
@@ -45,8 +54,31 @@ async def release_post(
     conn: Connection = Depends(get_conn),
     vectorstore: VectorStore = Depends(get_vectorstore),
     model: BaseChatModel = Depends(get_model),
+    redis: Redis = Depends(get_cache),
 ):
-    return await doc_service.post_release(conn, vectorstore, model, doc_id, file)
+    return await doc_service.post_release(
+        conn, vectorstore, model, doc_id, file, redis
+    )
+
+
+@router.websocket('/ws/doc/{doc_id}/release/{release_id}/')
+async def release_ws(
+    websocket: WebSocket,
+    doc_id: UUID,
+    release_id: UUID,
+    redis: Redis = Depends(get_cache),
+):
+    key = f'task:{doc_id}:{release_id}:progress'
+    await websocket.accept()
+    async with redis.pubsub() as pubsub:
+        await pubsub.subscribe(key)
+        try:
+            async for message in pubsub.listen():
+                if message['type'] != 'message':
+                    continue
+                await websocket.send_text(message['data'])
+        except WebSocketDisconnect:
+            pass
 
 
 @router.get(
@@ -56,10 +88,6 @@ async def release_post(
 )
 async def release_get(doc_id: UUID, conn: Connection = Depends(get_conn)):
     return await doc_service.get_releases(conn, doc_id)
-
-
-@router.websocket
-async def release_ws(): ...
 
 
 @router.get(

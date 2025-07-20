@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from typing import override
 
+import fakeredis.aioredis
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
@@ -12,6 +13,7 @@ from starlette.datastructures import UploadFile as StarletteUploadFile
 from testcontainers.postgres import PostgresContainer
 
 from iaEditais.app import app
+from iaEditais.core.cache import get_cache
 from iaEditais.core.connection import Connection
 from iaEditais.core.database import get_conn
 from iaEditais.core.model import get_model
@@ -83,8 +85,15 @@ async def vectorstore(postgres):
     yield vectorstore
 
 
+@pytest_asyncio.fixture
+async def cache():
+    fake_redis_client = fakeredis.aioredis.FakeRedis(decode_responses=True)
+    yield fake_redis_client
+    await fake_redis_client.close()
+
+
 @pytest.fixture
-def client(conn, model, vectorstore):
+def client(conn, model, vectorstore, cache):
     async def get_conn_override():
         yield conn
 
@@ -94,9 +103,15 @@ def client(conn, model, vectorstore):
     async def get_model_override():
         yield model
 
+    # Override completo do cache
+    async def get_cache_override():
+        yield cache
+
     app.dependency_overrides[get_conn] = get_conn_override
     app.dependency_overrides[get_model] = get_model_override
     app.dependency_overrides[get_vectorstore] = get_vectorstore_override
+    app.dependency_overrides[get_cache] = get_cache_override
+
     return TestClient(app)
 
 

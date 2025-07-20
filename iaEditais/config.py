@@ -12,10 +12,14 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: str
 
     CLIENT: HttpUrl = 'http://localhost:3000'
+    REDIS_URL: str = 'redis://localhost:6379/0'
 
     class Config:
         env_file = '.env'
         env_file_encoding = 'utf-8'
+
+    def get_redis_url(self) -> str:
+        return self.REDIS_URL
 
     def get_connection_string(self) -> str:
         return f'postgresql://{self.PG_USER}:{self.PASSWORD}@{self.HOST}:{self.PORT}/{self.DATABASE}'

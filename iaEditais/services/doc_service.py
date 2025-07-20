@@ -1,3 +1,4 @@
+import json
 import os
 from uuid import UUID
 
@@ -49,7 +50,7 @@ async def build_verification_tree(conn: Connection, doc_id: UUID):
     return taxonomy
 
 
-async def post_release(conn, vectorstore, model, doc_id, file) -> Release:
+async def post_release(conn, vectorstore, model, doc_id, file, redis):
     if not file.filename.endswith('.pdf'):
         raise HTTPException(
             status_code=400, detail='Only .pdf files are allowed.'
@@ -57,14 +58,19 @@ async def post_release(conn, vectorstore, model, doc_id, file) -> Release:
     tx = await build_verification_tree(conn, doc_id)
     release = Release(doc_id=doc_id, taxonomy=tx)
 
+    key = f'task:{doc_id}:{release.id}:progress'
+    await redis.set(key, json.dumps({'status': 'pending', 'step': 0}))
+    await redis.publish(key, json.dumps({'status': 'pending', 'step': 0}))
+
     with open(f'storage/releases/{release.id}.pdf', 'wb') as buffer:
         buffer.write(file.file.read())
 
     await release_integration.add_to_vector_store(
         f'storage/releases/{release.id}.pdf', vectorstore
     )
+
     release = await release_integration.analyze_release(
-        conn, release, vectorstore, model
+        conn, vectorstore, model, key, release, redis
     )
     await doc_repository.post_release(conn, release)
     return release

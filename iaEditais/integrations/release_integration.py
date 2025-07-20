@@ -1,9 +1,10 @@
+import json
 import threading
 import time
 from typing import Any, Dict, List
 
 from fastapi import HTTPException
-from langchain.callbacks.base import BaseCallbackHandler
+from langchain.callbacks.base import AsyncCallbackHandler, BaseCallbackHandler
 from langchain.schema.document import Document
 from langchain.schema.runnable import RunnableLambda
 from langchain_community.document_loaders import PyMuPDFLoader
@@ -19,6 +20,7 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 from sqlalchemy.exc import IntegrityError
 from typing_extensions import override
 
+from iaEditais.config import Settings
 from iaEditais.models.doc import ReleaseFeedback
 from iaEditais.repositories import source_repository
 
@@ -121,15 +123,9 @@ def build_prompt_chain(model):
     return chain
 
 
-async def evaluate_branch(  # noqa: PLR0913, PLR0917
-    conn,
-    branch: dict,
-    item: dict,
-    typification: dict,
-    release_id: str,
-    db: Any,
-    chain: Any,
-) -> Any:
+async def evaluate_branch(
+    conn, branch, item, typification, release_id, db, chain
+):
     source = []
     for s in await source_repository.source_get(conn):
         ss = item.get('source', []) + typification.get('source', [])
@@ -245,12 +241,41 @@ def safe_wrapper(chain: Runnable):
     return RunnableLambda(_safe_invoke)
 
 
-async def process_release_taxonomy(chain, release, input_vars):
+import redis.asyncio as aioredis
+
+
+class StepProgressCallbackHandler(AsyncCallbackHandler):
+    def __init__(self, redis_url, key):
+        self.redis_url = redis_url
+        self.key = key
+        self.step = 0
+
+    async def _get_redis(self):
+        return aioredis.from_url(self.redis_url, decode_responses=True)
+
+    async def _increment_step(self):
+        self.step += 1
+        status = {'status': 'pending', 'step': self.step}
+        redis = await self._get_redis()
+        await redis.set(self.key, json.dumps(status))
+        await redis.publish(self.key, json.dumps(status))
+        await redis.close()
+
+    async def on_llm_end(self, response: LLMResult, **kwargs: Any):
+        await self._increment_step()
+
+    async def on_chat_model_start(self, *args, **kwargs):
+        pass
+
+
+async def process_release_taxonomy(chain, release, input_vars, key, redis):
     time_callback = TimingCallbackHandler()
     usage_callback = UsageMetadataCallbackHandler()
+    step_callback = StepProgressCallbackHandler(Settings().REDIS_URL, key)
     safe_chain = safe_wrapper(chain)
     response = safe_chain.batch(
-        input_vars, config={'callbacks': [usage_callback, time_callback]}
+        input_vars,
+        config={'callbacks': [usage_callback, time_callback, step_callback]},
     )
     for typification in release.taxonomy:
         for taxonomy in typification.get('taxonomy', []):
@@ -258,7 +283,6 @@ async def process_release_taxonomy(chain, release, input_vars):
                 branch['evaluate'] = response[_]
                 branch['usage'] = usage_callback.usage_metadata_list[_]
                 branch['duration'] = time_callback.durations[_]
-                print(branch)
 
 
 async def process_branch(
@@ -273,8 +297,7 @@ async def process_branch(
 
     docs = []
     query = f'{branch.get("title")} {branch.get("description")}'
-    chunks = await vector_store.asimilarity_search(query=query, k=3)
-    for d in chunks:
+    for d in await vector_store.asimilarity_search(query=query, k=3):
         docs.append(d.page_content)
 
     return {
@@ -294,12 +317,12 @@ async def build_vars(conn, release, vectorstore):
         for taxonomy in typification.get('taxonomy', []):
             for branch in taxonomy.get('branch', []):
                 _branch = await process_branch(conn, typification, taxonomy, branch, vectorstore)  # fmt: skip # noqa: E261, E501
-                input_vars.append(_branch)  # fmt: skip # noqa: E261, E501
+                input_vars.append(_branch)
     return input_vars
 
 
-async def analyze_release(conn, release, vectorstore, model):
+async def analyze_release(conn, vectorstore, model, key, release, redis):
     chain = build_prompt_chain(model)
     input_vars = await build_vars(conn, release, vectorstore)
-    await process_release_taxonomy(chain, release, input_vars)
+    await process_release_taxonomy(chain, release, input_vars, key, redis)
     return release
