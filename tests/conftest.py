@@ -103,7 +103,6 @@ def client(conn, model, vectorstore, cache):
     async def get_model_override():
         yield model
 
-    # Override completo do cache
     async def get_cache_override():
         yield cache
 
