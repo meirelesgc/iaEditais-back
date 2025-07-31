@@ -20,6 +20,9 @@ services:
   api:
     image: gleidsoncosta/fiotec-iaeditais:latest
     container_name: fiotec-iaeditais
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     depends_on:
