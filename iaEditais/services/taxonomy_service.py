@@ -18,6 +18,7 @@ async def get_taxonomy(conn, typification_id: UUID = None) -> list[Taxonomy]:
 
 
 async def put_taxonomy(conn, taxonomy: Taxonomy) -> Taxonomy:
+    taxonomy = Taxonomy(**taxonomy.model_dump())
     taxonomy.updated_at = datetime.now()
     await tree_repository.put_taxonomy(conn, taxonomy)
     await tree_repository.delete_taxonomy_sources(conn, taxonomy)

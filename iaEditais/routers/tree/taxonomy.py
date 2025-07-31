@@ -5,7 +5,11 @@ from fastapi import APIRouter, Depends
 
 from iaEditais.core.connection import Connection
 from iaEditais.core.database import get_conn
-from iaEditais.models.taxonomy_model import CreateTaxonomy, Taxonomy
+from iaEditais.models.taxonomy_model import (
+    CreateTaxonomy,
+    Taxonomy,
+    TaxonomyUpdate,
+)
 from iaEditais.services import taxonomy_service
 
 router = APIRouter()
@@ -47,7 +51,9 @@ async def get_taxonomy_by_typification(
     status_code=HTTPStatus.OK,
     response_model=Taxonomy,
 )
-async def put_taxonomy(taxonomy: Taxonomy, conn: Connection = Depends(get_conn)):
+async def put_taxonomy(
+    taxonomy: TaxonomyUpdate, conn: Connection = Depends(get_conn)
+):
     return await taxonomy_service.put_taxonomy(conn, taxonomy)
 
 

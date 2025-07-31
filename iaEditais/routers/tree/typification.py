@@ -47,7 +47,7 @@ async def type_get(typification_id: UUID, conn: Connection = Depends(get_conn)):
     response_model=typification_model.Typification,
 )
 async def type_put(
-    typification: typification_model.Typification,
+    typification: typification_model.TypificationUpdate,
     conn: Connection = Depends(get_conn),
 ):
     return await typification_service.type_put(conn, typification)

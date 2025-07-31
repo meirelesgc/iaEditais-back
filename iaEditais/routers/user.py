@@ -49,7 +49,7 @@ async def get_single_user(id: UUID, conn: Connection = Depends(get_conn)):
     response_model=user_model.User,
 )
 async def put_user(
-    user: user_model.User,
+    user: user_model.UserUpdate,
     current_user: user_model.User = Depends(get_current_user),
     conn: Connection = Depends(get_conn),
 ):

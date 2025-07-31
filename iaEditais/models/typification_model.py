@@ -18,3 +18,7 @@ class Typification(BaseModel):
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
+
+
+class TypificationUpdate(CreateTypification):
+    id: UUID

@@ -26,6 +26,10 @@ class User(BaseModel):
     updated_at: Optional[datetime] = None
 
 
+class UserUpdate(CreateUser):
+    id: UUID
+
+
 class UserResponse(BaseModel):
     id: UUID
     username: str

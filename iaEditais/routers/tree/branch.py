@@ -33,7 +33,7 @@ async def get_branch_by_taxonomy(
 
 @router.put('/taxonomy/branch/', response_model=branch_model.Branch)
 async def put_branch(
-    branch: branch_model.Branch, conn: Connection = Depends(get_conn)
+    branch: branch_model.BranchUpdate, conn: Connection = Depends(get_conn)
 ):
     return await taxonomy_service.put_branch(conn, branch)
 
