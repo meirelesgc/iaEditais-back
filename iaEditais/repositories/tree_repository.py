@@ -158,7 +158,7 @@ async def get_taxonomy(
         FROM taxonomies tx
             LEFT JOIN taxonomy_sources txs
                 ON tx.id = txs.taxonomy_id
-        WHERE 1 = 1
+        WHERE deleted_at IS NULL
             {filter_type}
             {filter_id}
         GROUP BY tx.id;
@@ -212,7 +212,7 @@ async def get_branches(conn: Connection, taxonomy_id: UUID = None):
     SCRIPT_SQL = f"""
         SELECT id, taxonomy_id, title, description, created_at, updated_at
         FROM branches
-        WHERE 1 = 1
+        WHERE deleted_at IS NULL
             {filter_id}
         """
     result = await conn.select(SCRIPT_SQL, params)

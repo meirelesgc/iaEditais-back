@@ -68,4 +68,4 @@ async def test_delete_branch(
     assert response.status_code == HTTPStatus.NO_CONTENT
 
     response = client.get(f'/taxonomy/branch/{taxonomy.id}/')
-    assert branch.id not in [b['id'] for b in response.json()]
+    assert len(response.json()) == 0
