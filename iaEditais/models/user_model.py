@@ -28,6 +28,7 @@ class User(BaseModel):
 
 class UserUpdate(CreateUser):
     id: UUID
+    access_level: Literal['DEFAULT', 'ADMIN', 'ANALYST', 'AUDITOR']
 
 
 class UserResponse(BaseModel):

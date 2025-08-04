@@ -23,6 +23,7 @@ async def type_get(conn, typification_id: UUID = None):
 
 
 async def type_put(conn, typification: typification_model.Typification):
+    typification = typification_model.Typification(**typification.model_dump())
     typification.updated_at = datetime.now()
     await tree_repository.put_typification(conn, typification)
     await tree_repository.delete_typification_sources(conn, typification)

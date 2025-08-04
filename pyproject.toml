@@ -68,8 +68,10 @@ asyncio_default_fixture_loop_scope = 'function'
 [tool.taskipy.tasks]
 lint = 'ruff check --fix --unsafe-fixes; ruff format'
 run = 'fastapi dev iaEditais/app.py'
-test = 'task lint; pytest -s -x --lf --cov=iaEditais; coverage html'
+test = 'pytest -s -x --cov=iaEditais -vv'
+cov = 'coverage html'
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
+

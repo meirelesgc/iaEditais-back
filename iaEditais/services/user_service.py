@@ -32,7 +32,8 @@ async def get_user(conn: Connection, id: UUID = None, email: EmailStr = None):
     return users
 
 
-async def put_user(conn: Connection, user: user_model.User):
+async def put_user(conn: Connection, user: user_model.UserUpdate):
+    user = user_model.User(**user.model_dump())
     user.updated_at = datetime.now()
     user.password = get_password_hash(user.password)
     await user_repository.put_user(conn, user)
