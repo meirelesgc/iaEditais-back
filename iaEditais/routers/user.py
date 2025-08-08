@@ -1,7 +1,7 @@
 from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.security import OAuth2PasswordRequestForm
 
 from iaEditais.core.connection import Connection
@@ -78,7 +78,8 @@ async def delete_user(
 
 @router.post('/token/', response_model=user_model.Token)
 async def login_for_access_token(
+    response: Response,
     form_data: OAuth2PasswordRequestForm = Depends(),
     conn: Connection = Depends(get_conn),
 ):
-    return await user_service.login_for_access_token(conn, form_data)
+    return await user_service.login_for_access_token(response, conn, form_data)

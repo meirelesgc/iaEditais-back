@@ -2,7 +2,7 @@ from datetime import datetime
 from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import HTTPException
+from fastapi import HTTPException, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from pydantic import EmailStr
 
@@ -45,6 +45,7 @@ async def delete_user(conn: Connection, id: UUID = None):
 
 
 async def login_for_access_token(
+    response: Response,
     conn: Connection,
     form_data: OAuth2PasswordRequestForm,
 ):
@@ -60,6 +61,14 @@ async def login_for_access_token(
             detail='Incorrect email or password',
         )
     access_token = create_access_token(data={'sub': user['email']})
+    response.set_cookie(
+        key='access_token',
+        value=access_token,
+        httponly=True,
+        samesite='lax',
+        secure=False,
+        max_age=1800,
+    )
     return {
         'access_token': access_token,
         'token_type': 'bearer',
