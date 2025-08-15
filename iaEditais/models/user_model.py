@@ -13,13 +13,18 @@ class Token(BaseModel):
 class CreateUser(BaseModel):
     username: str
     email: EmailStr
-    password: str
+    password: str | None
+    unit_id: UUID | None
+    phone_number: str
+    access_level: Literal['DEFAULT', 'ADMIN', 'ANALYST', 'AUDITOR'] = 'DEFAULT'
 
 
 class User(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     username: str
     email: EmailStr
+    unit_id: UUID | None
+    phone_number: str
     access_level: Literal['DEFAULT', 'ADMIN', 'ANALYST', 'AUDITOR']
     password: str
     created_at: datetime = Field(default_factory=datetime.now)
@@ -28,12 +33,13 @@ class User(BaseModel):
 
 class UserUpdate(CreateUser):
     id: UUID
-    access_level: Literal['DEFAULT', 'ADMIN', 'ANALYST', 'AUDITOR']
 
 
 class UserResponse(BaseModel):
     id: UUID
     username: str
     email: EmailStr
+    unit_id: UUID | None
+    phone_number: str
     access_level: Literal['DEFAULT', 'ADMIN', 'ANALYST', 'AUDITOR']
     model_config = ConfigDict(from_attributes=True)

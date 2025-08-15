@@ -13,17 +13,13 @@ CREATE TABLE IF NOT EXISTS units (
 CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     username VARCHAR(255) NOT NULL,
+    unit_id UUID REFERENCES units(id) ON DELETE SET NULL,
+    phone_number VARCHAR(255) UNIQUE NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
     password VARCHAR(255) NOT NULL,
     access_level ACCESS_TYPE NOT NULL DEFAULT 'DEFAULT',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS user_units (
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    unit_id UUID NOT NULL REFERENCES units(id) ON DELETE CASCADE,
-    PRIMARY KEY (user_id, unit_id)
 );
 
 CREATE TABLE IF NOT EXISTS sources (
@@ -98,8 +94,8 @@ CREATE TABLE IF NOT EXISTS releases (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
 );
-INSERT INTO users (username, email, password, access_level)
+INSERT INTO users (username, email, phone_number, password, access_level)
 VALUES 
-    ('admin_user', 'admin@example.com', 'senha_admin_hash', 'ADMIN'),
-    ('analyst_user', 'analyst@example.com', 'senha_analyst_hash', 'ANALYST'),
-    ('auditor_user', 'auditor@example.com', 'senha_auditor_hash', 'AUDITOR');
+    ('admin_user', 'admin@example.com', 'senha_admin_hash', '9XXXX-YYYY',  'ADMIN'),
+    ('analyst_user', 'analyst@example.com', 'senha_analyst_hash', '9XXXX-YYYY', 'ANALYST'),
+    ('auditor_user', 'auditor@example.com', 'senha_auditor_hash', '9XXXX-YYYY', 'AUDITOR');

@@ -21,7 +21,7 @@ async def post_user(
     user: user_model.CreateUser,
     access_level: str = 'DEFAULT',
 ):
-    user = user_model.User(**user.model_dump(), access_level=access_level)
+    user = user_model.User(**user.model_dump())
     user.password = get_password_hash(user.password)
     await user_repository.post_user(conn, user)
     return user

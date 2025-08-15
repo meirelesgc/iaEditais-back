@@ -1,5 +1,6 @@
 import uuid
 from datetime import datetime
+from uuid import uuid4
 
 import factory
 
@@ -13,6 +14,8 @@ class CreateUserFactory(factory.Factory):
     username = factory.Faker('user_name')
     email = factory.Faker('email')
     password = factory.Faker('password')
+    unit_id = factory.LazyFunction(uuid4)
+    phone_number = factory.Faker('phone_number')
 
 
 class UserFactory(factory.Factory):

@@ -5,16 +5,20 @@ import pytest
 from iaEditais.models import user_model
 from tests.factories import user_factory
 
+BASE_USERS = 3
 
-def test_post_user(client):
-    user = user_factory.UserFactory()
+
+@pytest.mark.asyncio
+async def test_post_user(client, create_unit):
+    unit = await create_unit()
+    user = user_factory.CreateUserFactory(unit_id=unit.id)
     response = client.post('/user/', json=user.model_dump(mode='json'))
     assert response.status_code == HTTPStatus.CREATED
     assert user_model.UserResponse(**response.json())
 
 
 def test_get_users(client):
-    LENGTH = 0
+    LENGTH = BASE_USERS
     response = client.get('/user/')
     assert response.status_code == HTTPStatus.OK
     assert len(response.json()) == LENGTH
@@ -23,25 +27,21 @@ def test_get_users(client):
 @pytest.mark.asyncio
 async def test_get_one_users(client, create_user):
     LENGTH = 1
-
-    for _ in range(0, LENGTH):
+    for _ in range(LENGTH):
         await create_user()
-
     response = client.get('/user/')
     assert response.status_code == HTTPStatus.OK
-    assert len(response.json()) == LENGTH
+    assert len(response.json()) == LENGTH + BASE_USERS
 
 
 @pytest.mark.asyncio
 async def test_get_two_users(client, create_user):
     LENGTH = 2
-
-    for _ in range(0, LENGTH):
+    for _ in range(LENGTH):
         await create_user()
-
     response = client.get('/user/')
     assert response.status_code == HTTPStatus.OK
-    assert len(response.json()) == LENGTH
+    assert len(response.json()) == LENGTH + BASE_USERS
 
 
 @pytest.mark.asyncio
@@ -120,7 +120,7 @@ async def test_delete_user(client, create_user, get_token):
     LENGTH = 0
     response = client.get('/user/')
     assert response.status_code == HTTPStatus.OK
-    assert len(response.json()) == LENGTH
+    assert len(response.json()) == LENGTH + BASE_USERS
 
 
 @pytest.mark.asyncio

@@ -9,8 +9,8 @@ from iaEditais.models import user_model
 async def post_user(conn: Connection, user: user_model.User):
     params = user.model_dump()
     SCRIPT_SQL = """
-        INSERT INTO public.users (id, username, email, access_level, password, created_at)
-        VALUES (%(id)s, %(username)s, %(email)s, %(access_level)s, %(password)s, %(created_at)s);
+        INSERT INTO public.users (id, username, email, unit_id, phone_number, access_level, password, created_at)
+        VALUES (%(id)s, %(username)s, %(email)s, %(unit_id)s, %(phone_number)s, %(access_level)s, %(password)s, %(created_at)s);
         """  # noqa: E501
     return await conn.exec(SCRIPT_SQL, params)
 
@@ -32,7 +32,7 @@ async def get_user(conn: Connection, id: UUID = None, email: EmailStr = None):
         filter_email = 'AND email = %(email)s'
 
     SCRIPT_SQL = f"""
-        SELECT id, username, email, access_level, password, created_at,
+        SELECT id, username, email, phone_number, unit_id, access_level, password, created_at,
             updated_at
         FROM public.users
         WHERE 1 = 1
@@ -48,6 +48,8 @@ async def put_user(conn: Connection, user: user_model.User):
         UPDATE public.users
             SET username = %(username)s,
                 email = %(email)s,
+                unit_id = %(unit_id)s,
+                phone_number = %(phone_number)s,
                 password = %(password)s,
                 updated_at = %(updated_at)s
         WHERE id = %(id)s;

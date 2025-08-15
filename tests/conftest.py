@@ -173,13 +173,12 @@ def create_branch(conn):
 
 
 @pytest.fixture
-def create_user(conn):
+def create_user(conn, create_unit):
     async def _create_user(**kwargs):
-        raw_user = user_factory.CreateUserFactory(**kwargs)
+        unit = await create_unit()
+        raw_user = user_factory.CreateUserFactory(unit_id=unit.id, **kwargs)
         password = raw_user.password
-        created_user = await user_service.post_user(
-            conn, raw_user, access_level='DEFAULT'
-        )
+        created_user = await user_service.post_user(conn, raw_user)
         created_user.password = password
         return created_user
 
@@ -187,13 +186,13 @@ def create_user(conn):
 
 
 @pytest.fixture
-def create_admin_user(conn):
+def create_admin_user(conn, create_unit):
     async def _create_admin_user(**kwargs):
-        raw_user = user_factory.CreateUserFactory(**kwargs)
+        unit = await create_unit()
+        raw_user = user_factory.CreateUserFactory(unit_id=unit.id, **kwargs)
         password = raw_user.password
-        created_user = await user_service.post_user(
-            conn, raw_user, access_level='ADMIN'
-        )
+        raw_user.access_level = 'ADMIN'
+        created_user = await user_service.post_user(conn, raw_user)
         created_user.password = password
         return created_user
 
