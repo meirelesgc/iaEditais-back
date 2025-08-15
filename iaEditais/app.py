@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from iaEditais.core.database import conn
-from iaEditais.routers import doc, unit, user, user_units
+from iaEditais.routers import doc, unit, user
 from iaEditais.routers.tree import branch, source, taxonomy, typification
 
 
@@ -37,7 +37,6 @@ app.include_router(doc.router, tags=['Doc'])
 app.include_router(typification.router, tags=['Typification'])
 app.include_router(user.router, tags=['User'])
 app.include_router(unit.router, tags=['Unit'])
-app.include_router(user_units.router, tags=['User & Unit Relationship'])
 
 
 @app.get('/')
