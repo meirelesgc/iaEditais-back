@@ -32,8 +32,10 @@ class User(BaseModel):
 
 
 class UserUpdate(BaseModel):
+    id: UUID
     username: str
     email: EmailStr
+    password: str
     unit_id: UUID | None
     phone_number: str
     access_level: Literal['DEFAULT', 'ADMIN', 'ANALYST', 'AUDITOR'] = 'DEFAULT'
