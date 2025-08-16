@@ -30,8 +30,16 @@ async def post_user(
     status_code=HTTPStatus.OK,
     response_model=list[user_model.UserResponse],
 )
-async def get_user(conn: Connection = Depends(get_conn)):
-    return await user_service.get_user(conn)
+async def get_user(
+    conn: Connection = Depends(get_conn),
+    unit_id: UUID = None,
+):
+    return await user_service.get_user(conn, None, None, unit_id)
+
+
+@router.delete('/user/my-self/', response_model=user_model.UserResponse)
+async def get_my_self(current_user: user_model.User = Depends(get_current_user)):
+    return current_user
 
 
 @router.get(
@@ -39,7 +47,10 @@ async def get_user(conn: Connection = Depends(get_conn)):
     status_code=HTTPStatus.OK,
     response_model=user_model.UserResponse,
 )
-async def get_single_user(id: UUID, conn: Connection = Depends(get_conn)):
+async def get_single_user(
+    id: UUID,
+    conn: Connection = Depends(get_conn),
+):
     return await user_service.get_user(conn, id)
 
 

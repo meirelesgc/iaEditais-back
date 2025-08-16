@@ -15,7 +15,12 @@ async def post_user(conn: Connection, user: user_model.User):
     return await conn.exec(SCRIPT_SQL, params)
 
 
-async def get_user(conn: Connection, id: UUID = None, email: EmailStr = None):
+async def get_user(
+    conn: Connection,
+    id: UUID = None,
+    email: EmailStr = None,
+    unit_id: UUID = None,
+):
     one = False
     params = {}
 
@@ -31,12 +36,18 @@ async def get_user(conn: Connection, id: UUID = None, email: EmailStr = None):
         params['email'] = email
         filter_email = 'AND email = %(email)s'
 
+    filter_unit = str()
+    if unit_id:
+        params['unit_id'] = unit_id
+        filter_unit = 'AND unit_id = %(unit_id)s'
+
     SCRIPT_SQL = f"""
         SELECT id, username, email, phone_number, unit_id, access_level, password, created_at,
             updated_at
         FROM public.users
         WHERE 1 = 1
             {filter_id}
+            {filter_unit}
             {filter_email};
         """
     return await conn.select(SCRIPT_SQL, params, one)

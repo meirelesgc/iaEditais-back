@@ -31,8 +31,12 @@ class User(BaseModel):
     updated_at: Optional[datetime] = None
 
 
-class UserUpdate(CreateUser):
-    id: UUID
+class UserUpdate(BaseModel):
+    username: str
+    email: EmailStr
+    unit_id: UUID | None
+    phone_number: str
+    access_level: Literal['DEFAULT', 'ADMIN', 'ANALYST', 'AUDITOR'] = 'DEFAULT'
 
 
 class UserResponse(BaseModel):

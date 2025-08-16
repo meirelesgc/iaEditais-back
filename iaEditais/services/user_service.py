@@ -27,8 +27,13 @@ async def post_user(
     return user
 
 
-async def get_user(conn: Connection, id: UUID = None, email: EmailStr = None):
-    users = await user_repository.get_user(conn, id, email)
+async def get_user(
+    conn: Connection,
+    id: UUID = None,
+    email: EmailStr = None,
+    unit_id: UUID = None,
+):
+    users = await user_repository.get_user(conn, id, email, unit_id)
     return users
 
 
