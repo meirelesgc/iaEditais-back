@@ -21,7 +21,7 @@ CurrentUser = Annotated[user_model.User, Depends(get_current_user)]
     status_code=HTTPStatus.CREATED,
     response_model=user_model.UserResponse,
 )
-async def post_user(conn: Conn, user: CurrentUser):
+async def post_user(conn: Conn, user: user_model.CreateUser):
     return await user_service.post_user(conn, user)
 
 

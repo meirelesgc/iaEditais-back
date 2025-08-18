@@ -136,7 +136,7 @@ async def test_delete_user(client, create_user, get_token):
 async def test_get_token(client, create_user):
     user = await create_user()
     data = {'username': user.email, 'password': user.password}
-    response = client.post('/token/', data=data)
+    response = client.post('/login', data=data)
     token = response.json()
     assert response.status_code == HTTPStatus.OK
     assert 'access_token' in token

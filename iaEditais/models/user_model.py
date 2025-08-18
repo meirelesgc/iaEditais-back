@@ -29,7 +29,7 @@ class User(BaseModel):
     unit_id: UUID | None
     phone_number: str
     access_level: Literal['DEFAULT', 'ADMIN', 'ANALYST', 'AUDITOR']
-    password: str
+    password: str = None
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: Optional[datetime] = None
 
@@ -38,7 +38,7 @@ class UserUpdate(BaseModel):
     id: UUID
     username: str
     email: EmailStr
-    password: str
+    password: Optional[str]
     unit_id: UUID | None
     phone_number: str
     access_level: Literal['DEFAULT', 'ADMIN', 'ANALYST', 'AUDITOR'] = 'DEFAULT'
