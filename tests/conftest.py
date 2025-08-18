@@ -175,8 +175,11 @@ def create_branch(conn):
 @pytest.fixture
 def create_user(conn, create_unit):
     async def _create_user(**kwargs):
-        unit = await create_unit()
-        raw_user = user_factory.CreateUserFactory(unit_id=unit.id, **kwargs)
+        if 'unit_id' not in kwargs:
+            unit = await create_unit()
+            kwargs['unit_id'] = unit.id
+
+        raw_user = user_factory.CreateUserFactory(**kwargs)
         password = raw_user.password
         created_user = await user_service.post_user(conn, raw_user)
         created_user.password = password
@@ -219,8 +222,8 @@ def auth_header(get_token):
 
 @pytest.fixture
 def create_unit(conn):
-    async def _create_unit():
-        unit = unit_factory.CreateUnitFactory()
+    async def _create_unit(**kwargs):
+        unit = unit_factory.CreateUnitFactory(**kwargs)
         unit = await unit_service.unit_post(conn, unit)
         return unit
 
@@ -229,9 +232,12 @@ def create_unit(conn):
 
 @pytest.fixture
 def create_doc(conn, create_typification):
-    async def _create_doc():
-        typification = await create_typification()
-        doc_data = doc_factory.CreateDocFactory(typification=[typification.id])
+    async def _create_doc(**kwargs):
+        if 'typification' not in kwargs:
+            typification = await create_typification()
+            kwargs['typification'] = [typification.id]
+
+        doc_data = doc_factory.CreateDocFactory(**kwargs)
         doc = await doc_service.doc_post(conn, doc_data)
         return doc
 

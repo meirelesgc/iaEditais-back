@@ -5,7 +5,7 @@ import pytest
 from iaEditais.models import user_model
 from tests.factories import user_factory
 
-BASE_USERS = 3
+BASE_USERS = 0
 
 
 @pytest.mark.asyncio

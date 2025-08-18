@@ -70,7 +70,7 @@ async def login_for_access_token(
         key='access_token',
         value=access_token,
         httponly=True,
-        samesite='lax',
+        samesite='strict',
         secure=False,
         max_age=1800,
     )

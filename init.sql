@@ -94,8 +94,8 @@ CREATE TABLE IF NOT EXISTS releases (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
 );
-INSERT INTO users (username, email, phone_number, password, access_level)
-VALUES 
-    ('admin_user', 'admin@example.com', 'senha_admin_hash', '9XXXX-YYYY',  'ADMIN'),
-    ('analyst_user', 'analyst@example.com', 'senha_analyst_hash', '9XXXX-YYYY', 'ANALYST'),
-    ('auditor_user', 'auditor@example.com', 'senha_auditor_hash', '9XXXX-YYYY', 'AUDITOR');
+-- INSERT INTO users (username, email, phone_number, password, access_level)
+-- VALUES 
+--     ('admin_user', 'admin@example.com', 'senha_admin_hash', '9XXXX-YYYY',  'ADMIN'),
+--     ('analyst_user', 'analyst@example.com', 'senha_analyst_hash', '9XXXX-YYYY', 'ANALYST'),
+--     ('auditor_user', 'auditor@example.com', 'senha_auditor_hash', '9XXXX-YYYY', 'AUDITOR');
