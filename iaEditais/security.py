@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from http import HTTPStatus
-from typing import List
+from typing import List, Optional
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, HTTPException, Request
@@ -12,28 +12,32 @@ from iaEditais.core.connection import Connection
 from iaEditais.core.database import get_conn
 from iaEditais.models import user_model
 
-SECRET_KEY = 'your-secret-key'  # Buscar do .env
+SECRET_KEY = 'your-secret-key'
 ALGORITHM = 'HS256'
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 pwd_context = PasswordHash.recommended()
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/auth/login')
 
 
-async def get_token_from_cookie(request: Request):
-    token = request.cookies.get('access_token')
+async def get_token_from_cookie(request: Request) -> Optional[str]:
+    return request.cookies.get('access_token')
+
+
+async def get_current_user(
+    token_header: Optional[str] = Depends(oauth2_scheme),
+    request: Request = None,
+    conn: Connection = Depends(get_conn),
+):
+    token_cookie = await get_token_from_cookie(request) if request else None
+    token = token_header or token_cookie
+
     if not token:
         raise HTTPException(
             status_code=HTTPStatus.UNAUTHORIZED,
             detail='Not authenticated',
             headers={'WWW-Authenticate': 'Bearer'},
         )
-    return token
 
-
-async def get_current_user(
-    token: str = Depends(get_token_from_cookie),
-    conn: Connection = Depends(get_conn),
-):
     credentials_exception = HTTPException(
         status_code=HTTPStatus.UNAUTHORIZED,
         detail='Could not validate credentials',
@@ -52,9 +56,8 @@ async def get_current_user(
         SELECT id, username, email, phone_number, unit_id, access_level,
             password, created_at, updated_at
         FROM public.users
-        WHERE 1 = 1
-            AND email = %(email)s;
-        """
+        WHERE email = %(email)s;
+    """
 
     user = await conn.select(SCRIPT_SQL, {'email': subject_email}, True)
 
