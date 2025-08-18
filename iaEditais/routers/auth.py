@@ -5,11 +5,11 @@ from fastapi.security import OAuth2PasswordRequestForm
 
 from iaEditais.core.connection import Connection
 from iaEditais.core.database import get_conn
-from iaEditais.models import user_model
+from iaEditais.models import auth_schemas, user_model
 from iaEditais.security import create_access_token, get_current_user
 from iaEditais.services import user_service
 
-router = APIRouter()
+router = APIRouter(prefix='/auth')
 
 Conn = Annotated[Connection, Depends(get_conn)]
 CurrentUser = Annotated[user_model.User, Depends(get_current_user)]
@@ -50,3 +50,7 @@ async def logout(response: Response):
         httponly=True,
         path='/',
     )
+
+
+@router.post('/password-reset/request')
+async def password_reset(auth_schemas: auth_schemas.PasswordResetRequest): ...
