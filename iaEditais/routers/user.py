@@ -15,13 +15,23 @@ router = APIRouter()
 Conn = Annotated[Connection, Depends(get_conn)]
 CurrentUser = Annotated[user_model.User, Depends(get_current_user)]
 
+forbidden_exception = HTTPException(
+    status_code=HTTPStatus.FORBIDDEN, detail='Not enough permissions'
+)
+
 
 @router.post(
     '/user/',
     status_code=HTTPStatus.CREATED,
     response_model=user_model.UserResponse,
 )
-async def post_user(conn: Conn, user: user_model.CreateUser):
+async def post_user(
+    conn: Conn,
+    user: user_model.CreateUser,
+    current_user: CurrentUser,
+):
+    if current_user.access_level != 'ADMIN':
+        raise forbidden_exception
     return await user_service.post_user(conn, user)
 
 
@@ -30,7 +40,9 @@ async def post_user(conn: Conn, user: user_model.CreateUser):
     status_code=HTTPStatus.OK,
     response_model=list[user_model.UserResponse],
 )
-async def get_user(conn: Conn, unit_id: UUID = None):
+async def get_user(current_user: CurrentUser, conn: Conn, unit_id: UUID = None):
+    if current_user.access_level != 'ADMIN':
+        raise forbidden_exception
     return await user_service.get_user(conn, None, None, unit_id)
 
 
@@ -44,7 +56,9 @@ async def get_me(current_user: CurrentUser):
     status_code=HTTPStatus.OK,
     response_model=user_model.UserResponse,
 )
-async def get_single_user(id: UUID, conn: Conn):
+async def get_single_user(current_user: CurrentUser, id: UUID, conn: Conn):
+    if current_user.access_level != 'ADMIN':
+        raise forbidden_exception
     return await user_service.get_user(conn, id)
 
 
@@ -52,9 +66,6 @@ async def get_single_user(id: UUID, conn: Conn):
 async def put_user(
     user: user_model.UserUpdate, current_user: CurrentUser, conn: Conn
 ):
-    forbidden_exception = HTTPException(
-        status_code=HTTPStatus.FORBIDDEN, detail='Not enough permissions'
-    )
     if current_user.id != user.id and current_user.access_level != 'ADMIN':
         raise forbidden_exception
     if current_user.access_level == 'DEFAULT' and user.access_level == 'ADMIN':
@@ -63,9 +74,8 @@ async def put_user(
     return await user_service.put_user(conn, user)
 
 
-@router.delete(
-    '/user/{id}/',
-    status_code=HTTPStatus.NO_CONTENT,
-)
+@router.delete('/user/{id}/', status_code=HTTPStatus.NO_CONTENT)
 async def delete_user(id: UUID, current_user: CurrentUser, conn: Conn):
+    if current_user.id != id and current_user.access_level != 'ADMIN':
+        raise forbidden_exception
     return await user_service.delete_user(conn, id)
