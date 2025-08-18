@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime
 from typing import Literal, Optional
 from uuid import UUID, uuid4
@@ -13,7 +14,9 @@ class Token(BaseModel):
 class CreateUser(BaseModel):
     username: str
     email: EmailStr
-    password: str | None
+    password: Optional[str] = Field(
+        default_factory=lambda: secrets.token_hex(16)
+    )
     unit_id: UUID | None
     phone_number: str
     access_level: Literal['DEFAULT', 'ADMIN', 'ANALYST', 'AUDITOR'] = 'DEFAULT'

@@ -16,11 +16,7 @@ from iaEditais.security import (
 )
 
 
-async def post_user(
-    conn: Connection,
-    user: user_model.CreateUser,
-    access_level: str = 'DEFAULT',
-):
+async def post_user(conn: Connection, user: user_model.CreateUser):
     user = user_model.User(**user.model_dump())
     user.password = get_password_hash(user.password)
     await user_repository.post_user(conn, user)
@@ -74,7 +70,4 @@ async def login_for_access_token(
         secure=False,
         max_age=1800,
     )
-    return {
-        'access_token': access_token,
-        'token_type': 'bearer',
-    }
+    return {'access_token': access_token, 'token_type': 'bearer'}

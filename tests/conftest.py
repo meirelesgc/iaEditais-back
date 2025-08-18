@@ -255,3 +255,13 @@ def create_release(client):
         return doc_model.Release(**response.json())
 
     return _create_release
+
+
+@pytest.fixture
+def login(client, get_token):
+    def _login(user):
+        token = get_token(user)
+        client.cookies.set('access_token', token)
+        return client
+
+    return _login

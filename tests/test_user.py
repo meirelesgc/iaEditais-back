@@ -35,6 +35,15 @@ async def test_get_one_users(client, create_user):
 
 
 @pytest.mark.asyncio
+async def test_get_self(login, create_user, get_token):
+    user = await create_user()
+    client = login(user)
+    response = client.get('/user/my-self/')
+    assert response.status_code == HTTPStatus.OK
+    assert response.json().get('id') == str(user.id)
+
+
+@pytest.mark.asyncio
 async def test_get_two_users(client, create_user):
     LENGTH = 2
     for _ in range(LENGTH):

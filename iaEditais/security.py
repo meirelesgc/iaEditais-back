@@ -19,7 +19,7 @@ pwd_context = PasswordHash.recommended()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl='token')
 
 
-async def get_token_from_cookie(request: Request) -> str:
+async def get_token_from_cookie(request: Request):
     token = request.cookies.get('access_token')
     if not token:
         raise HTTPException(
