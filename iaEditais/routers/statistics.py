@@ -42,3 +42,8 @@ async def get_activity_by_access_level(conn: Connection = Depends(get_conn)):
 @router.get('/most-used-sources')
 async def get_most_used_sources(conn: Connection = Depends(get_conn)):
     return await statistics_service.get_most_used_sources(conn)
+
+
+@router.get('/get_docs_per_unit')
+async def get_docs_per_unit(conn: Connection = Depends(get_conn)):
+    return await statistics_service.get_docs_per_unit(conn)

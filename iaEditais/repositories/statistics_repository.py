@@ -101,3 +101,21 @@ async def get_most_used_sources(conn: Connection):
         LIMIT 10;
     """
     return await conn.select(SCRIPT_SQL)
+
+
+async def get_docs_per_unit(conn):
+    SCRIPT_SQL = """
+        SELECT
+            u.unit_id,
+            COUNT(DISTINCT d.id) AS total_docs,
+            COUNT(DISTINCT r.id) AS total_releases
+        FROM public.units un
+        LEFT JOIN public.users u
+            ON u.unit_id = un.id
+        LEFT JOIN public.releases r
+            ON r.user_id = u.id
+        LEFT JOIN public.docs d
+            ON d.id = r.doc_id
+        GROUP BY u.unit_id;
+        """
+    return await conn.select(SCRIPT_SQL)
