@@ -20,16 +20,14 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/auth/login')
 
 
 async def get_token_from_cookie(request: Request) -> Optional[str]:
+    print(request.cookies)
     return request.cookies.get('access_token')
 
 
 async def get_current_user(
-    token_header: Optional[str] = Depends(oauth2_scheme),
-    request: Request = None,
-    conn: Connection = Depends(get_conn),
+    request: Request, conn: Connection = Depends(get_conn)
 ):
-    token_cookie = await get_token_from_cookie(request) if request else None
-    token = token_header or token_cookie
+    token = await get_token_from_cookie(request) if request else None
 
     if not token:
         raise HTTPException(
