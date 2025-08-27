@@ -28,10 +28,10 @@ forbidden_exception = HTTPException(
 async def post_user(
     conn: Conn,
     user: user_model.CreateUser,
-    current_user: CurrentUser,
+    # current_user: CurrentUser,
 ):
-    if current_user.access_level != 'ADMIN':
-        raise forbidden_exception
+    # if current_user.access_level != 'ADMIN':
+    #     raise forbidden_exception
     return await user_service.post_user(conn, user)
 
 
