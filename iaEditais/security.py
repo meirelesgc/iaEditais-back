@@ -20,7 +20,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/auth/login')
 
 
 async def get_token_from_cookie(request: Request) -> Optional[str]:
-    print(request.cookies)
     return request.cookies.get('access_token')
 
 

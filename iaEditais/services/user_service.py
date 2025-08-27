@@ -35,7 +35,8 @@ async def get_user(
 
 async def put_user(conn: Connection, user: user_model.UserUpdate):
     if not user.password:
-        user.password = await get_user(user.id).password
+        db_user = await get_user(conn, user.id)
+        user.password = db_user['password']
 
     user = user_model.User(**user.model_dump())
     user.updated_at = datetime.now()

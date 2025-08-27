@@ -62,9 +62,15 @@ async def get_single_user(current_user: CurrentUser, id: UUID, conn: Conn):
     return await user_service.get_user(conn, id)
 
 
-@router.put('/user/', status_code=HTTPStatus.OK, response_model=user_model.User)
+@router.put(
+    '/user/',
+    status_code=HTTPStatus.OK,
+    response_model=user_model.User,
+)
 async def put_user(
-    user: user_model.UserUpdate, current_user: CurrentUser, conn: Conn
+    conn: Conn,
+    current_user: CurrentUser,
+    user: user_model.UserUpdate,
 ):
     if current_user.id != user.id and current_user.access_level != 'ADMIN':
         raise forbidden_exception
