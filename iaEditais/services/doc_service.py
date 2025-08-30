@@ -51,9 +51,9 @@ async def build_verification_tree(conn: Connection, doc_id: UUID):
 
 
 async def post_release(conn, vectorstore, model, doc_id, file, redis):
-    if not file.filename.endswith('.pdf'):
+    if not file.filename.endswith(('.pdf', '.docx')):
         raise HTTPException(
-            status_code=400, detail='Only .pdf files are allowed.'
+            status_code=400, detail='Only .pdf or .docx files are allowed.'
         )
     tx = await build_verification_tree(conn, doc_id)
     release = Release(doc_id=doc_id, taxonomy=tx)

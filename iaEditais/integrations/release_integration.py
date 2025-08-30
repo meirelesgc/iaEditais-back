@@ -7,7 +7,7 @@ from fastapi import HTTPException
 from langchain.callbacks.base import AsyncCallbackHandler, BaseCallbackHandler
 from langchain.schema.document import Document
 from langchain.schema.runnable import RunnableLambda
-from langchain_community.document_loaders import PyMuPDFLoader
+from langchain_community.document_loaders import Docx2txtLoader, PyMuPDFLoader
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import AIMessage
 from langchain_core.messages.ai import UsageMetadata, add_usage
@@ -25,8 +25,11 @@ from iaEditais.models.doc import ReleaseFeedback
 from iaEditais.repositories import source_repository
 
 
-def load_documents(path):
-    document_loader = PyMuPDFLoader(path)
+def load_documents(path: str):
+    if path.endswith('.pdf'):
+        document_loader = PyMuPDFLoader(path)
+    if path.endswith('.pdf'):
+        document_loader = Docx2txtLoader(path)
     return document_loader.load()
 
 
