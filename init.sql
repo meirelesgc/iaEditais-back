@@ -71,21 +71,24 @@ CREATE TABLE IF NOT EXISTS branches (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
 );
-
 CREATE TABLE IF NOT EXISTS docs (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     name VARCHAR(255) NOT NULL,
+    identifier VARCHAR(255),
+    description TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     deleted_at TIMESTAMP
 );
-
+CREATE TABLE IF NOT EXISTS doc_editors (
+    doc_id UUID NOT NULL REFERENCES docs(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE
+);
 CREATE TABLE IF NOT EXISTS doc_typifications (
     doc_id UUID REFERENCES docs(id) ON DELETE CASCADE,
     typification_id UUID REFERENCES typifications(id) ON DELETE CASCADE,
     PRIMARY KEY (doc_id, typification_id)
 );
-
 CREATE TABLE IF NOT EXISTS releases (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     doc_id UUID REFERENCES docs(id) ON DELETE CASCADE,

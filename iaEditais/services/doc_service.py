@@ -18,6 +18,7 @@ async def doc_post(conn: Connection, doc: CreateDoc):
             status_code=400, detail='At least one typification must be selected.'
         )
     await doc_repository.post_doc(conn, doc)
+    await doc_repository.post_doc_editors(conn, doc)
     await doc_repository.post_doc_typification(conn, doc)
     return doc
 
