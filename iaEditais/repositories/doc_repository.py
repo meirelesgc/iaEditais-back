@@ -18,7 +18,25 @@ async def post_doc(conn: Connection, doc: Doc) -> None:
     await conn.exec(SCRIPT_SQL, params)
 
 
+async def put_doc(conn: Connection, doc: Doc) -> None:
+    params = doc.model_dump()
+    SCRIPT_SQL = """
+        UPDATE docs
+        SET name = %(name)s,
+            updated_at = %(updated_at)s,
+            identifier = %(identifier)s,
+            description = %(description)s
+        WHERE id = %(id)s;
+    """
+    await conn.exec(SCRIPT_SQL, params)
+
+
 async def post_doc_editors(conn: Connection, doc: Doc):
+    params = doc.model_dump()
+    SCRIPT_SQL = """
+        DELETE FROM doc_editors WHERE doc_id = %(id)s;
+        """
+    await conn.exec(SCRIPT_SQL, params)
     for _ in doc.editors:
         params = {'id': doc.id, 'user_id': _}
         SCRIPT_SQL = """
@@ -29,6 +47,11 @@ async def post_doc_editors(conn: Connection, doc: Doc):
 
 
 async def post_doc_typification(conn: Connection, doc: Doc):
+    params = doc.model_dump()
+    SCRIPT_SQL = """
+        DELETE FROM doc_typifications WHERE doc_id = %(id)s;
+        """
+    await conn.exec(SCRIPT_SQL, params)
     for _ in doc.typification:
         params = {'id': doc.id, 'ty_id': _}
         SCRIPT_SQL = """

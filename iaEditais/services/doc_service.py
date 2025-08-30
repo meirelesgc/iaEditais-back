@@ -23,6 +23,18 @@ async def doc_post(conn: Connection, doc: CreateDoc):
     return doc
 
 
+async def doc_put(conn: Connection, doc: CreateDoc):
+    doc = Doc(**doc.model_dump())
+    if len(doc.typification) == 0:
+        raise HTTPException(
+            status_code=400, detail='At least one typification must be selected.'
+        )
+    await doc_repository.put_doc(conn, doc)
+    await doc_repository.post_doc_editors(conn, doc)
+    await doc_repository.post_doc_typification(conn, doc)
+    return doc
+
+
 async def doc_get(conn: Connection):
     return await doc_repository.get_doc(conn)
 

@@ -33,6 +33,14 @@ async def doc_post(
     return await doc_service.doc_post(conn, doc)
 
 
+@router.put('/doc/', status_code=HTTPStatus.CREATED)
+async def doc_put(
+    doc: Doc,
+    conn: Connection = Depends(get_conn),
+):
+    return await doc_service.doc_put(conn, doc)
+
+
 @router.get('/doc/', status_code=HTTPStatus.OK, response_model=list[Doc])
 async def doc_get(conn: Connection = Depends(get_conn)):
     return await doc_service.doc_get(conn)
