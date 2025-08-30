@@ -60,6 +60,7 @@ async def put_user(conn: Connection, user: user_model.User):
             SET username = %(username)s,
                 email = %(email)s,
                 unit_id = %(unit_id)s,
+                access_level = %(access_level)s,
                 phone_number = %(phone_number)s,
                 password = %(password)s,
                 updated_at = %(updated_at)s
