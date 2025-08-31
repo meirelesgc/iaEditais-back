@@ -16,8 +16,8 @@ class CreateDoc(BaseModel):
 class Doc(CreateDoc):
     id: UUID = Field(default_factory=uuid4)
     status: Literal[
-        'PENDING', 'UNDER CONSTRUCTION', 'WAITING FOR REVIEW', 'COMPLETED'
-    ]
+        'PENDING', 'UNDER_CONSTRUCTION', 'WAITING_FOR_REVIEW', 'COMPLETED'
+    ] = 'PENDING'
     created_at: datetime = Field(default_factory=datetime.now)
     updated_at: Optional[datetime] = None
 
