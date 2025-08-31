@@ -11,6 +11,7 @@ from testcontainers.postgres import PostgresContainer
 from iaEditais.app import app
 from iaEditais.database import get_session
 from iaEditais.models import table_registry
+from tests.factories import UnitFactory
 
 
 @pytest.fixture
@@ -73,3 +74,15 @@ def _mock_db_time(*, model, time=datetime(2024, 1, 1)):
 @pytest.fixture
 def mock_db_time():
     return _mock_db_time
+
+
+@pytest_asyncio.fixture
+def create_unit(session):
+    async def _create_unit(**kwargs):
+        unit = UnitFactory.build(**kwargs)
+        session.add(unit)
+        await session.commit()
+        await session.refresh(unit)
+        return unit
+
+    return _create_unit
