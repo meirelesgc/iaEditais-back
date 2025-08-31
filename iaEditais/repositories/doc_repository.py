@@ -7,6 +7,18 @@ from iaEditais.core.connection import Connection
 from iaEditais.models.doc import Doc, Release
 
 
+async def update_status(conn, doc_id, status: str):
+    SCRIPT_SQL = """
+        UPDATE docs
+        SET status = %(status)s, updated_at = NOW()
+        WHERE id = %(id)s
+        RETURNING id, name, status, updated_at;
+    """
+    params = {'id': doc_id, 'status': status}
+    result = conn.exec(SCRIPT_SQL, params)
+    return await result
+
+
 async def post_doc(conn: Connection, doc: Doc) -> None:
     params = doc.model_dump()
     SCRIPT_SQL = """
@@ -72,9 +84,13 @@ async def get_doc(conn: Connection, doc_id: UUID = None) -> list[Doc]:
         filter_id = 'AND id = %(id)s'
 
     SCRIPT_SQL = f"""
-        SELECT d.id, d.name, ARRAY_AGG(dt.typification_id) AS typification,
+        SELECT d.id, d.name,
+            -- Garante um array vazio se não houver tipificações, e remove nulos de dentro do array
+            COALESCE(ARRAY_AGG(dt.typification_id) FILTER (WHERE dt.typification_id IS NOT NULL), '{{}}') AS typification,
             d.created_at, d.updated_at, d.identifier, d.description,
-            ARRAY_AGG(de.user_id) AS editors
+            -- Garante um array vazio se não houver editores, e remove nulos de dentro do array
+            COALESCE(ARRAY_AGG(de.user_id) FILTER (WHERE de.user_id IS NOT NULL), '{{}}') AS editors,
+            status
         FROM docs d
         LEFT JOIN doc_typifications dt
             ON d.id = dt.doc_id

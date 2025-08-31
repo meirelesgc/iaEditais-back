@@ -11,6 +11,10 @@ from iaEditais.models.doc import CreateDoc, Doc, Release
 from iaEditais.repositories import doc_repository, tree_repository
 
 
+async def update_status(conn, doc_id, status: str):
+    return await doc_repository.update_status(conn, doc_id, status)
+
+
 async def doc_post(conn: Connection, doc: CreateDoc):
     doc = Doc(**doc.model_dump())
     if len(doc.typification) == 0:

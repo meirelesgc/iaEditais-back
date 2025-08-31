@@ -46,6 +46,32 @@ async def doc_get(conn: Connection = Depends(get_conn)):
     return await doc_service.doc_get(conn)
 
 
+@router.put('/doc/{doc_id}/status/pending', status_code=HTTPStatus.OK)
+async def set_status_pending(doc_id: UUID, conn: Connection = Depends(get_conn)):
+    return await doc_service.update_status(conn, doc_id, 'PENDING')
+
+
+@router.put('/doc/{doc_id}/status/under-construction', status_code=HTTPStatus.OK)
+async def set_status_under_construction(
+    doc_id: UUID, conn: Connection = Depends(get_conn)
+):
+    return await doc_service.update_status(conn, doc_id, 'UNDER CONSTRUCTION')
+
+
+@router.put('/doc/{doc_id}/status/waiting-review', status_code=HTTPStatus.OK)
+async def set_status_waiting_review(
+    doc_id: UUID, conn: Connection = Depends(get_conn)
+):
+    return await doc_service.update_status(conn, doc_id, 'WAITING FOR REVIEW')
+
+
+@router.put('/doc/{doc_id}/status/completed', status_code=HTTPStatus.OK)
+async def set_status_completed(
+    doc_id: UUID, conn: Connection = Depends(get_conn)
+):
+    return await doc_service.update_status(conn, doc_id, 'COMPLETED')
+
+
 @router.delete('/doc/{doc_id}/', status_code=HTTPStatus.NO_CONTENT)
 async def doc_delete(doc_id: UUID, conn: Connection = Depends(get_conn)):
     return await doc_service.delete_doc(conn, doc_id)
