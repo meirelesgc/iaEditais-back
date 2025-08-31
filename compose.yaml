@@ -1,0 +1,47 @@
+services:
+  db:
+    image: pgvector/pgvector:pg17
+    container_name: iaeditais_db
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: iaeditais
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+
+  api:
+    image: gleidsoncosta/fiotec-iaeditais:latest
+    container_name: iaeditais_api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: ./entrypoint.sh
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/iaeditais
+    volumes:
+      - storage:/app/iaEditais/storage
+    depends_on:
+      - db
+
+  cache:
+    image: redis:latest
+    container_name: fiotec-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - cache:/data
+    command: redis-server --save 60 1 --loglevel warning
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  dbdata:
+  storage:
+  cache:

@@ -1,0 +1,59 @@
+[project]
+name = "iaEditais"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "gmcosta",email = "geu_costa@outlook.com"}
+]
+readme = "README.md"
+requires-python = ">=3.13,<4.0"
+dependencies = [
+    "fastapi[standard] (>=0.116.1,<0.117.0)",
+    "pydantic-settings (>=2.10.1,<3.0.0)",
+    "sqlalchemy (>=2.0.43,<3.0.0)",
+    "alembic (>=1.16.5,<2.0.0)",
+    "testcontainers[postgres] (>=4.12.0,<5.0.0)",
+    "pytest-asyncio (>=1.1.0,<2.0.0)",
+    "psycopg[binary] (>=3.2.9,<4.0.0)"
+]
+
+[tool.poetry]
+packages = [{include = "iaEditais"}]
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.1"
+pytest-cov = "^6.2.1"
+taskipy = "^1.14.1"
+ruff = "^0.12.11"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+
+[tool.ruff]
+line-length = 79
+extend-exclude = ['migrations']
+
+[tool.ruff.lint]
+preview = true
+select = ['I', 'F', 'E', 'W', 'PL', 'PT']
+
+[tool.ruff.format]
+preview = true
+quote-style = 'single'
+
+[tool.pytest.ini_options]
+pythonpath = "."
+addopts = '-p no:warnings'
+asyncio_default_fixture_loop_scope = 'function'
+
+[tool.coverage.run]
+concurrency = ["thread", "greenlet"]
+
+[tool.taskipy.tasks]
+format = 'ruff check --fix; ruff format'
+run = 'fastapi dev iaEditais/app.py'
+test = 'pytest -s -x --cov=iaEditais -vv'
+cov = 'coverage html'
