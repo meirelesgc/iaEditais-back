@@ -14,20 +14,21 @@ class FilterPage(BaseModel):
     limit: int = Field(100, ge=1)
 
 
-class UnitBase(BaseModel):
+class UnitSchema(BaseModel):
     name: str
     location: Optional[str] = None
 
 
-class UnitCreate(UnitBase):
+class UnitCreate(UnitSchema):
     pass
 
 
-class UnitUpdate(UnitBase):
+class UnitUpdate(UnitSchema):
+    id: UUID
     pass
 
 
-class UnitPublic(UnitBase):
+class UnitPublic(UnitSchema):
     id: UUID
     created_at: datetime
     updated_at: Optional[datetime] = None

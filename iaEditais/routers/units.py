@@ -19,7 +19,7 @@ from iaEditais.schemas import (
     UnitUpdate,
 )
 
-router = APIRouter(prefix='/units', tags=['units'])
+router = APIRouter(prefix='/unit', tags=['units'])
 
 Session = Annotated[AsyncSession, Depends(get_session)]
 
@@ -68,9 +68,9 @@ async def read_unit(unit_id: UUID, session: Session):
     return unit
 
 
-@router.put('/{unit_id}', response_model=UnitPublic)
-async def update_unit(unit_id: UUID, unit: UnitUpdate, session: Session):
-    db_unit = await session.get(Unit, unit_id)
+@router.put('/', response_model=UnitPublic)
+async def update_unit(unit: UnitUpdate, session: Session):
+    db_unit = await session.get(Unit, unit.id)
 
     if not db_unit:
         raise HTTPException(
