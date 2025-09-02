@@ -55,14 +55,14 @@ async def set_status_pending(doc_id: UUID, conn: Connection = Depends(get_conn))
 async def set_status_under_construction(
     doc_id: UUID, conn: Connection = Depends(get_conn)
 ):
-    return await doc_service.update_status(conn, doc_id, 'UNDER CONSTRUCTION')
+    return await doc_service.update_status(conn, doc_id, 'UNDER_CONSTRUCTION')
 
 
 @router.put('/doc/{doc_id}/status/waiting-review', status_code=HTTPStatus.OK)
 async def set_status_waiting_review(
     doc_id: UUID, conn: Connection = Depends(get_conn)
 ):
-    return await doc_service.update_status(conn, doc_id, 'WAITING FOR REVIEW')
+    return await doc_service.update_status(conn, doc_id, 'WAITING_FOR_REVIEW')
 
 
 @router.put('/doc/{doc_id}/status/completed', status_code=HTTPStatus.OK)
