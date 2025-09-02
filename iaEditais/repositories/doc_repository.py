@@ -82,23 +82,48 @@ async def get_doc(conn: Connection, doc_id: UUID = None) -> list[Doc]:
         one = True
         params['id'] = doc_id
         filter_id = 'AND id = %(id)s'
-
     SCRIPT_SQL = f"""
-        SELECT d.id, d.name,
-            -- Garante um array vazio se não houver tipificações, e remove nulos de dentro do array
-            COALESCE(ARRAY_AGG(dt.typification_id) FILTER (WHERE dt.typification_id IS NOT NULL), '{{}}') AS typification,
-            d.created_at, d.updated_at, d.identifier, d.description,
-            -- Garante um array vazio se não houver editores, e remove nulos de dentro do array
-            COALESCE(ARRAY_AGG(de.user_id) FILTER (WHERE de.user_id IS NOT NULL), '{{}}') AS editors,
-            status
-        FROM docs d
-        LEFT JOIN doc_typifications dt
-            ON d.id = dt.doc_id
-        LEFT JOIN doc_editors de
-            ON d.id = de.doc_id
-        WHERE 1 = 1
-            {filter_id}
-        GROUP BY d.id;
+        WITH doc_typifications_agg AS (
+            -- CTE para agregar as tipificações por documento
+            SELECT
+                doc_id,
+                ARRAY_AGG(typification_id) AS typifications
+            FROM
+                doc_typifications
+            GROUP BY
+                doc_id
+        ),
+        doc_editors_agg AS (
+            -- CTE para agregar os editores por documento
+            SELECT
+                doc_id,
+                ARRAY_AGG(user_id) AS editors
+            FROM
+                doc_editors
+            GROUP BY
+                doc_id
+        )
+        SELECT
+            d.id,
+            d.name,
+            -- Garante um array vazio se o documento não tiver tipificações
+            COALESCE(dt.typifications, '{{}}') AS typification,
+            d.created_at,
+            d.updated_at,
+            d.identifier,
+            d.description,
+            -- Garante um array vazio se o documento não tiver editores
+            COALESCE(de.editors, '{{}}') AS editors,
+            d.status
+        FROM
+            docs d
+        LEFT JOIN
+            doc_typifications_agg dt ON d.id = dt.doc_id
+        LEFT JOIN
+            doc_editors_agg de ON d.id = de.doc_id
+        WHERE
+            1 = 1
+            {filter_id};
     """
 
     results = conn.select(SCRIPT_SQL, params, one)
