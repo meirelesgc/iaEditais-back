@@ -20,4 +20,4 @@ class UserFactory(factory.Factory):
     password = factory.LazyAttribute(lambda obj: f'{obj.username}@example.com')
     phone_number = factory.Sequence(lambda n: f'1190000{n:04d}')
     access_level = AccessType.DEFAULT
-    unit = factory.SubFactory(UnitFactory)
+    unit_id = None

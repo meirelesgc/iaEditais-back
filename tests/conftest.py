@@ -11,7 +11,8 @@ from testcontainers.postgres import PostgresContainer
 from iaEditais.app import app
 from iaEditais.database import get_session
 from iaEditais.models import table_registry
-from tests.factories import UnitFactory
+from iaEditais.security import get_password_hash
+from tests.factories import UnitFactory, UserFactory
 
 
 @pytest.fixture
@@ -86,3 +87,18 @@ def create_unit(session):
         return unit
 
     return _create_unit
+
+
+@pytest_asyncio.fixture
+def create_user(session):
+    async def _create_user(**kwargs):
+        kwargs['password'] = get_password_hash(
+            kwargs.get('password', 'defaultpass')
+        )
+        user = UserFactory.build(**kwargs)
+        session.add(user)
+        await session.commit()
+        await session.refresh(user)
+        return user
+
+    return _create_user

@@ -20,7 +20,7 @@ from iaEditais.schemas import (
 )
 from iaEditais.security import get_password_hash
 
-router = APIRouter(prefix='/user', tags=['users'])
+router = APIRouter(prefix='/user', tags=['operações de sistema, usuário'])
 Session = Annotated[AsyncSession, Depends(get_session)]
 
 
@@ -61,19 +61,22 @@ async def create_user(user: UserCreate, session: Session):
 
 @router.get('/', response_model=UserList)
 async def read_users(
-    session: Session, pagination: Annotated[FilterPage, Depends()]
+    session: Session, filters: Annotated[FilterPage, Depends()]
 ):
     query = await session.scalars(
         select(User)
         .where(User.deleted_at.is_(None))
-        .offset(pagination.offset)
-        .limit(pagination.limit)
+        .offset(filters.offset)
+        .limit(filters.limit)
     )
     users = query.all()
     return {'users': users}
 
 
-@router.get('/{user_id}', response_model=UserPublic)
+# WIP: ENDPOINT MY-SELF / MY
+
+
+@router.get('/{user_id}/', response_model=UserPublic)
 async def read_user(user_id: UUID, session: Session):
     db_user = await session.get(User, user_id)
     if not db_user or db_user.deleted_at:
@@ -113,7 +116,7 @@ async def update_user(user_update: UserUpdate, session: Session):
     return db_user
 
 
-@router.delete('/{user_id}', response_model=Message)
+@router.delete('/{user_id}/', response_model=Message)
 async def delete_user(user_id: UUID, session: Session):
     db_user = await session.get(User, user_id)
     if not db_user or db_user.deleted_at:

@@ -19,7 +19,7 @@ from iaEditais.schemas import (
     UnitUpdate,
 )
 
-router = APIRouter(prefix='/unit', tags=['units'])
+router = APIRouter(prefix='/unit', tags=['operações de sistema, unidades'])
 
 Session = Annotated[AsyncSession, Depends(get_session)]
 

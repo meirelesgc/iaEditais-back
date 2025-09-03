@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from iaEditais.routers import units
+from iaEditais.routers import units, users
 
 BASE_DIR = os.path.dirname(__file__)
 STORAGE_DIR = os.path.join(BASE_DIR, 'storage')
@@ -29,6 +29,7 @@ app.add_middleware(
 )
 
 app.include_router(units.router)
+app.include_router(users.router)
 
 
 @app.get('/')
