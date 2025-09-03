@@ -1,0 +1,128 @@
+from datetime import datetime, timezone
+from http import HTTPStatus
+from typing import Annotated
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException
+from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from iaEditais.database import get_session
+from iaEditais.models import Source
+from iaEditais.schemas import (
+    FilterPage,
+    Message,
+    SourceCreate,
+    SourceList,
+    SourcePublic,
+    SourceUpdate,
+)
+
+router = APIRouter(prefix='/source', tags=['árvore de verificação, fontes'])
+
+Session = Annotated[AsyncSession, Depends(get_session)]
+
+
+@router.post('/', status_code=HTTPStatus.CREATED, response_model=SourcePublic)
+async def create_source(source: SourceCreate, session: Session):
+    db_source = await session.scalar(
+        select(Source).where(
+            Source.deleted_at.is_(None), Source.name == source.name
+        )
+    )
+
+    if db_source:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Source name already exists',
+        )
+
+    db_source = Source(name=source.name, description=source.description)
+
+    session.add(db_source)
+    await session.commit()
+    await session.refresh(db_source)
+
+    return db_source
+
+
+@router.get('/', response_model=SourceList)
+async def read_sources(
+    session: Session, filters: Annotated[FilterPage, Depends()]
+):
+    query = await session.scalars(
+        select(Source)
+        .where(Source.deleted_at.is_(None))
+        .offset(filters.offset)
+        .limit(filters.limit)
+    )
+
+    sources = query.all()
+    return {'sources': sources}
+
+
+@router.get('/{source_id}', response_model=SourcePublic)
+async def read_source(source_id: UUID, session: Session):
+    source = await session.get(Source, source_id)
+
+    if not source or source.deleted_at:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Source not found',
+        )
+
+    return source
+
+
+@router.put('/', response_model=SourcePublic)
+async def update_source(source: SourceUpdate, session: Session):
+    db_source = await session.get(Source, source.id)
+
+    if not db_source or db_source.deleted_at:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Source not found',
+        )
+
+    db_source_same_name = await session.scalar(
+        select(Source).where(
+            Source.deleted_at.is_(None), Source.name == source.name
+        )
+    )
+
+    if db_source_same_name:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Source name already exists',
+        )
+
+    db_source.name = source.name
+    db_source.description = source.description
+
+    try:
+        await session.commit()
+        await session.refresh(db_source)
+        return db_source
+    except IntegrityError:
+        await session.rollback()
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Source name already exists',
+        )
+
+
+@router.delete('/{source_id}', response_model=Message)
+async def delete_source(source_id: UUID, session: Session):
+    db_source = await session.get(Source, source_id)
+
+    if not db_source or db_source.deleted_at:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Source not found',
+        )
+
+    db_source.deleted_at = datetime.now(timezone.utc)
+    await session.commit()
+
+    return {'message': 'Source deleted'}

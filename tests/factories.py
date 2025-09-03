@@ -1,6 +1,6 @@
 import factory
 
-from iaEditais.models import AccessType, Unit, User
+from iaEditais.models import AccessType, Source, Unit, User
 
 
 class UnitFactory(factory.Factory):
@@ -21,3 +21,11 @@ class UserFactory(factory.Factory):
     phone_number = factory.Sequence(lambda n: f'1190000{n:04d}')
     access_level = AccessType.DEFAULT
     unit_id = None
+
+
+class SourceFactory(factory.Factory):
+    class Meta:
+        model = Source
+
+    name = factory.Sequence(lambda n: f'Fonte de Teste {n}')
+    description = factory.Faker('paragraph', nb_sentences=3, locale='pt_BR')

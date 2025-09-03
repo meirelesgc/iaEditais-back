@@ -73,3 +73,25 @@ class User:
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
         init=False, nullable=True
     )
+
+
+@table_registry.mapped_as_dataclass
+class Source:
+    __tablename__ = 'sources'
+    id: Mapped[UUID] = mapped_column(
+        init=False, primary_key=True, default=uuid4
+    )
+
+    name: Mapped[str] = mapped_column(unique=True)
+    description: Mapped[str]
+
+    # --- Campos de Auditoria (para consistência) ---
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        init=False, onupdate=func.now()
+    )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        init=False, nullable=True
+    )

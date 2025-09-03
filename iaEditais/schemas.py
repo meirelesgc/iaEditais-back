@@ -69,3 +69,29 @@ class UserPublic(UserSchema):
 
 class UserList(BaseModel):
     users: list[UserPublic]
+
+
+class SourceSchema(BaseModel):
+    name: str
+    description: str
+
+
+class SourceCreate(SourceSchema):
+    pass
+
+
+class SourceUpdate(SourceSchema):
+    id: UUID
+    pass
+
+
+class SourcePublic(SourceSchema):
+    id: UUID
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SourceList(BaseModel):
+    sources: list[SourcePublic]
