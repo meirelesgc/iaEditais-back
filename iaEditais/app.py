@@ -23,7 +23,7 @@ os.makedirs(UPLOADS_DIR, exist_ok=True)
 TEMP_DIR = os.path.join(STORAGE_DIR, 'temp')
 os.makedirs(TEMP_DIR, exist_ok=True)
 
-app = FastAPI()
+app = FastAPI(docs_url='/swagger')
 
 app.mount('/uploads', StaticFiles(directory=UPLOADS_DIR), name='uploads')
 
