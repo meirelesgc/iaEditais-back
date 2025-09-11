@@ -17,10 +17,12 @@ from iaEditais.schemas import (
     UserPublic,
     UserUpdate,
 )
-from iaEditais.security import get_password_hash
+from iaEditais.security import get_current_user, get_password_hash
 
 router = APIRouter(prefix='/user', tags=['operações de sistema, usuário'])
+
 Session = Annotated[AsyncSession, Depends(get_session)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.post('/', status_code=HTTPStatus.CREATED, response_model=UserPublic)
@@ -72,7 +74,9 @@ async def read_users(
     return {'users': users}
 
 
-# WIP: ENDPOINT MY-SELF / MY
+@router.get('/my', response_model=UserPublic)
+async def read_me(current_user: CurrentUser):
+    return current_user
 
 
 @router.get('/{user_id}/', response_model=UserPublic)
