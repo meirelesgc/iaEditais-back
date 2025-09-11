@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from http import HTTPStatus
+from uuid import uuid4
 from zoneinfo import ZoneInfo
 
 from fastapi import Depends, HTTPException
@@ -22,10 +23,9 @@ oauth2_scheme = OAuth2PasswordBearer(
 
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.now(tz=ZoneInfo('UTC')) + timedelta(
-        minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES
-    )
-    to_encode.update({'exp': expire})
+    now = datetime.now(tz=ZoneInfo('UTC'))
+    expire = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({'exp': expire, 'iat': now, 'jti': str(uuid4())})
     encoded_jwt = encode(
         to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
     )
