@@ -23,7 +23,7 @@ class Unit:
     id: Mapped[UUID] = mapped_column(
         init=False, primary_key=True, default=uuid4
     )
-    name: Mapped[str] = mapped_column(unique=True)
+    name: Mapped[str] = mapped_column(unique=True, nullable=False)
     location: Mapped[Optional[str]] = mapped_column(default=None)
 
     users: Mapped[List['User']] = relationship(
@@ -96,7 +96,7 @@ class Source:
         init=False, primary_key=True, default=uuid4
     )
 
-    name: Mapped[str] = mapped_column(unique=True)
+    name: Mapped[str] = mapped_column(unique=True, nullable=False)
     description: Mapped[str]
 
     typifications: Mapped[List['Typification']] = relationship(
@@ -124,7 +124,7 @@ class Typification:
     id: Mapped[UUID] = mapped_column(
         init=False, primary_key=True, default=uuid4
     )
-    name: Mapped[str] = mapped_column(unique=True)
+    name: Mapped[str] = mapped_column(unique=True, nullable=False)
 
     sources: Mapped[List[Source]] = relationship(
         'Source',
@@ -156,14 +156,46 @@ class Taxonomy:
         init=False, primary_key=True, default=uuid4
     )
 
-    title: Mapped[str] = mapped_column(unique=True)
-    description: Mapped[str] = mapped_column(unique=True)
+    title: Mapped[str] = mapped_column(unique=True, nullable=False)
+    description: Mapped[str] = mapped_column()
 
     typification_id: Mapped[UUID] = mapped_column(
         ForeignKey('typifications.id'), nullable=False
     )
     typification: Mapped['Typification'] = relationship(
         back_populates='taxonomies', init=False
+    )
+
+    branches: Mapped[List['Branch']] = relationship(
+        back_populates='taxonomy', default_factory=list, init=False
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        init=False, onupdate=func.now()
+    )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        init=False, nullable=True
+    )
+
+
+@table_registry.mapped_as_dataclass
+class Branch:
+    __tablename__ = 'branches'
+    id: Mapped[UUID] = mapped_column(
+        init=False, primary_key=True, default=uuid4
+    )
+
+    title: Mapped[str] = mapped_column(unique=True, nullable=False)
+    description: Mapped[str]
+
+    taxonomy_id: Mapped[UUID] = mapped_column(
+        ForeignKey('taxonomies.id'), nullable=False
+    )
+    taxonomy: Mapped['Taxonomy'] = relationship(
+        back_populates='branches', init=False
     )
 
     created_at: Mapped[datetime] = mapped_column(

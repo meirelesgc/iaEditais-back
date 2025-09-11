@@ -5,7 +5,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from iaEditais.routers import units, users
-from iaEditais.routers.check_tree import sources, taxonomies, typifications
+from iaEditais.routers.check_tree import (
+    branches,
+    sources,
+    taxonomies,
+    typifications,
+)
 
 BASE_DIR = os.path.dirname(__file__)
 STORAGE_DIR = os.path.join(BASE_DIR, 'storage')
@@ -35,6 +40,7 @@ app.include_router(users.router)
 app.include_router(sources.router)
 app.include_router(typifications.router)
 app.include_router(taxonomies.router)
+app.include_router(branches.router)
 
 
 @app.get('/')

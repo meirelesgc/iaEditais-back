@@ -152,3 +152,31 @@ class TaxonomyPublic(TaxonomySchema):
 
 class TaxonomyList(BaseModel):
     taxonomies: list[TaxonomyPublic]
+
+
+class BranchSchema(BaseModel):
+    title: str
+    description: str
+
+
+class BranchCreate(BranchSchema):
+    taxonomy_id: UUID
+
+
+class BranchUpdate(BranchSchema):
+    id: UUID
+    taxonomy_id: UUID
+
+
+class BranchPublic(BranchSchema):
+    id: UUID
+    taxonomy: TaxonomyPublic
+
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BranchList(BaseModel):
+    branches: list[BranchPublic]

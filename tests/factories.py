@@ -2,6 +2,7 @@ import factory
 
 from iaEditais.models import (
     AccessType,
+    Branch,
     Source,
     Taxonomy,
     Typification,
@@ -50,4 +51,12 @@ class TaxonomyFactory(factory.Factory):
         model = Taxonomy
 
     title = factory.Sequence(lambda n: f'Taxonomia de Teste {n}')
+    description = factory.Faker('paragraph', nb_sentences=3, locale='pt_BR')
+
+
+class BranchFactory(factory.Factory):
+    class Meta:
+        model = Branch
+
+    title = factory.Sequence(lambda n: f'Ramo de Teste {n}')
     description = factory.Faker('paragraph', nb_sentences=3, locale='pt_BR')

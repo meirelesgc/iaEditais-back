@@ -13,6 +13,7 @@ from iaEditais.database import get_session
 from iaEditais.models import table_registry
 from iaEditais.security import get_password_hash
 from tests.factories import (
+    BranchFactory,
     SourceFactory,
     TaxonomyFactory,
     TypificationFactory,
@@ -144,3 +145,15 @@ def create_taxonomy(session):
         return taxonomy
 
     return _create_taxonomy
+
+
+@pytest_asyncio.fixture
+def create_branch(session):
+    async def _create_branch(**kwargs):
+        branch = BranchFactory.build(**kwargs)
+        session.add(branch)
+        await session.commit()
+        await session.refresh(branch)
+        return branch
+
+    return _create_branch
