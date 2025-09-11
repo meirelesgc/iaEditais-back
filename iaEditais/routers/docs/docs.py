@@ -11,6 +11,7 @@ from iaEditais.database import get_session
 from iaEditais.models import Doc
 from iaEditais.schemas import (
     DocCreate,
+    DocList,
     DocPublic,
     DocUpdate,
     FilterPage,
@@ -50,7 +51,7 @@ async def create_doc(doc: DocCreate, session: Session):
     return db_doc
 
 
-@router.get('/')
+@router.get('/', response_model=DocList)
 async def read_docs(
     session: Session, filters: Annotated[FilterPage, Depends()]
 ):
@@ -77,9 +78,9 @@ async def read_doc(doc_id: UUID, session: Session):
     return doc
 
 
-@router.put('/{doc_id}', response_model=DocPublic)
-async def update_doc(doc_id: UUID, doc: DocUpdate, session: Session):
-    db_doc = await session.get(Doc, doc_id)
+@router.put('/', response_model=DocPublic)
+async def update_doc(doc: DocUpdate, session: Session):
+    db_doc = await session.get(Doc, doc.id)
     if not db_doc or db_doc.deleted_at:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -89,7 +90,7 @@ async def update_doc(doc_id: UUID, doc: DocUpdate, session: Session):
     db_doc_conflict = await session.scalar(
         select(Doc).where(
             Doc.deleted_at.is_(None),
-            Doc.id != doc_id,
+            Doc.id != doc.id,
             or_(Doc.name == doc.name, Doc.identifier == doc.identifier),
         )
     )

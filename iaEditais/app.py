@@ -11,6 +11,7 @@ from iaEditais.routers.check_tree import (
     taxonomies,
     typifications,
 )
+from iaEditais.routers.docs import docs
 
 BASE_DIR = os.path.dirname(__file__)
 STORAGE_DIR = os.path.join(BASE_DIR, 'storage')
@@ -36,6 +37,8 @@ app.add_middleware(
 
 app.include_router(units.router)
 app.include_router(users.router)
+
+app.include_router(docs.router)
 
 app.include_router(sources.router)
 app.include_router(typifications.router)

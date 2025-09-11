@@ -1,0 +1,182 @@
+import uuid
+from http import HTTPStatus
+
+import pytest
+
+from iaEditais.schemas import DocPublic
+
+
+@pytest.mark.asyncio
+async def test_create_doc(client):
+    response = client.post(
+        '/doc/',
+        json={
+            'name': 'New Doc',
+            'description': 'A doc description',
+            'identifier': 'DOC-123',
+        },
+    )
+    assert response.status_code == HTTPStatus.CREATED
+    data = response.json()
+    assert data['name'] == 'New Doc'
+    assert data['description'] == 'A doc description'
+    assert data['identifier'] == 'DOC-123'
+    assert 'id' in data
+
+
+@pytest.mark.asyncio
+async def test_create_doc_conflict(client, create_doc):
+    existing_doc = await create_doc(name='Doc A', identifier='DOC-001')
+    response = client.post(
+        '/doc/',
+        json={
+            'name': 'Doc A',
+            'description': 'Another desc',
+            'identifier': 'DOC-002',
+        },
+    )
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert (
+        response.json()['detail']
+        == 'Doc with name "Doc A" or identifier "DOC-002" already exists.'
+    )
+
+    response = client.post(
+        '/doc/',
+        json={
+            'name': 'Doc B',
+            'description': 'Another desc',
+            'identifier': 'DOC-001',
+        },
+    )
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert (
+        response.json()['detail']
+        == 'Doc with name "Doc B" or identifier "DOC-001" already exists.'
+    )
+
+
+def test_read_docs_empty(client):
+    response = client.get('/doc/')
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == {'docs': []}
+
+
+@pytest.mark.asyncio
+async def test_read_docs_with_data(client, create_doc):
+    doc = await create_doc(
+        name='Doc X', description='Description X', identifier='DOC-X'
+    )
+    doc_schema = DocPublic.model_validate(doc).model_dump(mode='json')
+
+    response = client.get('/doc/')
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == {'docs': [doc_schema]}
+
+
+@pytest.mark.asyncio
+async def test_read_doc_by_id(client, create_doc):
+    doc = await create_doc(name='Doc Specific', identifier='DOC-999')
+
+    response = client.get(f'/doc/{doc.id}')
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+    assert data['id'] == str(doc.id)
+    assert data['name'] == 'Doc Specific'
+
+
+def test_read_nonexistent_doc(client):
+    response = client.get(f'/doc/{uuid.uuid4()}')
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'Doc not found'}
+
+
+@pytest.mark.asyncio
+async def test_update_doc(client, create_doc):
+    doc = await create_doc(
+        name='Doc Old', description='Old Desc', identifier='OLD-001'
+    )
+
+    response = client.put(
+        '/doc/',
+        json={
+            'id': str(doc.id),
+            'name': 'Doc Updated',
+            'description': 'Updated Desc',
+            'identifier': 'NEW-001',
+        },
+    )
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+    assert data['id'] == str(doc.id)
+    assert data['name'] == 'Doc Updated'
+    assert data['description'] == 'Updated Desc'
+    assert data['identifier'] == 'NEW-001'
+
+
+@pytest.mark.asyncio
+async def test_update_doc_conflict(client, create_doc):
+    doc_a = await create_doc(name='Doc A', identifier='ID-A')
+    doc_b = await create_doc(name='Doc B', identifier='ID-B')
+
+    response = client.put(
+        '/doc/',
+        json={
+            'id': str(doc_b.id),
+            'name': 'Doc A',
+            'description': 'Some desc',
+            'identifier': 'ID-B',
+        },
+    )
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert (
+        response.json()['detail']
+        == 'Doc with name "Doc A" or identifier "ID-B" already exists.'
+    )
+
+    response = client.put(
+        '/doc/',
+        json={
+            'id': str(doc_b.id),
+            'name': 'Doc B',
+            'description': 'Some desc',
+            'identifier': 'ID-A',
+        },
+    )
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert (
+        response.json()['detail']
+        == 'Doc with name "Doc B" or identifier "ID-A" already exists.'
+    )
+
+
+def test_update_nonexistent_doc(client):
+    response = client.put(
+        '/doc/',
+        json={
+            'id': str(uuid.uuid4()),
+            'name': 'Ghost Doc',
+            'description': '...',
+            'identifier': 'GHOST-001',
+        },
+    )
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'Doc not found'}
+
+
+@pytest.mark.asyncio
+async def test_delete_doc(client, create_doc):
+    doc = await create_doc(name='Doc Delete', identifier='DEL-001')
+
+    delete_response = client.delete(f'/doc/{doc.id}')
+    assert delete_response.status_code == HTTPStatus.OK
+    assert delete_response.json() == {'message': 'Doc deleted successfully'}
+
+    get_response = client.get(f'/doc/{doc.id}')
+    assert get_response.status_code == HTTPStatus.NOT_FOUND
+
+
+def test_delete_nonexistent_doc(client):
+    response = client.delete(f'/doc/{uuid.uuid4()}')
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'Doc not found'}
