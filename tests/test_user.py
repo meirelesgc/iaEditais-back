@@ -51,6 +51,7 @@ async def test_create_user_conflict(client, create_user, create_unit):
 
 @pytest.mark.asyncio
 async def test_read_users(client, create_user, create_unit):
+    EXPECTED_MIN_USERS = 2
     unit = await create_unit()
     await create_user(
         username='u1',
@@ -68,7 +69,7 @@ async def test_read_users(client, create_user, create_unit):
     response = client.get('/user/?limit=10&offset=0')
     assert response.status_code == HTTPStatus.OK
     data = response.json()
-    assert len(data['users']) >= 2
+    assert len(data['users']) >= EXPECTED_MIN_USERS
 
 
 @pytest.mark.asyncio

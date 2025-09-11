@@ -70,7 +70,7 @@ async def test_update_unit(client, create_unit):
 
 @pytest.mark.asyncio
 async def test_update_unit_conflict(client, create_unit):
-    unit1 = await create_unit(name='Unit A', location='SP')
+    await create_unit(name='Unit A', location='SP')
     unit2 = await create_unit(name='Unit B', location='RJ')
 
     response = client.put(

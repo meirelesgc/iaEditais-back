@@ -142,9 +142,7 @@ async def test_update_taxonomy_conflict(
     client, create_typification, create_taxonomy
 ):
     typification = await create_typification(name='Some Typification')
-    taxonomy_a = await create_taxonomy(
-        title='Taxonomy A', typification_id=typification.id
-    )
+    await create_taxonomy(title='Taxonomy A', typification_id=typification.id)
     taxonomy_b = await create_taxonomy(
         title='Taxonomy B', typification_id=typification.id
     )
