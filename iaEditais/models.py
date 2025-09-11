@@ -27,17 +27,37 @@ class Unit:
     location: Mapped[Optional[str]] = mapped_column(default=None)
 
     users: Mapped[List['User']] = relationship(
-        back_populates='unit', default_factory=list, init=False
+        back_populates='unit',
+        default_factory=list,
+        init=False,
+        foreign_keys='User.unit_id',
     )
 
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )
-    updated_at: Mapped[datetime | None] = mapped_column(
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
         init=False, nullable=True, onupdate=func.now()
     )
-    deleted_at: Mapped[datetime | None] = mapped_column(
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
         init=False, nullable=True
+    )
+
+    # AJUSTE: Adicionado 'name' e 'use_alter=True' para quebrar a dependência circular.
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_unit_created_by', use_alter=True),
+        nullable=True,
+        default=None,
+    )
+    updated_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_unit_updated_by', use_alter=True),
+        nullable=True,
+        default=None,
+    )
+    deleted_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_unit_deleted_by', use_alter=True),
+        nullable=True,
+        default=None,
     )
 
 
@@ -55,11 +75,14 @@ class User:
     password: Mapped[str]
     access_level: Mapped[str] = mapped_column(default=AccessType.DEFAULT)
 
+    # AJUSTE: Adicionado 'name' à chave estrangeira.
     unit_id: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('units.id'), default=None, nullable=True
+        ForeignKey('units.id', name='fk_user_unit_id'),
+        default=None,
+        nullable=True,
     )
     unit: Mapped[Optional['Unit']] = relationship(
-        back_populates='users', init=False
+        back_populates='users', init=False, foreign_keys=[unit_id]
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -72,20 +95,44 @@ class User:
         init=False, nullable=True
     )
 
+    # AJUSTE: Adicionado 'name' às chaves estrangeiras auto-referenciadas.
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_user_created_by'),
+        nullable=True,
+        default=None,
+    )
+    updated_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_user_updated_by'),
+        nullable=True,
+        default=None,
+    )
+    deleted_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_user_deleted_by'),
+        nullable=True,
+        default=None,
+    )
+
 
 @table_registry.mapped_as_dataclass
 class TypificationSource:
     __tablename__ = 'typification_sources'
 
     typification_id: Mapped[UUID] = mapped_column(
-        ForeignKey('typifications.id'), primary_key=True
+        ForeignKey('typifications.id', name='fk_typ_source_typification_id'),
+        primary_key=True,
     )
     source_id: Mapped[UUID] = mapped_column(
-        ForeignKey('sources.id'), primary_key=True
+        ForeignKey('sources.id', name='fk_typ_source_source_id'),
+        primary_key=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
+    )
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_typ_source_created_by'),
+        nullable=True,
+        default=None,
     )
 
 
@@ -115,6 +162,22 @@ class Source:
     )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
         init=False, nullable=True
+    )
+
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_source_created_by'),
+        nullable=True,
+        default=None,
+    )
+    updated_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_source_updated_by'),
+        nullable=True,
+        default=None,
+    )
+    deleted_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_source_deleted_by'),
+        nullable=True,
+        default=None,
     )
 
 
@@ -147,6 +210,22 @@ class Typification:
         init=False, nullable=True
     )
 
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_typification_created_by'),
+        nullable=True,
+        default=None,
+    )
+    updated_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_typification_updated_by'),
+        nullable=True,
+        default=None,
+    )
+    deleted_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_typification_deleted_by'),
+        nullable=True,
+        default=None,
+    )
+
 
 @table_registry.mapped_as_dataclass
 class Taxonomy:
@@ -155,12 +234,12 @@ class Taxonomy:
     id: Mapped[UUID] = mapped_column(
         init=False, primary_key=True, default=uuid4
     )
-
     title: Mapped[str] = mapped_column(unique=True, nullable=False)
     description: Mapped[str] = mapped_column()
 
     typification_id: Mapped[UUID] = mapped_column(
-        ForeignKey('typifications.id'), nullable=False
+        ForeignKey('typifications.id', name='fk_taxonomy_typification_id'),
+        nullable=False,
     )
     typification: Mapped['Typification'] = relationship(
         back_populates='taxonomies', init=False
@@ -180,6 +259,22 @@ class Taxonomy:
         init=False, nullable=True
     )
 
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_taxonomy_created_by'),
+        nullable=True,
+        default=None,
+    )
+    updated_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_taxonomy_updated_by'),
+        nullable=True,
+        default=None,
+    )
+    deleted_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_taxonomy_deleted_by'),
+        nullable=True,
+        default=None,
+    )
+
 
 @table_registry.mapped_as_dataclass
 class Branch:
@@ -192,7 +287,8 @@ class Branch:
     description: Mapped[str]
 
     taxonomy_id: Mapped[UUID] = mapped_column(
-        ForeignKey('taxonomies.id'), nullable=False
+        ForeignKey('taxonomies.id', name='fk_branch_taxonomy_id'),
+        nullable=False,
     )
     taxonomy: Mapped['Taxonomy'] = relationship(
         back_populates='branches', init=False
@@ -206,6 +302,22 @@ class Branch:
     )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
         init=False, nullable=True
+    )
+
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_branch_created_by'),
+        nullable=True,
+        default=None,
+    )
+    updated_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_branch_updated_by'),
+        nullable=True,
+        default=None,
+    )
+    deleted_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_branch_deleted_by'),
+        nullable=True,
+        default=None,
     )
 
 
@@ -228,4 +340,20 @@ class Doc:
     )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
         init=False, nullable=True
+    )
+
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_doc_created_by'),
+        nullable=True,
+        default=None,
+    )
+    updated_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_doc_updated_by'),
+        nullable=True,
+        default=None,
+    )
+    deleted_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_doc_deleted_by'),
+        nullable=True,
+        default=None,
     )

@@ -90,7 +90,11 @@ async def read_user(user_id: UUID, session: Session):
 
 
 @router.put('/', response_model=UserPublic)
-async def update_user(user_update: UserUpdate, session: Session):
+async def update_user(
+    user_update: UserUpdate,
+    session: Session,
+    current_user: CurrentUser,
+):
     db_user = await session.get(User, user_update.id)
     if not db_user or db_user.deleted_at:
         raise HTTPException(
@@ -118,6 +122,7 @@ async def update_user(user_update: UserUpdate, session: Session):
     db_user.phone_number = user_update.phone_number
     db_user.access_level = user_update.access_level
     db_user.unit_id = user_update.unit_id
+    db_user.updated_by = current_user.id
 
     if user_update.password:
         db_user.password = get_password_hash(user_update.password)
@@ -129,7 +134,11 @@ async def update_user(user_update: UserUpdate, session: Session):
 
 
 @router.delete('/{user_id}/', response_model=Message)
-async def delete_user(user_id: UUID, session: Session):
+async def delete_user(
+    user_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+):
     db_user = await session.get(User, user_id)
     if not db_user or db_user.deleted_at:
         raise HTTPException(
@@ -137,6 +146,7 @@ async def delete_user(user_id: UUID, session: Session):
         )
 
     db_user.deleted_at = datetime.now(timezone.utc)
+    db_user.deleted_by = current_user.id
     await session.commit()
 
     return {'message': 'User deleted'}
