@@ -11,7 +11,11 @@ from testcontainers.postgres import PostgresContainer
 from iaEditais.app import app
 from iaEditais.database import get_session
 from iaEditais.models import table_registry
-from iaEditais.security import get_password_hash
+from iaEditais.security import (
+    ACCESS_TOKEN_COOKIE_NAME,
+    create_access_token,
+    get_password_hash,
+)
 from tests.factories import (
     BranchFactory,
     DocFactory,
@@ -110,6 +114,25 @@ def create_user(session):
         return user
 
     return _create_user
+
+
+@pytest_asyncio.fixture
+def logged_client(client, create_user, create_unit):
+    async def _login(
+        email: str = 'user@example.com',
+        password: str = 'secret',
+        **user_kwargs,
+    ):
+        unit = await create_unit()
+        user = await create_user(
+            email=email, password=password, unit_id=str(unit.id), **user_kwargs
+        )
+        token = create_access_token({'sub': user.email})
+        client.cookies.set(ACCESS_TOKEN_COOKIE_NAME, token, path='/')
+        auth_headers = {'Authorization': f'Bearer {token}'}
+        return client, token, auth_headers, user
+
+    return _login
 
 
 @pytest_asyncio.fixture

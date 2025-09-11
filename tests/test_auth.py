@@ -73,3 +73,10 @@ async def test_refresh_token_user_not_found(client):
     assert response.status_code == HTTPStatus.UNAUTHORIZED
     assert response.json()['detail'] == 'Could not validate credentials'
     assert response.headers.get('www-authenticate') == 'Bearer'
+
+
+@pytest.mark.asyncio
+async def test_endpoint_requiring_login(logged_client):
+    client, token, headers, user = await logged_client(
+        email='alice@test.com', password='mypass'
+    )
