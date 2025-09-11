@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from iaEditais.routers import units, users
+from iaEditais.routers import auth, units, users
 from iaEditais.routers.check_tree import (
     branches,
     sources,
@@ -37,6 +37,7 @@ app.add_middleware(
 
 app.include_router(units.router)
 app.include_router(users.router)
+app.include_router(auth.router)
 
 app.include_router(docs.router)
 

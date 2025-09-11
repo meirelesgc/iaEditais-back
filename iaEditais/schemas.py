@@ -7,6 +7,11 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 from iaEditais.models import AccessType
 
 
+class Token(BaseModel):
+    access_token: str
+    token_type: str
+
+
 class Message(BaseModel):
     message: str
 
