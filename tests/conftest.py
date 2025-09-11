@@ -14,6 +14,7 @@ from iaEditais.models import table_registry
 from iaEditais.security import get_password_hash
 from tests.factories import (
     SourceFactory,
+    TaxonomyFactory,
     TypificationFactory,
     UnitFactory,
     UserFactory,
@@ -131,3 +132,15 @@ def create_typification(session):
         return source
 
     return _create_source
+
+
+@pytest_asyncio.fixture
+def create_taxonomy(session):
+    async def _create_taxonomy(**kwargs):
+        taxonomy = TaxonomyFactory.build(**kwargs)
+        session.add(taxonomy)
+        await session.commit()
+        await session.refresh(taxonomy)
+        return taxonomy
+
+    return _create_taxonomy

@@ -133,6 +133,38 @@ class Typification:
         default_factory=list,
         init=False,
     )
+    taxonomies: Mapped[List['Taxonomy']] = relationship(
+        back_populates='typification', default_factory=list, init=False
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        init=False, onupdate=func.now()
+    )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        init=False, nullable=True
+    )
+
+
+@table_registry.mapped_as_dataclass
+class Taxonomy:
+    __tablename__ = 'taxonomies'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False, primary_key=True, default=uuid4
+    )
+
+    title: Mapped[str] = mapped_column(unique=True)
+    description: Mapped[str] = mapped_column(unique=True)
+
+    typification_id: Mapped[UUID] = mapped_column(
+        ForeignKey('typifications.id'), nullable=False
+    )
+    typification: Mapped['Typification'] = relationship(
+        back_populates='taxonomies', init=False
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()

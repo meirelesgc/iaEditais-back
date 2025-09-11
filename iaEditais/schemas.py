@@ -124,3 +124,31 @@ class TypificationPublic(TypificationSchema):
 
 class TypificationList(BaseModel):
     typifications: list[TypificationPublic]
+
+
+class TaxonomySchema(BaseModel):
+    title: str
+    description: str
+
+
+class TaxonomyCreate(TaxonomySchema):
+    typification_id: UUID
+
+
+class TaxonomyUpdate(TaxonomySchema):
+    id: UUID
+    typification_id: UUID
+
+
+class TaxonomyPublic(TaxonomySchema):
+    id: UUID
+    typification: TypificationPublic
+
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TaxonomyList(BaseModel):
+    taxonomies: list[TaxonomyPublic]
