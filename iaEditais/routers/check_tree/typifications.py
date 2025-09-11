@@ -5,7 +5,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from iaEditais.database import get_session
@@ -119,7 +118,7 @@ async def update_typification(
 
     db_typification.name = typification.name
 
-    if typification.source_ids:
+    if not typification.source_ids:
         sources = await session.scalars(
             select(Source).where(Source.id.in_(typification.source_ids))
         )
@@ -127,18 +126,12 @@ async def update_typification(
     else:
         db_typification.sources = []
 
-    try:
-        await session.commit()
-        await session.refresh(
-            db_typification, attribute_names=['sources', 'updated_at']
-        )
-        return db_typification
-    except IntegrityError:
-        await session.rollback()
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Typification name already exists',
-        )
+    await session.commit()
+    await session.refresh(
+        db_typification,
+        attribute_names=['sources', 'updated_at'],
+    )
+    return db_typification
 
 
 @router.delete('/{typification_id}', response_model=Message)

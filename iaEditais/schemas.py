@@ -180,3 +180,30 @@ class BranchPublic(BranchSchema):
 
 class BranchList(BaseModel):
     branches: list[BranchPublic]
+
+
+class DocSchema(BaseModel):
+    name: str
+    identifier: str
+    description: Optional[str] = None
+
+
+class DocCreate(DocSchema):
+    pass
+
+
+class DocUpdate(DocSchema):
+    id: UUID
+
+
+class DocPublic(DocSchema):
+    id: UUID
+
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DocList(BaseModel):
+    docs: list[DocPublic]

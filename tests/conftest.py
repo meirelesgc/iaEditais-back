@@ -14,6 +14,7 @@ from iaEditais.models import table_registry
 from iaEditais.security import get_password_hash
 from tests.factories import (
     BranchFactory,
+    DocFactory,
     SourceFactory,
     TaxonomyFactory,
     TypificationFactory,
@@ -157,3 +158,15 @@ def create_branch(session):
         return branch
 
     return _create_branch
+
+
+@pytest_asyncio.fixture
+def create_doc(session):
+    async def _create_doc(**kwargs):
+        doc = DocFactory.build(**kwargs)
+        session.add(doc)
+        await session.commit()
+        await session.refresh(doc)
+        return doc
+
+    return _create_doc

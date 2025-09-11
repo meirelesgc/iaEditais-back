@@ -207,3 +207,25 @@ class Branch:
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
         init=False, nullable=True
     )
+
+
+@table_registry.mapped_as_dataclass
+class Doc:
+    __tablename__ = 'docs'
+    id: Mapped[UUID] = mapped_column(
+        init=False, primary_key=True, default=uuid4
+    )
+
+    name: Mapped[str] = mapped_column(unique=True, nullable=False)
+    identifier: Mapped[str] = mapped_column(unique=True, nullable=False)
+    description: Mapped[str]
+
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        init=False, onupdate=func.now()
+    )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        init=False, nullable=True
+    )
