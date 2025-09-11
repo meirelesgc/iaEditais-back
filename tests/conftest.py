@@ -12,7 +12,12 @@ from iaEditais.app import app
 from iaEditais.database import get_session
 from iaEditais.models import table_registry
 from iaEditais.security import get_password_hash
-from tests.factories import SourceFactory, UnitFactory, UserFactory
+from tests.factories import (
+    SourceFactory,
+    TypificationFactory,
+    UnitFactory,
+    UserFactory,
+)
 
 
 @pytest.fixture
@@ -111,6 +116,18 @@ def create_source(session):
         session.add(source)
         await session.commit()
         await session.refresh(source)
+        return source
+
+    return _create_source
+
+
+@pytest_asyncio.fixture
+def create_typification(session):
+    async def _create_source(**kwargs):
+        source = TypificationFactory.build(**kwargs)
+        session.add(source)
+        await session.commit()
+        await session.refresh(source, attribute_names=['sources'])
         return source
 
     return _create_source

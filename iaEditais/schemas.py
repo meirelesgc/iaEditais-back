@@ -87,6 +87,7 @@ class SourceUpdate(SourceSchema):
 
 class SourcePublic(SourceSchema):
     id: UUID
+
     created_at: datetime
     updated_at: Optional[datetime] = None
 
@@ -95,3 +96,31 @@ class SourcePublic(SourceSchema):
 
 class SourceList(BaseModel):
     sources: list[SourcePublic]
+
+
+class TypificationSchema(BaseModel):
+    name: str
+
+
+class TypificationCreate(TypificationSchema):
+    source_ids: list[UUID] = []
+
+
+class TypificationUpdate(TypificationSchema):
+    id: UUID
+    source_ids: list[UUID] = []
+
+
+class TypificationPublic(TypificationSchema):
+    id: UUID
+
+    sources: list[SourcePublic] = []
+
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TypificationList(BaseModel):
+    typifications: list[TypificationPublic]

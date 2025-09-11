@@ -26,12 +26,10 @@ class Unit:
     name: Mapped[str] = mapped_column(unique=True)
     location: Mapped[Optional[str]] = mapped_column(default=None)
 
-    # --- Relacionamento ---
     users: Mapped[List['User']] = relationship(
         back_populates='unit', default_factory=list, init=False
     )
 
-    # --- Campos de Auditoria ---
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )
@@ -50,20 +48,20 @@ class User:
     id: Mapped[UUID] = mapped_column(
         init=False, primary_key=True, default=uuid4
     )
+
     username: Mapped[str]
     phone_number: Mapped[str] = mapped_column(unique=True)
     email: Mapped[str] = mapped_column(unique=True)
     password: Mapped[str]
     access_level: Mapped[str] = mapped_column(default=AccessType.DEFAULT)
+
     unit_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey('units.id'), default=None, nullable=True
     )
-    # --- Relacionamento ---
     unit: Mapped[Optional['Unit']] = relationship(
         back_populates='users', init=False
     )
 
-    # --- Campos de Auditoria (para consistência) ---
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )
@@ -72,6 +70,22 @@ class User:
     )
     deleted_at: Mapped[Optional[datetime]] = mapped_column(
         init=False, nullable=True
+    )
+
+
+@table_registry.mapped_as_dataclass
+class TypificationSource:
+    __tablename__ = 'typification_sources'
+
+    typification_id: Mapped[UUID] = mapped_column(
+        ForeignKey('typifications.id'), primary_key=True
+    )
+    source_id: Mapped[UUID] = mapped_column(
+        ForeignKey('sources.id'), primary_key=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
     )
 
 
@@ -85,7 +99,41 @@ class Source:
     name: Mapped[str] = mapped_column(unique=True)
     description: Mapped[str]
 
-    # --- Campos de Auditoria (para consistência) ---
+    typifications: Mapped[List['Typification']] = relationship(
+        'Typification',
+        secondary='typification_sources',
+        back_populates='sources',
+        default_factory=list,
+        init=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        init=False, onupdate=func.now()
+    )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        init=False, nullable=True
+    )
+
+
+@table_registry.mapped_as_dataclass
+class Typification:
+    __tablename__ = 'typifications'
+    id: Mapped[UUID] = mapped_column(
+        init=False, primary_key=True, default=uuid4
+    )
+    name: Mapped[str] = mapped_column(unique=True)
+
+    sources: Mapped[List[Source]] = relationship(
+        'Source',
+        secondary='typification_sources',
+        back_populates='typifications',
+        default_factory=list,
+        init=False,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )

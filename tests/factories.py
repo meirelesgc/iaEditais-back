@@ -1,6 +1,6 @@
 import factory
 
-from iaEditais.models import AccessType, Source, Unit, User
+from iaEditais.models import AccessType, Source, Typification, Unit, User
 
 
 class UnitFactory(factory.Factory):
@@ -29,3 +29,10 @@ class SourceFactory(factory.Factory):
 
     name = factory.Sequence(lambda n: f'Fonte de Teste {n}')
     description = factory.Faker('paragraph', nb_sentences=3, locale='pt_BR')
+
+
+class TypificationFactory(factory.Factory):
+    class Meta:
+        model = Typification
+
+    name = factory.Sequence(lambda n: f'Tipificação de Teste {n}')
