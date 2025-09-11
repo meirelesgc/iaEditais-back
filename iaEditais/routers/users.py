@@ -5,7 +5,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_, select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from iaEditais.database import get_session
@@ -94,6 +93,22 @@ async def update_user(user_update: UserUpdate, session: Session):
             status_code=HTTPStatus.NOT_FOUND, detail='User not found'
         )
 
+    conflict_user = await session.scalar(
+        select(User).where(
+            User.deleted_at.is_(None),
+            User.id != user_update.id,
+            or_(
+                User.email == user_update.email,
+                User.phone_number == user_update.phone_number,
+            ),
+        )
+    )
+    if conflict_user:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Email or phone number already registered',
+        )
+
     db_user.username = user_update.username
     db_user.email = user_update.email
     db_user.phone_number = user_update.phone_number
@@ -103,15 +118,8 @@ async def update_user(user_update: UserUpdate, session: Session):
     if user_update.password:
         db_user.password = get_password_hash(user_update.password)
 
-    try:
-        await session.commit()
-        await session.refresh(db_user)
-    except IntegrityError:
-        await session.rollback()
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Email or phone number already registered',
-        )
+    await session.commit()
+    await session.refresh(db_user)
 
     return db_user
 
