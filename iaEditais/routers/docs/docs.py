@@ -19,7 +19,7 @@ from iaEditais.schemas import (
 )
 from iaEditais.security import get_current_user
 
-router = APIRouter(prefix='/doc', tags=['verificação de entidades, editais'])
+router = APIRouter(prefix='/doc', tags=['verificação dos documentos, editais'])
 
 Session = Annotated[AsyncSession, Depends(get_session)]
 CurrentUser = Annotated[User, Depends(get_current_user)]

@@ -19,7 +19,7 @@ from iaEditais.settings import Settings
 
 settings = Settings()
 
-router = APIRouter(prefix='/auth', tags=['autenticação'])
+router = APIRouter(prefix='/auth', tags=['operações de sistema, autenticação'])
 
 OAuth2Form = Annotated[OAuth2PasswordRequestForm, Depends()]
 Session = Annotated[AsyncSession, Depends(get_session)]

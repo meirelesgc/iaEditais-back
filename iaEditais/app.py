@@ -11,7 +11,7 @@ from iaEditais.routers.check_tree import (
     taxonomies,
     typifications,
 )
-from iaEditais.routers.docs import docs
+from iaEditais.routers.docs import docs, kanban
 
 BASE_DIR = os.path.dirname(__file__)
 STORAGE_DIR = os.path.join(BASE_DIR, 'storage')
@@ -40,6 +40,7 @@ app.include_router(users.router)
 app.include_router(auth.router)
 
 app.include_router(docs.router)
+app.include_router(kanban.router)
 
 app.include_router(sources.router)
 app.include_router(typifications.router)
