@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -90,19 +92,6 @@ class SourceUpdate(SourceSchema):
     pass
 
 
-class SourcePublic(SourceSchema):
-    id: UUID
-
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class SourceList(BaseModel):
-    sources: list[SourcePublic]
-
-
 class TypificationSchema(BaseModel):
     name: str
 
@@ -114,21 +103,6 @@ class TypificationCreate(TypificationSchema):
 class TypificationUpdate(TypificationSchema):
     id: UUID
     source_ids: list[UUID] = []
-
-
-class TypificationPublic(TypificationSchema):
-    id: UUID
-
-    sources: list[SourcePublic] = []
-
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class TypificationList(BaseModel):
-    typifications: list[TypificationPublic]
 
 
 class TaxonomySchema(BaseModel):
@@ -145,20 +119,6 @@ class TaxonomyUpdate(TaxonomySchema):
     typification_id: UUID
 
 
-class TaxonomyPublic(TaxonomySchema):
-    id: UUID
-    typification: TypificationPublic
-
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class TaxonomyList(BaseModel):
-    taxonomies: list[TaxonomyPublic]
-
-
 class BranchSchema(BaseModel):
     title: str
     description: str
@@ -171,20 +131,6 @@ class BranchCreate(BranchSchema):
 class BranchUpdate(BranchSchema):
     id: UUID
     taxonomy_id: UUID
-
-
-class BranchPublic(BranchSchema):
-    id: UUID
-    taxonomy: TaxonomyPublic
-
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class BranchList(BaseModel):
-    branches: list[BranchPublic]
 
 
 class DocSchema(BaseModel):
@@ -201,6 +147,46 @@ class DocUpdate(DocSchema):
     id: UUID
 
 
+class SourcePublic(SourceSchema):
+    id: UUID
+    typifications: list[TypificationPublic]
+
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TypificationPublic(TypificationSchema):
+    id: UUID
+    sources: list[SourcePublic] = []
+    taxonomies: list[TaxonomyPublic] = []
+
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TaxonomyPublic(TaxonomySchema):
+    id: UUID
+    branches: list[BranchPublic]
+
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BranchPublic(BranchSchema):
+    id: UUID
+
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class DocPublic(DocSchema):
     id: UUID
 
@@ -210,5 +196,26 @@ class DocPublic(DocSchema):
     model_config = ConfigDict(from_attributes=True)
 
 
+class SourceList(BaseModel):
+    sources: list[SourcePublic]
+
+
+class TypificationList(BaseModel):
+    typifications: list[TypificationPublic]
+
+
+class TaxonomyList(BaseModel):
+    taxonomies: list[TaxonomyPublic]
+
+
+class BranchList(BaseModel):
+    branches: list[BranchPublic]
+
+
 class DocList(BaseModel):
     docs: list[DocPublic]
+
+
+SourcePublic.model_rebuild()
+TypificationPublic.model_rebuild()
+TaxonomyPublic.model_rebuild()

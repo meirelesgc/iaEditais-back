@@ -23,7 +23,6 @@ async def test_create_taxonomy(logged_client, create_typification):
     data = response.json()
     assert data['title'] == 'New Taxonomy'
     assert data['description'] == 'A detailed description.'
-    assert data['typification']['id'] == str(typification.id)
     assert 'id' in data
 
 
@@ -140,7 +139,6 @@ async def test_update_taxonomy(
     assert data['id'] == str(taxonomy.id)
     assert data['title'] == 'New Title'
     assert data['description'] == 'New desc.'
-    assert data['typification']['id'] == str(typification2.id)
 
 
 @pytest.mark.asyncio

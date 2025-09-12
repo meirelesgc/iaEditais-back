@@ -141,7 +141,10 @@ def create_source(session):
         source = SourceFactory.build(**kwargs)
         session.add(source)
         await session.commit()
-        await session.refresh(source)
+        await session.refresh(
+            source,
+            attribute_names=['typifications'],
+        )
         return source
 
     return _create_source
@@ -165,7 +168,10 @@ def create_taxonomy(session):
         taxonomy = TaxonomyFactory.build(**kwargs)
         session.add(taxonomy)
         await session.commit()
-        await session.refresh(taxonomy)
+        await session.refresh(
+            taxonomy,
+            attribute_names=['branches'],
+        )
         return taxonomy
 
     return _create_taxonomy

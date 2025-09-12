@@ -28,7 +28,6 @@ async def test_create_branch(
     data = response.json()
     assert data['title'] == 'New Branch'
     assert data['description'] == 'A branch description.'
-    assert data['taxonomy']['id'] == str(taxonomy.id)
     assert 'id' in data
 
 
@@ -154,7 +153,6 @@ async def test_update_branch(
     assert data['id'] == str(branch.id)
     assert data['title'] == 'Updated Branch'
     assert data['description'] == 'New desc.'
-    assert data['taxonomy']['id'] == str(taxonomy2.id)
 
 
 @pytest.mark.asyncio
