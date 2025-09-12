@@ -5,11 +5,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from iaEditais.database import get_session
-from iaEditais.models import Unit
+from iaEditais.models import Unit, User
 from iaEditais.schemas import (
     FilterPage,
     Message,
@@ -18,14 +17,20 @@ from iaEditais.schemas import (
     UnitPublic,
     UnitUpdate,
 )
+from iaEditais.security import get_current_user
 
 router = APIRouter(prefix='/unit', tags=['operações de sistema, unidades'])
 
 Session = Annotated[AsyncSession, Depends(get_session)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.post('/', status_code=HTTPStatus.CREATED, response_model=UnitPublic)
-async def create_unit(unit: UnitCreate, session: Session):
+async def create_unit(
+    unit: UnitCreate,
+    session: Session,
+    current_user: CurrentUser,
+):
     db_unit = await session.scalar(
         select(Unit).where(Unit.deleted_at.is_(None), Unit.name == unit.name)
     )
@@ -36,7 +41,11 @@ async def create_unit(unit: UnitCreate, session: Session):
             detail='Unit name already exists',
         )
 
-    db_unit = Unit(name=unit.name, location=unit.location)
+    db_unit = Unit(
+        name=unit.name,
+        location=unit.location,
+        created_by=current_user.id,
+    )
 
     session.add(db_unit)
     await session.commit()
@@ -74,7 +83,11 @@ async def read_unit(unit_id: UUID, session: Session):
 
 
 @router.put('/', response_model=UnitPublic)
-async def update_unit(unit: UnitUpdate, session: Session):
+async def update_unit(
+    unit: UnitUpdate,
+    session: Session,
+    current_user: CurrentUser,
+):
     db_unit = await session.get(Unit, unit.id)
 
     if not db_unit or db_unit.deleted_at:
@@ -83,23 +96,34 @@ async def update_unit(unit: UnitUpdate, session: Session):
             detail='Unit not found',
         )
 
-    db_unit.name = unit.name
-    db_unit.location = unit.location
-
-    try:
-        await session.commit()
-        await session.refresh(db_unit)
-        return db_unit
-    except IntegrityError:
-        await session.rollback()
+    conflit_unit = await session.scalar(
+        select(Unit).where(
+            Unit.deleted_at.is_(None),
+            Unit.name == unit.name,
+            Unit.id != unit.id,
+        )
+    )
+    if conflit_unit:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
             detail='Unit name already exists',
         )
 
+    db_unit.name = unit.name
+    db_unit.location = unit.location
+    db_unit.updated_by = current_user.id
+
+    await session.commit()
+    await session.refresh(db_unit)
+    return db_unit
+
 
 @router.delete('/{unit_id}', response_model=Message)
-async def delete_unit(unit_id: UUID, session: Session):
+async def delete_unit(
+    unit_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+):
     db_unit = await session.get(Unit, unit_id)
 
     if not db_unit or db_unit.deleted_at:
@@ -109,6 +133,7 @@ async def delete_unit(unit_id: UUID, session: Session):
         )
 
     db_unit.deleted_at = datetime.now(timezone.utc)
+    db_unit.deleted_by = current_user.id
     await session.commit()
 
     return {'message': 'Unit deleted'}

@@ -5,11 +5,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from iaEditais.database import get_session
-from iaEditais.models import Branch, Taxonomy
+from iaEditais.models import Branch, Taxonomy, User
 from iaEditais.schemas import (
     BranchCreate,
     BranchList,
@@ -18,6 +17,7 @@ from iaEditais.schemas import (
     FilterPage,
     Message,
 )
+from iaEditais.security import get_current_user
 
 router = APIRouter(
     prefix='/branch',
@@ -26,6 +26,7 @@ router = APIRouter(
 
 
 Session = Annotated[AsyncSession, Depends(get_session)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.post(
@@ -33,7 +34,11 @@ Session = Annotated[AsyncSession, Depends(get_session)]
     status_code=HTTPStatus.CREATED,
     response_model=BranchPublic,
 )
-async def create_branch(branch: BranchCreate, session: Session):
+async def create_branch(
+    branch: BranchCreate,
+    session: Session,
+    current_user: CurrentUser,
+):
     db_branch = await session.scalar(
         select(Branch).where(
             Branch.deleted_at.is_(None),
@@ -58,6 +63,7 @@ async def create_branch(branch: BranchCreate, session: Session):
         title=branch.title,
         description=branch.description,
         taxonomy_id=branch.taxonomy_id,
+        created_by=current_user.id,
     )
 
     session.add(db_branch)
@@ -95,7 +101,11 @@ async def read_branch(branch_id: UUID, session: Session):
 
 
 @router.put('/', response_model=BranchPublic)
-async def update_branch(branch: BranchUpdate, session: Session):
+async def update_branch(
+    branch: BranchUpdate,
+    session: Session,
+    current_user: CurrentUser,
+):
     db_branch = await session.get(Branch, branch.id)
 
     if not db_branch or db_branch.deleted_at:
@@ -129,23 +139,22 @@ async def update_branch(branch: BranchUpdate, session: Session):
     db_branch.title = branch.title
     db_branch.description = branch.description
     db_branch.taxonomy_id = branch.taxonomy_id
+    db_branch.updated_by = current_user.id
 
-    try:
-        await session.commit()
-        await session.refresh(
-            db_branch, attribute_names=['taxonomy', 'updated_at']
-        )
-        return db_branch
-    except IntegrityError:
-        await session.rollback()
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Branch title already exists',
-        )
+    await session.commit()
+    await session.refresh(
+        db_branch,
+        attribute_names=['taxonomy', 'updated_at'],
+    )
+    return db_branch
 
 
 @router.delete('/{branch_id}', response_model=Message)
-async def delete_branch(branch_id: UUID, session: Session):
+async def delete_branch(
+    branch_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+):
     db_branch = await session.get(Branch, branch_id)
 
     if not db_branch or db_branch.deleted_at:
@@ -155,6 +164,7 @@ async def delete_branch(branch_id: UUID, session: Session):
         )
 
     db_branch.deleted_at = datetime.now(timezone.utc)
+    db_branch.deleted_by = current_user.id
     await session.commit()
 
     return {'message': 'Branch deleted'}

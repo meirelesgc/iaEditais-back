@@ -43,7 +43,6 @@ class Unit:
         init=False, nullable=True
     )
 
-    # AJUSTE: Adicionado 'name' e 'use_alter=True' para quebrar a dependência circular.
     created_by: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey('users.id', name='fk_unit_created_by', use_alter=True),
         nullable=True,
@@ -75,7 +74,6 @@ class User:
     password: Mapped[str]
     access_level: Mapped[str] = mapped_column(default=AccessType.DEFAULT)
 
-    # AJUSTE: Adicionado 'name' à chave estrangeira.
     unit_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey('units.id', name='fk_user_unit_id'),
         default=None,
@@ -95,7 +93,6 @@ class User:
         init=False, nullable=True
     )
 
-    # AJUSTE: Adicionado 'name' às chaves estrangeiras auto-referenciadas.
     created_by: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey('users.id', name='fk_user_created_by'),
         nullable=True,

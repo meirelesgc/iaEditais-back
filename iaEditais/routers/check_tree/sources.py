@@ -5,11 +5,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from iaEditais.database import get_session
-from iaEditais.models import Source
+from iaEditais.models import Source, User
 from iaEditais.schemas import (
     FilterPage,
     Message,
@@ -18,14 +17,20 @@ from iaEditais.schemas import (
     SourcePublic,
     SourceUpdate,
 )
+from iaEditais.security import get_current_user
 
 router = APIRouter(prefix='/source', tags=['árvore de verificação, fontes'])
 
 Session = Annotated[AsyncSession, Depends(get_session)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.post('/', status_code=HTTPStatus.CREATED, response_model=SourcePublic)
-async def create_source(source: SourceCreate, session: Session):
+async def create_source(
+    source: SourceCreate,
+    session: Session,
+    current_user: CurrentUser,
+):
     db_source = await session.scalar(
         select(Source).where(
             Source.deleted_at.is_(None), Source.name == source.name
@@ -38,7 +43,11 @@ async def create_source(source: SourceCreate, session: Session):
             detail='Source name already exists',
         )
 
-    db_source = Source(name=source.name, description=source.description)
+    db_source = Source(
+        name=source.name,
+        description=source.description,
+        created_by=current_user.id,
+    )
 
     session.add(db_source)
     await session.commit()
@@ -76,7 +85,11 @@ async def read_source(source_id: UUID, session: Session):
 
 
 @router.put('/', response_model=SourcePublic)
-async def update_source(source: SourceUpdate, session: Session):
+async def update_source(
+    source: SourceUpdate,
+    session: Session,
+    current_user: CurrentUser,
+):
     db_source = await session.get(Source, source.id)
 
     if not db_source or db_source.deleted_at:
@@ -99,21 +112,19 @@ async def update_source(source: SourceUpdate, session: Session):
 
     db_source.name = source.name
     db_source.description = source.description
+    db_source.updated_by = current_user.id
 
-    try:
-        await session.commit()
-        await session.refresh(db_source)
-        return db_source
-    except IntegrityError:
-        await session.rollback()
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Source name already exists',
-        )
+    await session.commit()
+    await session.refresh(db_source)
+    return db_source
 
 
 @router.delete('/{source_id}', response_model=Message)
-async def delete_source(source_id: UUID, session: Session):
+async def delete_source(
+    source_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+):
     db_source = await session.get(Source, source_id)
 
     if not db_source or db_source.deleted_at:
@@ -123,6 +134,7 @@ async def delete_source(source_id: UUID, session: Session):
         )
 
     db_source.deleted_at = datetime.now(timezone.utc)
+    db_source.deleted_by = current_user.id
     await session.commit()
 
     return {'message': 'Source deleted'}

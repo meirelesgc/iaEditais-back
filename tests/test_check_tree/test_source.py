@@ -6,7 +6,9 @@ import pytest
 from iaEditais.schemas import SourcePublic
 
 
-def test_create_source(client):
+@pytest.mark.asyncio
+async def test_create_source(logged_client):
+    client, *_ = await logged_client()
     response = client.post(
         '/source/',
         json={
@@ -24,7 +26,8 @@ def test_create_source(client):
 
 
 @pytest.mark.asyncio
-async def test_create_source_conflict(client, create_source):
+async def test_create_source_conflict(logged_client, create_source):
+    client, *_ = await logged_client()
     await create_source(name='Existing Source')
 
     response = client.post(
@@ -76,7 +79,8 @@ def test_read_nonexistent_source(client):
 
 
 @pytest.mark.asyncio
-async def test_update_source(client, create_source):
+async def test_update_source(logged_client, create_source):
+    client, *_ = await logged_client()
     source = await create_source(
         name='Old Name', description='Old Description'
     )
@@ -97,7 +101,8 @@ async def test_update_source(client, create_source):
 
 
 @pytest.mark.asyncio
-async def test_update_source_conflict(client, create_source):
+async def test_update_source_conflict(logged_client, create_source):
+    client, *_ = await logged_client()
     await create_source(name='Source A', description='First source')
     source_b = await create_source(
         name='Source B', description='Second source'
@@ -115,7 +120,9 @@ async def test_update_source_conflict(client, create_source):
     assert response.json() == {'detail': 'Source name already exists'}
 
 
-def test_update_nonexistent_source(client):
+@pytest.mark.asyncio
+async def test_update_nonexistent_source(logged_client):
+    client, *_ = await logged_client()
     response = client.put(
         '/source/',
         json={
@@ -129,14 +136,17 @@ def test_update_nonexistent_source(client):
 
 
 @pytest.mark.asyncio
-async def test_delete_source(client, create_source):
+async def test_delete_source(logged_client, create_source):
+    client, *_ = await logged_client()
     source = await create_source(name='ToDelete', description='Will be gone')
     response = client.delete(f'/source/{source.id}')
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'message': 'Source deleted'}
 
 
-def test_delete_nonexistent_source(client):
+@pytest.mark.asyncio
+async def test_delete_nonexistent_source(logged_client):
+    client, *_ = await logged_client()
     response = client.delete(f'/source/{uuid.uuid4()}')
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == {'detail': 'Source not found'}

@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from iaEditais.database import get_session
-from iaEditais.models import Source, Typification
+from iaEditais.models import Source, Typification, User
 from iaEditais.schemas import (
     FilterPage,
     Message,
@@ -17,6 +17,7 @@ from iaEditais.schemas import (
     TypificationPublic,
     TypificationUpdate,
 )
+from iaEditais.security import get_current_user
 
 router = APIRouter(
     prefix='/typification',
@@ -25,6 +26,7 @@ router = APIRouter(
 
 
 Session = Annotated[AsyncSession, Depends(get_session)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.post(
@@ -33,7 +35,9 @@ Session = Annotated[AsyncSession, Depends(get_session)]
     response_model=TypificationPublic,
 )
 async def create_typification(
-    typification: TypificationCreate, session: Session
+    typification: TypificationCreate,
+    session: Session,
+    current_user: CurrentUser,
 ):
     db_typification = await session.scalar(
         select(Typification).where(
@@ -48,7 +52,10 @@ async def create_typification(
             detail='Typification name already exists',
         )
 
-    db_typification = Typification(name=typification.name)
+    db_typification = Typification(
+        name=typification.name,
+        created_by=current_user.id,
+    )
 
     if typification.source_ids:
         sources = await session.scalars(
@@ -92,7 +99,9 @@ async def read_typification(typification_id: UUID, session: Session):
 
 @router.put('/', response_model=TypificationPublic)
 async def update_typification(
-    typification: TypificationUpdate, session: Session
+    typification: TypificationUpdate,
+    session: Session,
+    current_user: CurrentUser,
 ):
     db_typification = await session.get(Typification, typification.id)
 
@@ -117,8 +126,9 @@ async def update_typification(
         )
 
     db_typification.name = typification.name
+    db_typification.updated_by = current_user.id
 
-    if not typification.source_ids:
+    if typification.source_ids:
         sources = await session.scalars(
             select(Source).where(Source.id.in_(typification.source_ids))
         )
@@ -135,7 +145,11 @@ async def update_typification(
 
 
 @router.delete('/{typification_id}', response_model=Message)
-async def delete_typification(typification_id: UUID, session: Session):
+async def delete_typification(
+    typification_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+):
     db_typification = await session.get(Typification, typification_id)
 
     if not db_typification or db_typification.deleted_at:
@@ -145,6 +159,7 @@ async def delete_typification(typification_id: UUID, session: Session):
         )
 
     db_typification.deleted_at = datetime.now(timezone.utc)
+    db_typification.deleted_by = current_user.id
     await session.commit()
 
     return {'message': 'Typification deleted'}

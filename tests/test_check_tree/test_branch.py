@@ -7,7 +7,10 @@ from iaEditais.schemas import BranchPublic
 
 
 @pytest.mark.asyncio
-async def test_create_branch(client, create_typification, create_taxonomy):
+async def test_create_branch(
+    logged_client, create_typification, create_taxonomy
+):
+    client, *_ = await logged_client()
     typification = await create_typification(name='Typification for Branch')
     taxonomy = await create_taxonomy(
         title='Taxonomy for Branch', typification_id=typification.id
@@ -31,8 +34,9 @@ async def test_create_branch(client, create_typification, create_taxonomy):
 
 @pytest.mark.asyncio
 async def test_create_branch_conflict(
-    client, create_typification, create_taxonomy, create_branch
+    logged_client, create_typification, create_taxonomy, create_branch
 ):
+    client, *_ = await logged_client()
     typification = await create_typification(name='Typification A')
     taxonomy = await create_taxonomy(
         title='Taxonomy A', typification_id=typification.id
@@ -53,7 +57,8 @@ async def test_create_branch_conflict(
 
 
 @pytest.mark.asyncio
-async def test_create_branch_with_invalid_taxonomy(client):
+async def test_create_branch_with_invalid_taxonomy(logged_client):
+    client, *_ = await logged_client()
     response = client.post(
         '/branch/',
         json={
@@ -117,8 +122,9 @@ def test_read_nonexistent_branch(client):
 
 @pytest.mark.asyncio
 async def test_update_branch(
-    client, create_typification, create_taxonomy, create_branch
+    logged_client, create_typification, create_taxonomy, create_branch
 ):
+    client, *_ = await logged_client()
     typification1 = await create_typification(name='Typification X')
     taxonomy1 = await create_taxonomy(
         title='Taxonomy X', typification_id=typification1.id
@@ -153,8 +159,9 @@ async def test_update_branch(
 
 @pytest.mark.asyncio
 async def test_update_branch_conflict(
-    client, create_typification, create_taxonomy, create_branch
+    logged_client, create_typification, create_taxonomy, create_branch
 ):
+    client, *_ = await logged_client()
     typification = await create_typification(name='Typification D')
     taxonomy = await create_taxonomy(
         title='Taxonomy D', typification_id=typification.id
@@ -178,8 +185,9 @@ async def test_update_branch_conflict(
 
 @pytest.mark.asyncio
 async def test_update_nonexistent_branch(
-    client, create_typification, create_taxonomy
+    logged_client, create_typification, create_taxonomy
 ):
+    client, *_ = await logged_client()
     typification = await create_typification(name='Typification E')
     taxonomy = await create_taxonomy(
         title='Taxonomy E', typification_id=typification.id
@@ -199,8 +207,9 @@ async def test_update_nonexistent_branch(
 
 @pytest.mark.asyncio
 async def test_update_branch_with_nonexistent_taxonomy(
-    client, create_typification, create_taxonomy, create_branch
+    logged_client, create_typification, create_taxonomy, create_branch
 ):
+    client, *_ = await logged_client()
     typification = await create_typification(name='Typification F')
     taxonomy = await create_taxonomy(
         title='Taxonomy F', typification_id=typification.id
@@ -222,8 +231,9 @@ async def test_update_branch_with_nonexistent_taxonomy(
 
 @pytest.mark.asyncio
 async def test_delete_branch(
-    client, create_typification, create_taxonomy, create_branch
+    logged_client, create_typification, create_taxonomy, create_branch
 ):
+    client, *_ = await logged_client()
     typification = await create_typification(name='Typification G')
     taxonomy = await create_taxonomy(
         title='Taxonomy G', typification_id=typification.id
@@ -240,7 +250,9 @@ async def test_delete_branch(
     assert get_response.status_code == HTTPStatus.NOT_FOUND
 
 
-def test_delete_nonexistent_branch(client):
+@pytest.mark.asyncio
+async def test_delete_nonexistent_branch(logged_client):
+    client, *_ = await logged_client()
     response = client.delete(f'/branch/{uuid.uuid4()}')
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == {'detail': 'Branch not found'}

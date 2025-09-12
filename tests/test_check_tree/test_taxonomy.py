@@ -7,7 +7,8 @@ from iaEditais.schemas import TaxonomyPublic
 
 
 @pytest.mark.asyncio
-async def test_create_taxonomy(client, create_typification):
+async def test_create_taxonomy(logged_client, create_typification):
+    client, *_ = await logged_client()
     typification = await create_typification(name='Typification for Taxonomy')
     response = client.post(
         '/taxonomy/',
@@ -28,8 +29,9 @@ async def test_create_taxonomy(client, create_typification):
 
 @pytest.mark.asyncio
 async def test_create_taxonomy_conflict(
-    client, create_typification, create_taxonomy
+    logged_client, create_typification, create_taxonomy
 ):
+    client, *_ = await logged_client()
     typification = await create_typification(name='Some Typification')
     await create_taxonomy(
         title='Existing Title', typification_id=typification.id
@@ -49,7 +51,8 @@ async def test_create_taxonomy_conflict(
 
 
 @pytest.mark.asyncio
-async def test_create_taxonomy_with_invalid_typification(client):
+async def test_create_taxonomy_with_invalid_typification(logged_client):
+    client, *_ = await logged_client()
     response = client.post(
         '/taxonomy/',
         json={
@@ -110,7 +113,10 @@ def test_read_nonexistent_taxonomy(client):
 
 
 @pytest.mark.asyncio
-async def test_update_taxonomy(client, create_typification, create_taxonomy):
+async def test_update_taxonomy(
+    logged_client, create_typification, create_taxonomy
+):
+    client, *_ = await logged_client()
     typification1 = await create_typification(name='Old Typification')
     typification2 = await create_typification(name='New Typification')
     taxonomy = await create_taxonomy(
@@ -139,8 +145,9 @@ async def test_update_taxonomy(client, create_typification, create_taxonomy):
 
 @pytest.mark.asyncio
 async def test_update_taxonomy_conflict(
-    client, create_typification, create_taxonomy
+    logged_client, create_typification, create_taxonomy
 ):
+    client, *_ = await logged_client()
     typification = await create_typification(name='Some Typification')
     await create_taxonomy(title='Taxonomy A', typification_id=typification.id)
     taxonomy_b = await create_taxonomy(
@@ -162,7 +169,8 @@ async def test_update_taxonomy_conflict(
 
 
 @pytest.mark.asyncio
-async def test_update_nonexistent_taxonomy(client, create_typification):
+async def test_update_nonexistent_taxonomy(logged_client, create_typification):
+    client, *_ = await logged_client()
     typification = await create_typification(name='Some typification')
     response = client.put(
         '/taxonomy/',
@@ -179,8 +187,9 @@ async def test_update_nonexistent_taxonomy(client, create_typification):
 
 @pytest.mark.asyncio
 async def test_update_taxonomy_with_nonexistent_typification(
-    client, create_typification, create_taxonomy
+    logged_client, create_typification, create_taxonomy
 ):
+    client, *_ = await logged_client()
     typification = await create_typification(name='Some Typification')
     taxonomy = await create_taxonomy(
         title='My Taxonomy', typification_id=typification.id
@@ -200,7 +209,10 @@ async def test_update_taxonomy_with_nonexistent_typification(
 
 
 @pytest.mark.asyncio
-async def test_delete_taxonomy(client, create_typification, create_taxonomy):
+async def test_delete_taxonomy(
+    logged_client, create_typification, create_taxonomy
+):
+    client, *_ = await logged_client()
     typification = await create_typification(name='Some Typification')
     taxonomy = await create_taxonomy(
         title='ToDelete', typification_id=typification.id
@@ -214,7 +226,9 @@ async def test_delete_taxonomy(client, create_typification, create_taxonomy):
     assert get_response.status_code == HTTPStatus.NOT_FOUND
 
 
-def test_delete_nonexistent_taxonomy(client):
+@pytest.mark.asyncio
+async def test_delete_nonexistent_taxonomy(logged_client):
+    client, *_ = await logged_client()
     response = client.delete(f'/taxonomy/{uuid.uuid4()}')
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == {'detail': 'Taxonomy not found'}

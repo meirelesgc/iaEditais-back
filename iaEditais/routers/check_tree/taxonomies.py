@@ -5,11 +5,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from iaEditais.database import get_session
-from iaEditais.models import Taxonomy, Typification
+from iaEditais.models import Taxonomy, Typification, User
 from iaEditais.schemas import (
     FilterPage,
     Message,
@@ -18,6 +17,7 @@ from iaEditais.schemas import (
     TaxonomyPublic,
     TaxonomyUpdate,
 )
+from iaEditais.security import get_current_user
 
 router = APIRouter(
     prefix='/taxonomy',
@@ -26,6 +26,7 @@ router = APIRouter(
 
 
 Session = Annotated[AsyncSession, Depends(get_session)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.post(
@@ -33,7 +34,11 @@ Session = Annotated[AsyncSession, Depends(get_session)]
     status_code=HTTPStatus.CREATED,
     response_model=TaxonomyPublic,
 )
-async def create_taxonomy(taxonomy: TaxonomyCreate, session: Session):
+async def create_taxonomy(
+    taxonomy: TaxonomyCreate,
+    session: Session,
+    current_user: CurrentUser,
+):
     db_taxonomy = await session.scalar(
         select(Taxonomy).where(
             Taxonomy.deleted_at.is_(None),
@@ -58,6 +63,7 @@ async def create_taxonomy(taxonomy: TaxonomyCreate, session: Session):
         title=taxonomy.title,
         description=taxonomy.description,
         typification_id=taxonomy.typification_id,
+        created_by=current_user.id,
     )
 
     session.add(db_taxonomy)
@@ -95,7 +101,11 @@ async def read_taxonomy(taxonomy_id: UUID, session: Session):
 
 
 @router.put('/', response_model=TaxonomyPublic)
-async def update_taxonomy(taxonomy: TaxonomyUpdate, session: Session):
+async def update_taxonomy(
+    taxonomy: TaxonomyUpdate,
+    session: Session,
+    current_user: CurrentUser,
+):
     db_taxonomy = await session.get(Taxonomy, taxonomy.id)
 
     if not db_taxonomy or db_taxonomy.deleted_at:
@@ -131,23 +141,21 @@ async def update_taxonomy(taxonomy: TaxonomyUpdate, session: Session):
     db_taxonomy.title = taxonomy.title
     db_taxonomy.description = taxonomy.description
     db_taxonomy.typification_id = taxonomy.typification_id
+    db_taxonomy.updated_by = current_user.id
 
-    try:
-        await session.commit()
-        await session.refresh(
-            db_taxonomy, attribute_names=['typification', 'updated_at']
-        )
-        return db_taxonomy
-    except IntegrityError:
-        await session.rollback()
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Taxonomy title already exists',
-        )
+    await session.commit()
+    await session.refresh(
+        db_taxonomy, attribute_names=['typification', 'updated_at']
+    )
+    return db_taxonomy
 
 
 @router.delete('/{taxonomy_id}', response_model=Message)
-async def delete_taxonomy(taxonomy_id: UUID, session: Session):
+async def delete_taxonomy(
+    taxonomy_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+):
     db_taxonomy = await session.get(Taxonomy, taxonomy_id)
 
     if not db_taxonomy or db_taxonomy.deleted_at:
@@ -157,6 +165,7 @@ async def delete_taxonomy(taxonomy_id: UUID, session: Session):
         )
 
     db_taxonomy.deleted_at = datetime.now(timezone.utc)
+    db_taxonomy.deleted_by = current_user.id
     await session.commit()
 
     return {'message': 'Taxonomy deleted'}

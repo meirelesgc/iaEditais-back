@@ -8,7 +8,7 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from iaEditais.database import get_session
-from iaEditais.models import Doc
+from iaEditais.models import Doc, User
 from iaEditais.schemas import (
     DocCreate,
     DocList,
@@ -17,14 +17,18 @@ from iaEditais.schemas import (
     FilterPage,
     Message,
 )
+from iaEditais.security import get_current_user
 
 router = APIRouter(prefix='/doc', tags=['verificação de entidades, editais'])
 
 Session = Annotated[AsyncSession, Depends(get_session)]
+CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.post('/', status_code=HTTPStatus.CREATED, response_model=DocPublic)
-async def create_doc(doc: DocCreate, session: Session):
+async def create_doc(
+    doc: DocCreate, session: Session, current_user: CurrentUser
+):
     db_doc = await session.scalar(
         select(Doc).where(
             Doc.deleted_at.is_(None),
@@ -44,6 +48,7 @@ async def create_doc(doc: DocCreate, session: Session):
         name=doc.name,
         description=doc.description,
         identifier=doc.identifier,
+        created_by=current_user.id,
     )
     session.add(db_doc)
     await session.commit()
@@ -79,7 +84,9 @@ async def read_doc(doc_id: UUID, session: Session):
 
 
 @router.put('/', response_model=DocPublic)
-async def update_doc(doc: DocUpdate, session: Session):
+async def update_doc(
+    doc: DocUpdate, session: Session, current_user: CurrentUser
+):
     db_doc = await session.get(Doc, doc.id)
     if not db_doc or db_doc.deleted_at:
         raise HTTPException(
@@ -106,6 +113,7 @@ async def update_doc(doc: DocUpdate, session: Session):
     db_doc.name = doc.name
     db_doc.description = doc.description
     db_doc.identifier = doc.identifier
+    db_doc.updated_by = current_user.id
 
     await session.commit()
     await session.refresh(db_doc)
@@ -113,7 +121,9 @@ async def update_doc(doc: DocUpdate, session: Session):
 
 
 @router.delete('/{doc_id}', response_model=Message)
-async def delete_doc(doc_id: UUID, session: Session):
+async def delete_doc(
+    doc_id: UUID, session: Session, current_user: CurrentUser
+):
     db_doc = await session.get(Doc, doc_id)
 
     if not db_doc or db_doc.deleted_at:
@@ -123,6 +133,7 @@ async def delete_doc(doc_id: UUID, session: Session):
         )
 
     db_doc.deleted_at = datetime.now(timezone.utc)
+    db_doc.deleted_by = current_user.id
     await session.commit()
 
     return {'message': 'Doc deleted successfully'}

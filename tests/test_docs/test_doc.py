@@ -7,7 +7,8 @@ from iaEditais.schemas import DocPublic
 
 
 @pytest.mark.asyncio
-async def test_create_doc(client):
+async def test_create_doc(logged_client):
+    client, *_ = await logged_client()
     response = client.post(
         '/doc/',
         json={
@@ -25,8 +26,9 @@ async def test_create_doc(client):
 
 
 @pytest.mark.asyncio
-async def test_create_doc_conflict(client, create_doc):
-    existing_doc = await create_doc(name='Doc A', identifier='DOC-001')
+async def test_create_doc_conflict(logged_client, create_doc):
+    client, *_ = await logged_client()
+    await create_doc(name='Doc A', identifier='DOC-001')
     response = client.post(
         '/doc/',
         json={
@@ -92,7 +94,8 @@ def test_read_nonexistent_doc(client):
 
 
 @pytest.mark.asyncio
-async def test_update_doc(client, create_doc):
+async def test_update_doc(logged_client, create_doc):
+    client, *_ = await logged_client()
     doc = await create_doc(
         name='Doc Old', description='Old Desc', identifier='OLD-001'
     )
@@ -115,8 +118,9 @@ async def test_update_doc(client, create_doc):
 
 
 @pytest.mark.asyncio
-async def test_update_doc_conflict(client, create_doc):
-    doc_a = await create_doc(name='Doc A', identifier='ID-A')
+async def test_update_doc_conflict(logged_client, create_doc):
+    client, *_ = await logged_client()
+    await create_doc(name='Doc A', identifier='ID-A')
     doc_b = await create_doc(name='Doc B', identifier='ID-B')
 
     response = client.put(
@@ -150,7 +154,9 @@ async def test_update_doc_conflict(client, create_doc):
     )
 
 
-def test_update_nonexistent_doc(client):
+@pytest.mark.asyncio
+async def test_update_nonexistent_doc(logged_client):
+    client, *_ = await logged_client()
     response = client.put(
         '/doc/',
         json={
@@ -165,7 +171,8 @@ def test_update_nonexistent_doc(client):
 
 
 @pytest.mark.asyncio
-async def test_delete_doc(client, create_doc):
+async def test_delete_doc(logged_client, create_doc):
+    client, *_ = await logged_client()
     doc = await create_doc(name='Doc Delete', identifier='DEL-001')
 
     delete_response = client.delete(f'/doc/{doc.id}')
@@ -176,7 +183,9 @@ async def test_delete_doc(client, create_doc):
     assert get_response.status_code == HTTPStatus.NOT_FOUND
 
 
-def test_delete_nonexistent_doc(client):
+@pytest.mark.asyncio
+async def test_delete_nonexistent_doc(logged_client):
+    client, *_ = await logged_client()
     response = client.delete(f'/doc/{uuid.uuid4()}')
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == {'detail': 'Doc not found'}

@@ -6,7 +6,9 @@ import pytest
 from iaEditais.schemas import TypificationPublic
 
 
-def test_create_typification(client):
+@pytest.mark.asyncio
+async def test_create_typification(logged_client):
+    client, *_ = await logged_client()
     response = client.post(
         '/typification/',
         json={'name': 'Financial Reports'},
@@ -19,7 +21,10 @@ def test_create_typification(client):
 
 
 @pytest.mark.asyncio
-async def test_create_typification_conflict(client, create_typification):
+async def test_create_typification_conflict(
+    logged_client, create_typification
+):
+    client, *_ = await logged_client()
     await create_typification(name='Existing Typification')
 
     response = client.post(
@@ -66,7 +71,8 @@ def test_read_nonexistent_typification(client):
 
 
 @pytest.mark.asyncio
-async def test_update_typification(client, create_typification):
+async def test_update_typification(logged_client, create_typification):
+    client, *_ = await logged_client()
     typification = await create_typification(name='Old Name')
 
     response = client.put(
@@ -83,7 +89,10 @@ async def test_update_typification(client, create_typification):
 
 
 @pytest.mark.asyncio
-async def test_update_typification_conflict(client, create_typification):
+async def test_update_typification_conflict(
+    logged_client, create_typification
+):
+    client, *_ = await logged_client()
     await create_typification(name='Typification A')
     typification_b = await create_typification(name='Typification B')
 
@@ -98,7 +107,9 @@ async def test_update_typification_conflict(client, create_typification):
     assert response.json() == {'detail': 'Typification name already exists'}
 
 
-def test_update_nonexistent_typification(client):
+@pytest.mark.asyncio
+async def test_update_nonexistent_typification(logged_client):
+    client, *_ = await logged_client()
     response = client.put(
         '/typification/',
         json={
@@ -111,14 +122,17 @@ def test_update_nonexistent_typification(client):
 
 
 @pytest.mark.asyncio
-async def test_delete_typification(client, create_typification):
+async def test_delete_typification(logged_client, create_typification):
+    client, *_ = await logged_client()
     typification = await create_typification(name='ToDelete')
     response = client.delete(f'/typification/{typification.id}')
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'message': 'Typification deleted'}
 
 
-def test_delete_nonexistent_typification(client):
+@pytest.mark.asyncio
+async def test_delete_nonexistent_typification(logged_client):
+    client, *_ = await logged_client()
     response = client.delete(f'/typification/{uuid.uuid4()}')
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == {'detail': 'Typification not found'}

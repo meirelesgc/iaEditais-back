@@ -98,7 +98,7 @@ async def test_read_user_not_found(client):
 
 @pytest.mark.asyncio
 async def test_update_user(logged_client, create_user, create_unit):
-    client, _, _, _ = await logged_client()
+    client, *_ = await logged_client()
 
     unit = await create_unit()
     user = await create_user(
@@ -126,7 +126,7 @@ async def test_update_user(logged_client, create_user, create_unit):
 
 @pytest.mark.asyncio
 async def test_update_user_not_found(logged_client):
-    client, _, _, _ = await logged_client()
+    client, *_ = await logged_client()
 
     payload = {
         'id': str(uuid4()),
@@ -143,7 +143,7 @@ async def test_update_user_not_found(logged_client):
 
 @pytest.mark.asyncio
 async def test_update_user_conflict(logged_client, create_user, create_unit):
-    client, _, _, _ = await logged_client()
+    client, *_ = await logged_client()
 
     unit = await create_unit()
     await create_user(
@@ -176,7 +176,7 @@ async def test_update_user_conflict(logged_client, create_user, create_unit):
 
 @pytest.mark.asyncio
 async def test_delete_user(logged_client, create_user, create_unit):
-    client, _, _, _ = await logged_client()
+    client, *_ = await logged_client()
 
     unit = await create_unit()
     user = await create_user(
@@ -193,7 +193,7 @@ async def test_delete_user(logged_client, create_user, create_unit):
 
 @pytest.mark.asyncio
 async def test_delete_user_not_found(logged_client):
-    client, _, _, _ = await logged_client()
+    client, *_ = await logged_client()
 
     response = client.delete(f'/user/{uuid4()}')
     assert response.status_code == HTTPStatus.NOT_FOUND

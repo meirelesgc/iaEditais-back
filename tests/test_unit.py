@@ -6,7 +6,9 @@ import pytest
 from iaEditais.schemas import UnitPublic
 
 
-def test_create_unit(client):
+@pytest.mark.asyncio
+async def test_create_unit(logged_client):
+    client, *_ = await logged_client()
     response = client.post(
         '/unit/',
         json={
@@ -50,7 +52,8 @@ async def test_read_unit_by_id(client, create_unit):
 
 
 @pytest.mark.asyncio
-async def test_update_unit(client, create_unit):
+async def test_update_unit(logged_client, create_unit):
+    client, *_ = await logged_client()
     unit = await create_unit(name='Old Name', location='Rio de Janeiro')
 
     response = client.put(
@@ -69,7 +72,8 @@ async def test_update_unit(client, create_unit):
 
 
 @pytest.mark.asyncio
-async def test_update_unit_conflict(client, create_unit):
+async def test_update_unit_conflict(logged_client, create_unit):
+    client, *_ = await logged_client()
     await create_unit(name='Unit A', location='SP')
     unit2 = await create_unit(name='Unit B', location='RJ')
 
@@ -86,7 +90,8 @@ async def test_update_unit_conflict(client, create_unit):
 
 
 @pytest.mark.asyncio
-async def test_delete_unit(client, create_unit):
+async def test_delete_unit(logged_client, create_unit):
+    client, *_ = await logged_client()
     unit = await create_unit(name='ToDelete', location='BH')
     response = client.delete(f'/unit/{unit.id}')
     assert response.status_code == HTTPStatus.OK
@@ -99,7 +104,9 @@ def test_read_nonexistent_unit(client):
     assert response.json() == {'detail': 'Unit not found'}
 
 
-def test_update_nonexistent_unit(client):
+@pytest.mark.asyncio
+async def test_update_nonexistent_unit(logged_client):
+    client, *_ = await logged_client()
     response = client.put(
         '/unit/',
         json={
@@ -112,7 +119,9 @@ def test_update_nonexistent_unit(client):
     assert response.json() == {'detail': 'Unit not found'}
 
 
-def test_delete_nonexistent_unit(client):
+@pytest.mark.asyncio
+async def test_delete_nonexistent_unit(logged_client):
+    client, *_ = await logged_client()
     response = client.delete(f'/unit/{uuid.uuid4()}')
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == {'detail': 'Unit not found'}
