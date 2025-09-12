@@ -61,3 +61,14 @@ format = 'ruff check --fix; ruff format'
 run = 'fastapi dev iaEditais/app.py'
 test = 'pytest -s -x --cov=iaEditais -vv'
 cov = 'coverage html'
+auto-migrate = """
+    sh -c '
+    MSG="$1";
+    git add .;
+    git commit -m "$MSG";
+    alembic upgrade head;
+    alembic revision --autogenerate -m "$MSG";
+    git add migrations/versions;
+    git commit -m "migration: $MSG";
+    ' --
+"""
