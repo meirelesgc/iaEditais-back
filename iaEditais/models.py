@@ -16,6 +16,13 @@ class AccessType(str, Enum):
     AUDITOR = 'AUDITOR'
 
 
+class DocumentStatus(str, Enum):
+    PENDING = 'PENDING'
+    UNDER_CONSTRUCTION = 'UNDER_CONSTRUCTION'
+    WAITING_FOR_REVIEW = 'WAITING_FOR_REVIEW'
+    COMPLETED = 'COMPLETED'
+
+
 @table_registry.mapped_as_dataclass
 class Unit:
     __tablename__ = 'units'
@@ -329,6 +336,13 @@ class Document:
     identifier: Mapped[str] = mapped_column(unique=True, nullable=False)
     description: Mapped[str]
 
+    history: Mapped[List['DocumentHistory']] = relationship(
+        back_populates='document',
+        init=False,
+        default_factory=list,
+        order_by='desc(DocumentHistory.created_at)',
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )
@@ -339,6 +353,47 @@ class Document:
         init=False, nullable=True
     )
 
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_doc_created_by'),
+        nullable=True,
+        default=None,
+    )
+    updated_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_doc_updated_by'),
+        nullable=True,
+        default=None,
+    )
+    deleted_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_doc_deleted_by'),
+        nullable=True,
+        default=None,
+    )
+
+
+@table_registry.mapped_as_dataclass
+class DocumentHistory:
+    __tablename__ = 'document_histories'
+    id: Mapped[UUID] = mapped_column(
+        init=False, primary_key=True, default=uuid4
+    )
+    document_id: Mapped[UUID] = mapped_column(
+        ForeignKey('documents.id', name='fk_history_document_id'),
+        nullable=False,
+    )
+    document: Mapped['Document'] = relationship(
+        back_populates='history', init=False
+    )
+    status: Mapped[str] = mapped_column(nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        init=False, onupdate=func.now()
+    )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        init=False, nullable=True
+    )
     created_by: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey('users.id', name='fk_doc_created_by'),
         nullable=True,

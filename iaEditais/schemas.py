@@ -6,7 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
-from iaEditais.models import AccessType
+from iaEditais.models import AccessType, DocumentStatus
 
 
 class Token(BaseModel):
@@ -34,7 +34,6 @@ class UnitCreate(UnitSchema):
 
 class UnitUpdate(UnitSchema):
     id: UUID
-    pass
 
 
 class UnitPublic(UnitSchema):
@@ -89,7 +88,6 @@ class SourceCreate(SourceSchema):
 
 class SourceUpdate(SourceSchema):
     id: UUID
-    pass
 
 
 class TypificationSchema(BaseModel):
@@ -133,20 +131,6 @@ class BranchUpdate(BranchSchema):
     taxonomy_id: UUID
 
 
-class DocumentSchema(BaseModel):
-    name: str
-    identifier: str
-    description: Optional[str] = None
-
-
-class DocumentCreate(DocumentSchema):
-    pass
-
-
-class DocumentUpdate(DocumentSchema):
-    id: UUID
-
-
 class SourcePublic(SourceSchema):
     id: UUID
     typifications: list[TypificationPublic]
@@ -187,15 +171,6 @@ class BranchPublic(BranchSchema):
     model_config = ConfigDict(from_attributes=True)
 
 
-class DocPublic(DocumentSchema):
-    id: UUID
-
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 class SourceList(BaseModel):
     sources: list[SourcePublic]
 
@@ -212,8 +187,45 @@ class BranchList(BaseModel):
     branches: list[BranchPublic]
 
 
-class DocList(BaseModel):
-    docs: list[DocPublic]
+class DocumentHistorySchema(BaseModel):
+    status: DocumentStatus = DocumentStatus.PENDING
+
+
+class DocumentHistoryPublic(DocumentHistorySchema):
+    id: UUID
+
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DocumentSchema(BaseModel):
+    name: str
+    identifier: str
+    description: Optional[str] = None
+
+
+class DocumentCreate(DocumentSchema):
+    pass
+
+
+class DocumentUpdate(DocumentSchema):
+    id: UUID
+
+
+class DocumentPublic(DocumentSchema):
+    id: UUID
+    history: list[DocumentHistoryPublic]
+
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DocumentList(BaseModel):
+    documents: list[DocumentPublic]
 
 
 SourcePublic.model_rebuild()

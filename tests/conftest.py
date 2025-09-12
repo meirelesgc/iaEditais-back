@@ -195,7 +195,7 @@ def create_doc(session):
         doc = DocFactory.build(**kwargs)
         session.add(doc)
         await session.commit()
-        await session.refresh(doc)
+        await session.refresh(doc, attribute_names=['history'])
         return doc
 
     return _create_doc

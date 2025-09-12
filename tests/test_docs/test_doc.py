@@ -3,7 +3,7 @@ from http import HTTPStatus
 
 import pytest
 
-from iaEditais.schemas import DocPublic
+from iaEditais.schemas import DocumentPublic
 
 
 @pytest.mark.asyncio
@@ -19,6 +19,7 @@ async def test_create_doc(logged_client):
     )
     assert response.status_code == HTTPStatus.CREATED
     data = response.json()
+    print(data)
     assert data['name'] == 'New Doc'
     assert data['description'] == 'A doc description'
     assert data['identifier'] == 'DOC-123'
@@ -61,7 +62,7 @@ async def test_create_doc_conflict(logged_client, create_doc):
 def test_read_docs_empty(client):
     response = client.get('/doc/')
     assert response.status_code == HTTPStatus.OK
-    assert response.json() == {'docs': []}
+    assert response.json() == {'documents': []}
 
 
 @pytest.mark.asyncio
@@ -69,11 +70,11 @@ async def test_read_docs_with_data(client, create_doc):
     doc = await create_doc(
         name='Doc X', description='Description X', identifier='DOC-X'
     )
-    doc_schema = DocPublic.model_validate(doc).model_dump(mode='json')
+    doc_schema = DocumentPublic.model_validate(doc).model_dump(mode='json')
 
     response = client.get('/doc/')
     assert response.status_code == HTTPStatus.OK
-    assert response.json() == {'docs': [doc_schema]}
+    assert response.json() == {'documents': [doc_schema]}
 
 
 @pytest.mark.asyncio

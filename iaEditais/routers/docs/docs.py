@@ -8,11 +8,11 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from iaEditais.database import get_session
-from iaEditais.models import Document, User
+from iaEditais.models import Document, DocumentHistory, DocumentStatus, User
 from iaEditais.schemas import (
-    DocList,
-    DocPublic,
     DocumentCreate,
+    DocumentList,
+    DocumentPublic,
     DocumentUpdate,
     FilterPage,
     Message,
@@ -25,7 +25,9 @@ Session = Annotated[AsyncSession, Depends(get_session)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
-@router.post('/', status_code=HTTPStatus.CREATED, response_model=DocPublic)
+@router.post(
+    '/', status_code=HTTPStatus.CREATED, response_model=DocumentPublic
+)
 async def create_doc(
     doc: DocumentCreate, session: Session, current_user: CurrentUser
 ):
@@ -54,12 +56,21 @@ async def create_doc(
         created_by=current_user.id,
     )
     session.add(db_doc)
+    await session.flush()
+
+    history = DocumentHistory(
+        document_id=db_doc.id,
+        status=DocumentStatus.PENDING.value,
+        created_by=current_user.id,
+    )
+    session.add(history)
+
     await session.commit()
-    await session.refresh(db_doc)
+    await session.refresh(db_doc, attribute_names=['history'])
     return db_doc
 
 
-@router.get('/', response_model=DocList)
+@router.get('/', response_model=DocumentList)
 async def read_docs(
     session: Session, filters: Annotated[FilterPage, Depends()]
 ):
@@ -70,7 +81,7 @@ async def read_docs(
         .limit(filters.limit)
     )
     docs = query.all()
-    return {'docs': docs}
+    return {'documents': docs}
 
 
 @router.get('/{doc_id}')
@@ -86,7 +97,7 @@ async def read_doc(doc_id: UUID, session: Session):
     return doc
 
 
-@router.put('/', response_model=DocPublic)
+@router.put('/', response_model=DocumentPublic)
 async def update_doc(
     doc: DocumentUpdate, session: Session, current_user: CurrentUser
 ):
@@ -122,7 +133,10 @@ async def update_doc(
     db_doc.updated_by = current_user.id
 
     await session.commit()
-    await session.refresh(db_doc)
+    await session.refresh(
+        db_doc,
+        attribute_names=['history', 'updated_at'],
+    )
     return db_doc
 
 
