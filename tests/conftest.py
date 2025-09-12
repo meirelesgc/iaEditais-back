@@ -10,7 +10,7 @@ from testcontainers.postgres import PostgresContainer
 
 from iaEditais.app import app
 from iaEditais.database import get_session
-from iaEditais.models import table_registry
+from iaEditais.models import DocumentHistory, DocumentStatus, table_registry
 from iaEditais.security import (
     ACCESS_TOKEN_COOKIE_NAME,
     create_access_token,
@@ -194,6 +194,14 @@ def create_doc(session):
     async def _create_doc(**kwargs):
         doc = DocFactory.build(**kwargs)
         session.add(doc)
+        await session.flush()
+
+        history = DocumentHistory(
+            document_id=doc.id,
+            status=DocumentStatus.PENDING.value,
+        )
+        session.add(history)
+
         await session.commit()
         await session.refresh(doc, attribute_names=['history'])
         return doc

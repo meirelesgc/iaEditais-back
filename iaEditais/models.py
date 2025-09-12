@@ -377,7 +377,7 @@ class DocumentHistory:
         init=False, primary_key=True, default=uuid4
     )
     document_id: Mapped[UUID] = mapped_column(
-        ForeignKey('documents.id', name='fk_history_document_id'),
+        ForeignKey('documents.id', name='fk_document_histories_document_id'),
         nullable=False,
     )
     document: Mapped['Document'] = relationship(
@@ -395,17 +395,66 @@ class DocumentHistory:
         init=False, nullable=True
     )
     created_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_doc_created_by'),
+        ForeignKey('users.id', name='fk_document_histories_created_by'),
         nullable=True,
         default=None,
     )
     updated_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_doc_updated_by'),
+        ForeignKey('users.id', name='fk_document_histories_updated_by'),
         nullable=True,
         default=None,
     )
     deleted_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_doc_deleted_by'),
+        ForeignKey('users.id', name='fk_document_histories_deleted_by'),
+        nullable=True,
+        default=None,
+    )
+
+    releases: Mapped[List['DocumentRelease']] = relationship(
+        back_populates='history', cascade='all, delete-orphan', init=False
+    )
+
+
+@table_registry.mapped_as_dataclass
+class DocumentRelease:
+    __tablename__ = 'document_releases'
+    id: Mapped[UUID] = mapped_column(
+        init=False, primary_key=True, default=uuid4
+    )
+    history_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            'document_histories.id',
+            name='fk_document_releases_history_id',
+        ),
+        nullable=False,
+    )
+    history: Mapped['DocumentHistory'] = relationship(
+        back_populates='releases', init=False
+    )
+
+    file_path: Mapped[str] = mapped_column(nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        init=False, onupdate=func.now()
+    )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        init=False, nullable=True
+    )
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_document_releases_created_by'),
+        nullable=True,
+        default=None,
+    )
+    updated_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_document_releases_updated_by'),
+        nullable=True,
+        default=None,
+    )
+    deleted_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_document_releases_deleted_by'),
         nullable=True,
         default=None,
     )

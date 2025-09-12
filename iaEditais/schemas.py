@@ -187,6 +187,18 @@ class BranchList(BaseModel):
     branches: list[BranchPublic]
 
 
+class DocumentReleasePublic(BaseModel):
+    id: UUID
+    file_path: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DocumentReleaseList(BaseModel):
+    releases: list[DocumentReleasePublic]
+
+
 class DocumentHistorySchema(BaseModel):
     status: DocumentStatus = DocumentStatus.PENDING
 

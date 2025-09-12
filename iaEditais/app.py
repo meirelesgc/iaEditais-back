@@ -11,7 +11,7 @@ from iaEditais.routers.check_tree import (
     taxonomies,
     typifications,
 )
-from iaEditais.routers.docs import docs, kanban
+from iaEditais.routers.docs import docs, kanban, releases
 
 BASE_DIR = os.path.dirname(__file__)
 STORAGE_DIR = os.path.join(BASE_DIR, 'storage')
@@ -22,6 +22,7 @@ os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 TEMP_DIR = os.path.join(STORAGE_DIR, 'temp')
 os.makedirs(TEMP_DIR, exist_ok=True)
+
 
 app = FastAPI(docs_url='/swagger')
 
@@ -41,6 +42,7 @@ app.include_router(auth.router)
 
 app.include_router(docs.router)
 app.include_router(kanban.router)
+app.include_router(releases.router)
 
 app.include_router(sources.router)
 app.include_router(typifications.router)
