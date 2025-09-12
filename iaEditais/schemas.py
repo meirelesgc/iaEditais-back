@@ -133,17 +133,17 @@ class BranchUpdate(BranchSchema):
     taxonomy_id: UUID
 
 
-class DocSchema(BaseModel):
+class DocumentSchema(BaseModel):
     name: str
     identifier: str
     description: Optional[str] = None
 
 
-class DocCreate(DocSchema):
+class DocumentCreate(DocumentSchema):
     pass
 
 
-class DocUpdate(DocSchema):
+class DocumentUpdate(DocumentSchema):
     id: UUID
 
 
@@ -187,7 +187,7 @@ class BranchPublic(BranchSchema):
     model_config = ConfigDict(from_attributes=True)
 
 
-class DocPublic(DocSchema):
+class DocPublic(DocumentSchema):
     id: UUID
 
     created_at: datetime

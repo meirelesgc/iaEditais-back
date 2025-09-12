@@ -8,12 +8,12 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from iaEditais.database import get_session
-from iaEditais.models import Doc, User
+from iaEditais.models import Document, User
 from iaEditais.schemas import (
-    DocCreate,
     DocList,
     DocPublic,
-    DocUpdate,
+    DocumentCreate,
+    DocumentUpdate,
     FilterPage,
     Message,
 )
@@ -27,12 +27,15 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 @router.post('/', status_code=HTTPStatus.CREATED, response_model=DocPublic)
 async def create_doc(
-    doc: DocCreate, session: Session, current_user: CurrentUser
+    doc: DocumentCreate, session: Session, current_user: CurrentUser
 ):
     db_doc = await session.scalar(
-        select(Doc).where(
-            Doc.deleted_at.is_(None),
-            or_(Doc.name == doc.name, Doc.identifier == doc.identifier),
+        select(Document).where(
+            Document.deleted_at.is_(None),
+            or_(
+                Document.name == doc.name,
+                Document.identifier == doc.identifier,
+            ),
         )
     )
     if db_doc:
@@ -44,7 +47,7 @@ async def create_doc(
             ),
         )
 
-    db_doc = Doc(
+    db_doc = Document(
         name=doc.name,
         description=doc.description,
         identifier=doc.identifier,
@@ -61,8 +64,8 @@ async def read_docs(
     session: Session, filters: Annotated[FilterPage, Depends()]
 ):
     query = await session.scalars(
-        select(Doc)
-        .where(Doc.deleted_at.is_(None))
+        select(Document)
+        .where(Document.deleted_at.is_(None))
         .offset(filters.offset)
         .limit(filters.limit)
     )
@@ -72,7 +75,7 @@ async def read_docs(
 
 @router.get('/{doc_id}')
 async def read_doc(doc_id: UUID, session: Session):
-    doc = await session.get(Doc, doc_id)
+    doc = await session.get(Document, doc_id)
 
     if not doc or doc.deleted_at:
         raise HTTPException(
@@ -85,9 +88,9 @@ async def read_doc(doc_id: UUID, session: Session):
 
 @router.put('/', response_model=DocPublic)
 async def update_doc(
-    doc: DocUpdate, session: Session, current_user: CurrentUser
+    doc: DocumentUpdate, session: Session, current_user: CurrentUser
 ):
-    db_doc = await session.get(Doc, doc.id)
+    db_doc = await session.get(Document, doc.id)
     if not db_doc or db_doc.deleted_at:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -95,10 +98,13 @@ async def update_doc(
         )
 
     db_doc_conflict = await session.scalar(
-        select(Doc).where(
-            Doc.deleted_at.is_(None),
-            Doc.id != doc.id,
-            or_(Doc.name == doc.name, Doc.identifier == doc.identifier),
+        select(Document).where(
+            Document.deleted_at.is_(None),
+            Document.id != doc.id,
+            or_(
+                Document.name == doc.name,
+                Document.identifier == doc.identifier,
+            ),
         )
     )
     if db_doc_conflict:
@@ -124,7 +130,7 @@ async def update_doc(
 async def delete_doc(
     doc_id: UUID, session: Session, current_user: CurrentUser
 ):
-    db_doc = await session.get(Doc, doc_id)
+    db_doc = await session.get(Document, doc_id)
 
     if not db_doc or db_doc.deleted_at:
         raise HTTPException(

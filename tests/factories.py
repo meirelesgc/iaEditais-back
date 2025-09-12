@@ -3,7 +3,7 @@ import factory
 from iaEditais.models import (
     AccessType,
     Branch,
-    Doc,
+    Document,
     Source,
     Taxonomy,
     Typification,
@@ -65,7 +65,7 @@ class BranchFactory(factory.Factory):
 
 class DocFactory(factory.Factory):
     class Meta:
-        model = Doc
+        model = Document
 
     name = factory.Sequence(lambda n: f'Documento de Teste {n}')
     identifier = factory.Sequence(lambda n: f'Identificador de Teste {n}')

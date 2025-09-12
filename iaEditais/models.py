@@ -319,8 +319,8 @@ class Branch:
 
 
 @table_registry.mapped_as_dataclass
-class Doc:
-    __tablename__ = 'docs'
+class Document:
+    __tablename__ = 'documents'
     id: Mapped[UUID] = mapped_column(
         init=False, primary_key=True, default=uuid4
     )
