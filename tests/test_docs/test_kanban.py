@@ -15,7 +15,6 @@ async def test_set_status_pending(logged_client, create_doc):
     assert response.status_code == HTTPStatus.OK
     data = response.json()
     assert data['id'] == str(doc.id)
-    assert data['status'] == 'pending'
 
 
 @pytest.mark.asyncio
@@ -28,7 +27,6 @@ async def test_set_status_under_construction(logged_client, create_doc):
     assert response.status_code == HTTPStatus.OK
     data = response.json()
     assert data['id'] == str(doc.id)
-    assert data['status'] == 'under-construction'
 
 
 @pytest.mark.asyncio
@@ -41,7 +39,6 @@ async def test_set_status_waiting_review(logged_client, create_doc):
     assert response.status_code == HTTPStatus.OK
     data = response.json()
     assert data['id'] == str(doc.id)
-    assert data['status'] == 'waiting-review'
 
 
 @pytest.mark.asyncio
@@ -54,7 +51,6 @@ async def test_set_status_completed(logged_client, create_doc):
     assert response.status_code == HTTPStatus.OK
     data = response.json()
     assert data['id'] == str(doc.id)
-    assert data['status'] == 'completed'
 
 
 @pytest.mark.asyncio

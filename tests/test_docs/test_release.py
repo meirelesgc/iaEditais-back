@@ -11,7 +11,7 @@ def mock_upload_directory(monkeypatch):
     temp_upload_dir = Path('iaEditais') / 'storage' / 'temp'
     temp_upload_dir.mkdir(parents=True, exist_ok=True)
     monkeypatch.setattr(
-        'iaEditais.routers.docs.releases.UPLOAD_DIRECTORY',
+        'iaEditais.services.releases_service.UPLOAD_DIRECTORY',
         str(temp_upload_dir),
     )
     return str(temp_upload_dir)

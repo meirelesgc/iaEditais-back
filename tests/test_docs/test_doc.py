@@ -19,7 +19,6 @@ async def test_create_doc(logged_client):
     )
     assert response.status_code == HTTPStatus.CREATED
     data = response.json()
-    print(data)
     assert data['name'] == 'New Doc'
     assert data['description'] == 'A doc description'
     assert data['identifier'] == 'DOC-123'

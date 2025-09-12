@@ -84,16 +84,14 @@ async def read_docs(
     return {'documents': docs}
 
 
-@router.get('/{doc_id}')
+@router.get('/{doc_id}', response_model=DocumentPublic)
 async def read_doc(doc_id: UUID, session: Session):
     doc = await session.get(Document, doc_id)
-
     if not doc or doc.deleted_at:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
             detail='Doc not found',
         )
-
     return doc
 
 

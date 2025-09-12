@@ -41,7 +41,7 @@ async def _set_status(
     doc.updated_by = user.id
     doc.updated_at = datetime.now(timezone.utc)
     await session.commit()
-    await session.refresh(doc)
+    await session.refresh(doc, attribute_names=['history'])
     return doc
 
 

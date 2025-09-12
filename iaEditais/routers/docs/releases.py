@@ -1,6 +1,3 @@
-import os
-import shutil
-import uuid
 from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Annotated
@@ -9,20 +6,20 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from iaEditais.database import get_session
-from iaEditais.models import Document, DocumentHistory, DocumentRelease, User
+from iaEditais.models import DocumentHistory, DocumentRelease, User
 from iaEditais.schemas import (
     DocumentReleaseList,
     DocumentReleasePublic,
     Message,
 )
 from iaEditais.security import get_current_user
+from iaEditais.services import releases_service
 
 router = APIRouter(
     prefix='/doc/{doc_id}/release',
-    tags=['document releases'],
+    tags=['verificação dos documentos, versões'],
 )
 
 Session = Annotated[AsyncSession, Depends(get_session)]
@@ -42,48 +39,10 @@ async def create_release(
     current_user: CurrentUser,
     file: UploadFile = File(...),
 ):
-    query = (
-        select(Document)
-        .options(selectinload(Document.history))
-        .where(Document.id == doc_id, Document.deleted_at.is_(None))
+    release = await releases_service.create_release(
+        doc_id, session, current_user, file
     )
-
-    db_doc = await session.scalar(query)
-
-    if not db_doc:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Document not found',
-        )
-
-    if not db_doc.history:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Document does not have a history to attach the file.',
-        )
-    latest_history = db_doc.history[0]
-
-    file_extension = os.path.splitext(file.filename)[1]
-    unique_filename = f'{uuid.uuid4()}{file_extension}'
-    file_path = os.path.join(UPLOAD_DIRECTORY, unique_filename)
-
-    try:
-        with open(file_path, 'wb') as buffer:
-            shutil.copyfileobj(file.file, buffer)
-    finally:
-        file.file.close()
-
-    db_release = DocumentRelease(
-        history_id=latest_history.id,
-        file_path=file_path,
-        created_by=current_user.id,
-    )
-
-    session.add(db_release)
-    await session.commit()
-    await session.refresh(db_release)
-
-    return db_release
+    return release
 
 
 @router.get(
