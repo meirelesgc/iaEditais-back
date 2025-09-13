@@ -4,13 +4,18 @@ from datetime import datetime
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
-from sqlalchemy import event
+from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from testcontainers.postgres import PostgresContainer
 
 from iaEditais.app import app
 from iaEditais.database import get_session
-from iaEditais.models import DocumentHistory, DocumentStatus, table_registry
+from iaEditais.models import (
+    DocumentHistory,
+    DocumentStatus,
+    Typification,
+    table_registry,
+)
 from iaEditais.security import (
     ACCESS_TOKEN_COOKIE_NAME,
     create_access_token,
@@ -41,7 +46,9 @@ def client(session):
 
 @pytest.fixture(scope='session')
 def engine():
-    with PostgresContainer('postgres:16', driver='psycopg') as postgres:
+    with PostgresContainer(
+        'pgvector/pgvector:pg17', driver='psycopg'
+    ) as postgres:
         _engine = create_async_engine(postgres.get_connection_url())
         yield _engine
 
@@ -191,7 +198,7 @@ def create_branch(session):
 
 @pytest_asyncio.fixture
 def create_doc(session):
-    async def _create_doc(**kwargs):
+    async def _create_doc(typification_ids: list[int] | None = None, **kwargs):
         doc = DocFactory.build(**kwargs)
         session.add(doc)
         await session.flush()
@@ -202,8 +209,18 @@ def create_doc(session):
         )
         session.add(history)
 
+        if typification_ids:
+            typifications = await session.scalars(
+                select(Typification).where(
+                    Typification.id.in_(typification_ids)
+                )
+            )
+            doc.typifications = [typ for typ in typifications.all()]
+
         await session.commit()
-        await session.refresh(doc, attribute_names=['history'])
+        await session.refresh(
+            doc, attribute_names=['history', 'typifications']
+        )
         return doc
 
     return _create_doc

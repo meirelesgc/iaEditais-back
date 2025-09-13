@@ -54,13 +54,18 @@ async def insert_db_release(
 async def get_check_tree(session: Session, release: DocumentRelease):
     query = await session.scalars(
         select(Typification)
-        .join(DocumentTypification)
-        .join(Document)
-        .join(DocumentHistory)
+        .join(
+            DocumentTypification,
+            Typification.id == DocumentTypification.typification_id,
+        )
+        .join(Document, Document.id == DocumentTypification.document_id)
+        .join(DocumentHistory, DocumentHistory.document_id == Document.id)
+        .join(
+            DocumentRelease, DocumentRelease.history_id == DocumentHistory.id
+        )
         .where(
-            DocumentHistory.id == release.history_id,
+            DocumentRelease.id == release.id,
             Typification.deleted_at.is_(None),
         )
     )
-    typifications = query.all()
-    return {'typifications': typifications}
+    return query.all()

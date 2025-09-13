@@ -30,7 +30,11 @@ async def test_create_release(
     taxonomy = await create_taxonomy(typification_id=typification.id)
     await create_branch(taxonomy_id=taxonomy.id)
     client, *_ = await logged_client()
-    doc = await create_doc(name='Doc for Release', identifier='REL-001')
+    doc = await create_doc(
+        name='Doc for Release',
+        identifier='REL-001',
+        typification_ids=[typification.id],
+    )
 
     file_content = b'Este eh um arquivo de teste.'
     file_to_upload = {'file': ('test_release.txt', io.BytesIO(file_content))}
@@ -89,14 +93,20 @@ async def test_read_releases(logged_client, create_doc):
 
 
 @pytest.mark.asyncio
-async def test_delete_release(logged_client, create_doc):
+async def test_delete_release(logged_client, create_doc, create_typification):
     client, *_ = await logged_client()
-    doc = await create_doc(name='Doc to Delete From', identifier='REL-003')
+    typification = await create_typification()
+    doc = await create_doc(
+        name='Doc to Delete From',
+        identifier='REL-003',
+        typification_ids=[typification.id],
+    )
 
     upload_response = client.post(
         f'/doc/{doc.id}/release/',
         files={'file': ('deletable.txt', io.BytesIO(b'to be deleted'))},
     )
+
     release_id = upload_response.json()['id']
 
     delete_response = client.delete(f'/doc/{doc.id}/release/{release_id}')
@@ -124,10 +134,21 @@ async def test_delete_nonexistent_release(logged_client, create_doc):
 
 
 @pytest.mark.asyncio
-async def test_delete_release_from_wrong_doc(logged_client, create_doc):
+async def test_delete_release_from_wrong_doc(
+    logged_client, create_doc, create_typification
+):
     client, *_ = await logged_client()
-    doc_a = await create_doc(name='Doc A', identifier='REL-A')
-    doc_b = await create_doc(name='Doc B', identifier='REL-B')
+    typification = await create_typification()
+    doc_a = await create_doc(
+        name='Doc A',
+        identifier='REL-A',
+        typification_ids=[typification.id],
+    )
+    doc_b = await create_doc(
+        name='Doc B',
+        identifier='REL-B',
+        typification_ids=[typification.id],
+    )
 
     upload_response = client.post(
         f'/doc/{doc_a.id}/release/',
