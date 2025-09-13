@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from iaEditais.database import get_session
+from iaEditais.core.database import get_session
 from iaEditais.models import Source, Typification, User
 from iaEditais.schemas import (
     FilterPage,

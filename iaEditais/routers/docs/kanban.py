@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from iaEditais.database import get_session
+from iaEditais.core.database import get_session
 from iaEditais.models import Document, DocumentHistory, DocumentStatus, User
 from iaEditais.schemas import DocumentPublic
 from iaEditais.security import get_current_user

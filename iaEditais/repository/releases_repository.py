@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from iaEditais.database import get_session
+from iaEditais.core.database import get_session
 from iaEditais.models import (
     Document,
     DocumentHistory,

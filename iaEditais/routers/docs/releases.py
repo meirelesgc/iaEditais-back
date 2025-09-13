@@ -8,7 +8,7 @@ from langchain_core.vectorstores import VectorStore
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from iaEditais.database import get_session, get_vectorstore
+from iaEditais.core.database import get_session, get_vectorstore
 from iaEditais.models import DocumentHistory, DocumentRelease, User
 from iaEditais.schemas import (
     DocumentReleaseList,

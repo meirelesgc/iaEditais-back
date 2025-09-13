@@ -6,7 +6,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from iaEditais.database import get_session
+from iaEditais.core.database import get_session
 from iaEditais.models import User
 from iaEditais.schemas import Token
 from iaEditais.security import (

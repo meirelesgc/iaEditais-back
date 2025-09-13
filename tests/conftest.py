@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from testcontainers.postgres import PostgresContainer
 
 from iaEditais.app import app
-from iaEditais.database import get_session
+from iaEditais.core.database import get_session
 from iaEditais.models import (
     DocumentHistory,
     DocumentStatus,

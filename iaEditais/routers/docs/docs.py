@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from iaEditais.database import get_session
+from iaEditais.core.database import get_session
 from iaEditais.models import (
     Document,
     DocumentHistory,
