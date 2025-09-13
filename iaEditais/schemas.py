@@ -219,11 +219,12 @@ class DocumentSchema(BaseModel):
 
 
 class DocumentCreate(DocumentSchema):
-    pass
+    typification_ids: Optional[list[UUID]] = []
 
 
 class DocumentUpdate(DocumentSchema):
     id: UUID
+    typification_ids: Optional[list[UUID]] = []
 
 
 class DocumentPublic(DocumentSchema):

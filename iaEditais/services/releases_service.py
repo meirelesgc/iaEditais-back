@@ -41,6 +41,19 @@ async def create_release(
     current_user: CurrentUser,
     file: UploadFile = File(...),
 ):
+    allowed_content_types = {
+        'text/plain',
+        'application/pdf',
+        'application/msword',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    }
+
+    if file.content_type not in allowed_content_types:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail='Invalid file type. Only Word and PDF files are allowed.',
+        )
+
     db_doc = await releases_repository.get_db_doc(doc_id, session)
 
     if not db_doc:
@@ -60,4 +73,15 @@ async def create_release(
     db_release = await releases_repository.insert_db_release(
         latest_history, file_path, session, current_user
     )
+    await process_release()
     return db_release
+
+
+async def process_release():
+    check_tree = await releases_repository.get_check_tree()
+    if not check_tree:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='There are no associated typifications',
+        )
+    print('Caminho feliz')

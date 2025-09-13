@@ -203,7 +203,12 @@ class Typification:
     taxonomies: Mapped[List['Taxonomy']] = relationship(
         back_populates='typification', default_factory=list, init=False
     )
-
+    documents: Mapped[List['DocumentTypification']] = relationship(
+        'DocumentTypification',
+        back_populates='typification',
+        default_factory=list,
+        init=False,
+    )
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )
@@ -326,6 +331,34 @@ class Branch:
 
 
 @table_registry.mapped_as_dataclass
+class DocumentTypification:
+    __tablename__ = 'document_typifications'
+
+    document_id: Mapped[UUID] = mapped_column(
+        ForeignKey('documents.id', name='fk_doc_typ_document_id'),
+        primary_key=True,
+    )
+    typification_id: Mapped[UUID] = mapped_column(
+        ForeignKey('typifications.id', name='fk_doc_typ_typification_id'),
+        primary_key=True,
+    )
+    document: Mapped['Document'] = relationship(
+        'Document', back_populates='typifications'
+    )
+    typification: Mapped['Typification'] = relationship(
+        'Typification', back_populates='documents'
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_doc_typ_created_by'),
+        nullable=True,
+        default=None,
+    )
+
+
+@table_registry.mapped_as_dataclass
 class Document:
     __tablename__ = 'documents'
     id: Mapped[UUID] = mapped_column(
@@ -341,6 +374,13 @@ class Document:
         init=False,
         default_factory=list,
         order_by='desc(DocumentHistory.created_at)',
+    )
+
+    typifications: Mapped[List['DocumentTypification']] = relationship(
+        'DocumentTypification',
+        back_populates='document',
+        default_factory=list,
+        init=False,
     )
 
     created_at: Mapped[datetime] = mapped_column(

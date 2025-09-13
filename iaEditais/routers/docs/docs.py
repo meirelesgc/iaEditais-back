@@ -8,7 +8,14 @@ from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from iaEditais.database import get_session
-from iaEditais.models import Document, DocumentHistory, DocumentStatus, User
+from iaEditais.models import (
+    Document,
+    DocumentHistory,
+    DocumentStatus,
+    DocumentTypification,
+    Typification,
+    User,
+)
 from iaEditais.schemas import (
     DocumentCreate,
     DocumentList,
@@ -65,8 +72,22 @@ async def create_doc(
     )
     session.add(history)
 
+    if doc.typification_ids:
+        typifications = await session.scalars(
+            select(Typification).where(
+                Typification.id.in_(doc.typification_ids)
+            )
+        )
+        for typ in typifications.all():
+            db_doc.typifications.append(
+                DocumentTypification(
+                    typification_id=typ.id,
+                    created_by=current_user.id,
+                )
+            )
+
     await session.commit()
-    await session.refresh(db_doc, attribute_names=['history'])
+    await session.refresh(db_doc, attribute_names=['history', 'typifications'])
     return db_doc
 
 
@@ -133,7 +154,7 @@ async def update_doc(
     await session.commit()
     await session.refresh(
         db_doc,
-        attribute_names=['history', 'updated_at'],
+        attribute_names=['history', 'typifications', 'updated_at'],
     )
     return db_doc
 

@@ -19,8 +19,16 @@ def mock_upload_directory(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_create_release(
-    logged_client, create_doc, mock_upload_directory
+    logged_client,
+    create_doc,
+    mock_upload_directory,
+    create_typification,
+    create_taxonomy,
+    create_branch,
 ):
+    typification = await create_typification()
+    taxonomy = await create_taxonomy(typification_id=typification.id)
+    await create_branch(taxonomy_id=taxonomy.id)
     client, *_ = await logged_client()
     doc = await create_doc(name='Doc for Release', identifier='REL-001')
 

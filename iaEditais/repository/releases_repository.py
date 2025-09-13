@@ -7,7 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from iaEditais.database import get_session
-from iaEditais.models import Document, DocumentHistory, DocumentRelease, User
+from iaEditais.models import (
+    Document,
+    DocumentHistory,
+    DocumentRelease,
+    DocumentTypification,
+    Typification,
+    User,
+)
 from iaEditais.security import get_current_user
 
 Session = Annotated[AsyncSession, Depends(get_session)]
@@ -42,3 +49,18 @@ async def insert_db_release(
     await session.refresh(db_release)
 
     return db_release
+
+
+async def get_check_tree(session: Session, release: DocumentRelease):
+    query = await session.scalars(
+        select(Typification)
+        .join(DocumentTypification)
+        .join(Document)
+        .join(DocumentHistory)
+        .where(
+            DocumentHistory.id == release.history_id,
+            Typification.deleted_at.is_(None),
+        )
+    )
+    typifications = query.all()
+    return {'typifications': typifications}
