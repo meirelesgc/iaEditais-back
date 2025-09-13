@@ -203,9 +203,10 @@ class Typification:
     taxonomies: Mapped[List['Taxonomy']] = relationship(
         back_populates='typification', default_factory=list, init=False
     )
-    documents: Mapped[List['DocumentTypification']] = relationship(
-        'DocumentTypification',
-        back_populates='typification',
+    documents: Mapped[List['Document']] = relationship(
+        'Document',
+        secondary='document_typifications',
+        back_populates='typifications',
         default_factory=list,
         init=False,
     )
@@ -342,12 +343,6 @@ class DocumentTypification:
         ForeignKey('typifications.id', name='fk_doc_typ_typification_id'),
         primary_key=True,
     )
-    document: Mapped['Document'] = relationship(
-        'Document', back_populates='typifications'
-    )
-    typification: Mapped['Typification'] = relationship(
-        'Typification', back_populates='documents'
-    )
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )
@@ -376,9 +371,10 @@ class Document:
         order_by='desc(DocumentHistory.created_at)',
     )
 
-    typifications: Mapped[List['DocumentTypification']] = relationship(
-        'DocumentTypification',
-        back_populates='document',
+    typifications: Mapped[List['Typification']] = relationship(
+        'Typification',
+        secondary='document_typifications',
+        back_populates='documents',
         default_factory=list,
         init=False,
     )

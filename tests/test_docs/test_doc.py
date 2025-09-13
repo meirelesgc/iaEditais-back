@@ -94,11 +94,14 @@ def test_read_nonexistent_doc(client):
 
 
 @pytest.mark.asyncio
-async def test_update_doc(logged_client, create_doc):
+async def test_update_doc(logged_client, create_doc, create_typification):
     client, *_ = await logged_client()
     doc = await create_doc(
         name='Doc Old', description='Old Desc', identifier='OLD-001'
     )
+
+    typ1 = await create_typification(name='Typ 1')
+    typ2 = await create_typification(name='Typ 2')
 
     response = client.put(
         '/doc/',
@@ -107,6 +110,7 @@ async def test_update_doc(logged_client, create_doc):
             'name': 'Doc Updated',
             'description': 'Updated Desc',
             'identifier': 'NEW-001',
+            'typification_ids': [str(typ1.id), str(typ2.id)],
         },
     )
     assert response.status_code == HTTPStatus.OK
@@ -115,13 +119,19 @@ async def test_update_doc(logged_client, create_doc):
     assert data['name'] == 'Doc Updated'
     assert data['description'] == 'Updated Desc'
     assert data['identifier'] == 'NEW-001'
+    typ_ids = [str(t['id']) for t in data.get('typifications', [])]
+    assert set(typ_ids) == {str(typ1.id), str(typ2.id)}
 
 
 @pytest.mark.asyncio
-async def test_update_doc_conflict(logged_client, create_doc):
+async def test_update_doc_conflict(
+    logged_client, create_doc, create_typification
+):
     client, *_ = await logged_client()
     await create_doc(name='Doc A', identifier='ID-A')
     doc_b = await create_doc(name='Doc B', identifier='ID-B')
+
+    typ = await create_typification(name='Typ C')
 
     response = client.put(
         '/doc/',
@@ -130,6 +140,7 @@ async def test_update_doc_conflict(logged_client, create_doc):
             'name': 'Doc A',
             'description': 'Some desc',
             'identifier': 'ID-B',
+            'typification_ids': [str(typ.id)],
         },
     )
     assert response.status_code == HTTPStatus.CONFLICT
@@ -145,6 +156,7 @@ async def test_update_doc_conflict(logged_client, create_doc):
             'name': 'Doc B',
             'description': 'Some desc',
             'identifier': 'ID-A',
+            'typification_ids': [str(typ.id)],
         },
     )
     assert response.status_code == HTTPStatus.CONFLICT

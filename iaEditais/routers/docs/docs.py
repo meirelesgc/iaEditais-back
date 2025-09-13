@@ -12,7 +12,6 @@ from iaEditais.models import (
     Document,
     DocumentHistory,
     DocumentStatus,
-    DocumentTypification,
     Typification,
     User,
 )
@@ -51,8 +50,7 @@ async def create_doc(
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
             detail=(
-                f'Doc with name "{doc.name}" or identifier '
-                f'"{doc.identifier}" already exists.'
+                f'Doc with name "{doc.name}" or identifier "{doc.identifier}" already exists.'
             ),
         )
 
@@ -78,13 +76,7 @@ async def create_doc(
                 Typification.id.in_(doc.typification_ids)
             )
         )
-        for typ in typifications.all():
-            db_doc.typifications.append(
-                DocumentTypification(
-                    typification_id=typ.id,
-                    created_by=current_user.id,
-                )
-            )
+        db_doc.typifications = [typ for typ in typifications.all()]
 
     await session.commit()
     await session.refresh(db_doc, attribute_names=['history', 'typifications'])
@@ -141,8 +133,7 @@ async def update_doc(
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
             detail=(
-                f'Doc with name "{doc.name}" or identifier '
-                f'"{doc.identifier}" already exists.'
+                f'Doc with name "{doc.name}" or identifier "{doc.identifier}" already exists.'
             ),
         )
 
@@ -150,6 +141,14 @@ async def update_doc(
     db_doc.description = doc.description
     db_doc.identifier = doc.identifier
     db_doc.updated_by = current_user.id
+
+    if doc.typification_ids is not None:
+        typifications = await session.scalars(
+            select(Typification).where(
+                Typification.id.in_(doc.typification_ids)
+            )
+        )
+        db_doc.typifications = [typ for typ in typifications.all()]
 
     await session.commit()
     await session.refresh(
