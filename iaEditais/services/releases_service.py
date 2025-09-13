@@ -6,19 +6,30 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import Depends, File, HTTPException, UploadFile
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_core.vectorstores import VectorStore
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from iaEditais.core.database import get_session, get_vectorstore
-from iaEditais.models import DocumentRelease, User
+from iaEditais.core.database import get_session
+from iaEditais.core.llm import get_model
+from iaEditais.core.vectorstore import get_vectorstore
+from iaEditais.models import (
+    Branch,
+    DocumentRelease,
+    Taxonomy,
+    Typification,
+    User,
+)
 from iaEditais.repository import releases_repository
+from iaEditais.schemas import DocumentReleaseFeedback
 from iaEditais.security import get_current_user
 
 Session = Annotated[AsyncSession, Depends(get_session)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 VStore = Annotated[VectorStore, Depends(get_vectorstore)]
+Model = Annotated[BaseChatModel, Depends(get_model)]
 
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 
@@ -41,6 +52,7 @@ def safe_file(file: UploadFile, upload_directory) -> str:
 
 async def create_release(
     doc_id: UUID,
+    model: Model,
     session: Session,
     vectorstore: VStore,
     current_user: CurrentUser,
@@ -78,11 +90,12 @@ async def create_release(
     db_release = await releases_repository.insert_db_release(
         latest_history, file_path, session, current_user
     )
-    await process_release(session, vectorstore, db_release)
+    # await process_release(model, session, vectorstore, db_release)
     return db_release
 
 
 async def process_release(
+    model: Model,
     session: Session,
     vectorstore: VStore,
     release: DocumentRelease,
@@ -93,10 +106,13 @@ async def process_release(
             status_code=HTTPStatus.NOT_FOUND,
             detail='There are no associated typifications',
         )
+    chain = get_chain(model)
+    input_vars = await get_vars(check_tree, session, vectorstore, release)
+
     print('Caminho feliz')
 
 
-def get_chain():
+def get_chain(model: Model):
     TEMPLATE = """
         <Edital>
         {docs}
@@ -124,7 +140,7 @@ def get_chain():
         {query}
         """
 
-    parser = JsonOutputParser(pydantic_object=ReleaseFeedback)
+    parser = JsonOutputParser(pydantic_object=DocumentReleaseFeedback)
     prompt = PromptTemplate(
         template=TEMPLATE,
         input_variables=[
@@ -141,6 +157,39 @@ def get_chain():
             'format_instructions': parser.get_format_instructions()
         },
     )
-    model = get_model()
-    chain = prompt | model | parser
-    return chain
+
+    return prompt | model | parser
+
+
+async def get_vars(
+    check_tree: list[Typification],
+    session: Session,
+    vectorstore: VStore,
+    release: DocumentRelease,
+):
+    for typification in check_tree:
+        for taxonomy in typification.taxonomies:
+            for branch in taxonomy.branches:
+                _branch = await process_branch(
+                    typification, taxonomy, branch, vectorstore
+                )
+
+
+async def process_branch(
+    typification: Typification,
+    taxonomy: Taxonomy,
+    branch: Branch,
+    vectorstore: VStore,
+):
+    sources = [f'{s.name}\n{s.description}' for s in {typification.sources}]
+    query = f'{branch.title} {branch.description}'
+    c = [d.page_content for d in vectorstore.similarity_search(query, k=3)]
+    return {
+        'docs': c,
+        'taxonomy_title': taxonomy.title,
+        'taxonomy_description': taxonomy.description,
+        'taxonomy_source': sources,
+        'taxonomy_branch_title': branch.title,
+        'taxonomy_branch_description': branch.description,
+        'query': 'Justifique sua resposta com base no conteúdo do edital.',
+    }

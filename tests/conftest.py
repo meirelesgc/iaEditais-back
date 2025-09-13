@@ -4,12 +4,15 @@ from datetime import datetime
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
+from langchain_community.embeddings import FakeEmbeddings
+from langchain_postgres import PGVector
 from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from testcontainers.postgres import PostgresContainer
 
 from iaEditais.app import app
 from iaEditais.core.database import get_session
+from iaEditais.core.vectorstore import get_vectorstore
 from iaEditais.models import (
     DocumentHistory,
     DocumentStatus,
@@ -33,12 +36,22 @@ from tests.factories import (
 
 
 @pytest.fixture
-def client(session):
+def client(session, engine):
+    async def get_vectorstore_override():
+        vectorstore = PGVector(
+            embeddings=FakeEmbeddings(size=256),
+            connection=str(engine.url),
+            use_jsonb=True,
+            async_mode=True,
+        )
+        yield vectorstore
+
     def get_session_override():
         return session
 
     with TestClient(app) as client:
         app.dependency_overrides[get_session] = get_session_override
+        app.dependency_overrides[get_vectorstore] = get_vectorstore_override
         yield client
 
     app.dependency_overrides.clear()
@@ -46,10 +59,8 @@ def client(session):
 
 @pytest.fixture(scope='session')
 def engine():
-    with PostgresContainer(
-        'pgvector/pgvector:pg17', driver='psycopg'
-    ) as postgres:
-        _engine = create_async_engine(postgres.get_connection_url())
+    with PostgresContainer('pgvector/pgvector:pg17', driver='psycopg') as p:
+        _engine = create_async_engine(p.get_connection_url())
         yield _engine
 
 

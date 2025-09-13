@@ -245,3 +245,17 @@ class DocumentList(BaseModel):
 SourcePublic.model_rebuild()
 TypificationPublic.model_rebuild()
 TaxonomyPublic.model_rebuild()
+
+
+class DocumentReleaseFeedback(BaseModel):
+    feedback: str = Field(
+        description='Parecer detalhado sobre a conformidade do edital com o critério avaliado.'
+    )
+    fulfilled: bool = Field(
+        description='Indica se o edital atende ao requisito especificado (True para cumprido, False para não cumprido).'
+    )
+    score: int = Field(
+        ge=0,
+        le=10,
+        description='Nota atribuída à conformidade do edital com o critério, variando de 0 a 10.',
+    )

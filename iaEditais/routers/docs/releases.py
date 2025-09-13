@@ -4,11 +4,14 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.vectorstores import VectorStore
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from iaEditais.core.database import get_session, get_vectorstore
+from iaEditais.core.database import get_session
+from iaEditais.core.llm import get_model
+from iaEditais.core.vectorstore import get_vectorstore
 from iaEditais.models import DocumentHistory, DocumentRelease, User
 from iaEditais.schemas import (
     DocumentReleaseList,
@@ -26,6 +29,7 @@ router = APIRouter(
 Session = Annotated[AsyncSession, Depends(get_session)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
 VStore = Annotated[VectorStore, Depends(get_vectorstore)]
+Model = Annotated[BaseChatModel, Depends(get_model)]
 
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 
@@ -37,13 +41,14 @@ UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 )
 async def create_release(
     doc_id: UUID,
+    model: Model,
     session: Session,
     vectorstore: VStore,
     current_user: CurrentUser,
     file: UploadFile = File(...),
 ):
     release = await releases_service.create_release(
-        doc_id, session, vectorstore, current_user, file
+        doc_id, model, session, vectorstore, current_user, file
     )
     return release
 
