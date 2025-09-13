@@ -1,5 +1,5 @@
 services:
-  db:
+  iaeditais_db:
     image: pgvector/pgvector:pg17
     container_name: iaeditais_db
     volumes:
@@ -10,8 +10,10 @@ services:
       POSTGRES_PASSWORD: postgres
     ports:
       - "5432:5432"
+    networks:
+      - iaeditais_network
 
-  api:
+  iaeditais_api:
     image: gleidsoncosta/fiotec-iaeditais:latest
     container_name: iaeditais_api
     build:
@@ -21,15 +23,17 @@ services:
     ports:
       - "8000:8000"
     environment:
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@db:5432/iaeditais
+      DATABASE_URL: postgresql+psycopg://postgres:postgres@iaeditais_db:5432/iaeditais
     volumes:
       - storage:/app/iaEditais/storage
     depends_on:
-      - db
+      - iaeditais_db
+    networks:
+      - iaeditais_network
 
-  cache:
+  iaeditais_redis:
     image: redis:latest
-    container_name: fiotec-redis
+    container_name: iaeditais_redis
     ports:
       - "6379:6379"
     volumes:
@@ -40,8 +44,29 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - iaeditais_network
+
+  evolution_api:
+    container_name: evolution_api
+    image: atendai/evolution-api:latest
+    restart: always
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    volumes:
+      - evolution_instances:/evolution/instances
+    networks:
+      - iaeditais_network
 
 volumes:
   dbdata:
   storage:
   cache:
+  evolution_instances:
+
+
+networks:
+  iaeditais_network:
+    driver: bridge

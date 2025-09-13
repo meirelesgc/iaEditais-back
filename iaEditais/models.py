@@ -421,6 +421,10 @@ class DocumentHistory:
     )
     status: Mapped[str] = mapped_column(nullable=False)
 
+    messages: Mapped[List['DocumentMessage']] = relationship(
+        back_populates='history', cascade='all, delete-orphan', init=False
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )
@@ -491,6 +495,59 @@ class DocumentRelease:
     )
     deleted_by: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey('users.id', name='fk_document_releases_deleted_by'),
+        nullable=True,
+        default=None,
+    )
+
+
+@table_registry.mapped_as_dataclass
+class DocumentMessage:
+    __tablename__ = 'document_messages'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False, primary_key=True, default=uuid4
+    )
+
+    history_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            'document_histories.id', name='fk_document_messages_history_id'
+        ),
+        nullable=False,
+    )
+    history: Mapped['DocumentHistory'] = relationship(
+        back_populates='messages', init=False
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey('users.id', name='fk_document_messages_user_id'),
+        nullable=False,
+    )
+    user: Mapped['User'] = relationship(init=False, foreign_keys=[user_id])
+
+    message: Mapped[str] = mapped_column(nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+    updated_at: Mapped[Optional[datetime]] = mapped_column(
+        init=False, onupdate=func.now()
+    )
+    deleted_at: Mapped[Optional[datetime]] = mapped_column(
+        init=False, nullable=True
+    )
+
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_document_messages_created_by'),
+        nullable=True,
+        default=None,
+    )
+    updated_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_document_messages_updated_by'),
+        nullable=True,
+        default=None,
+    )
+    deleted_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_document_messages_deleted_by'),
         nullable=True,
         default=None,
     )
