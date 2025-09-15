@@ -28,7 +28,7 @@ from iaEditais.repositories import source_repository
 def load_documents(path: str):
     if path.endswith('.pdf'):
         document_loader = PyMuPDFLoader(path)
-    if path.endswith('.pdf'):
+    if path.endswith('.docx'):
         document_loader = Docx2txtLoader(path)
     return document_loader.load()
 
@@ -291,7 +291,7 @@ async def process_release_taxonomy(chain, release, input_vars, key, redis):
 
 
 async def process_branch(
-    conn, typification, taxonomy, branch, vector_store: VectorStore
+    conn, typification, taxonomy, branch, vector_store: VectorStore, release
 ):
     source_ids = typification.get('source', []) + taxonomy.get('source', [])
     sources = []
@@ -303,7 +303,8 @@ async def process_branch(
     docs = []
     pages = []
     query = f'{branch.get("title")} {branch.get("description")}'
-    for d in await vector_store.asimilarity_search(query=query, k=3):
+    filter_source = {'source': {'$eq': f'storage/releases/{release.id}.pdf'}}
+    for d in await vector_store.asimilarity_search(query=query, k=3, filter=filter_source):
         docs.append(d.page_content)
         pages.append(d.metadata['page'])
 
@@ -324,7 +325,7 @@ async def build_vars(conn, release, vectorstore):
     for typification in release.taxonomy:
         for taxonomy in typification.get('taxonomy', []):
             for branch in taxonomy.get('branch', []):
-                _branch = await process_branch(conn, typification, taxonomy, branch, vectorstore)  # fmt: skip # noqa: E261, E501
+                _branch = await process_branch(conn, typification, taxonomy, branch, vectorstore, release)  # fmt: skip # noqa: E261, E501
                 input_vars.append(_branch)
     return input_vars
 

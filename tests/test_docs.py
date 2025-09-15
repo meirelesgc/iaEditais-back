@@ -9,7 +9,7 @@ from iaEditais.models import doc as doc_model
 async def test_doc_post(client, create_typification):
     ty = await create_typification()
     id = str(ty.id)
-    payload = {'name': 'doc', 'typification': [id]}
+    payload = {'name': 'doc', 'identifier': 'TEST-001','typification': [id]}
     response = client.post('/doc/', json=payload)
     assert response.status_code == HTTPStatus.CREATED
 

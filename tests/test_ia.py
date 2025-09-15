@@ -1,0 +1,390 @@
+# tests/test_ia.py
+import json
+import os
+import pytest
+import pandas as pd
+from pathlib import Path
+from typing import List, Dict, Any
+from deepeval.test_case import LLMTestCase, LLMTestCaseParams
+from deepeval.metrics import GEval
+
+# Documentos de teste corretos
+TEST_PDFS_CORRETOS = [
+    "tests/storage/llm/pdf24_merged - 2025-07-11T091822.111.pdf",
+]
+
+# Documentos de teste incorretos
+TEST_PDFS_INCORRETOS = [
+    "tests/storage/llm/INCORRETO - pdf24_merged - 2025-07-11T091822.111.pdf",
+]
+
+# Fixture que configura toda os dados necessários para os tests da LLM
+@pytest.fixture(scope="session")
+def ai_test_data_setup(ai_client):
+    # Caminho para o arquivo Excel
+    excel_path = "tests/tree_test_editais.xlsx"
+    # Ler o arquivo Excel com as os dados de teste
+    df = pd.read_excel(excel_path, sheet_name=0)
+    # Converter DataFrame para lista de dicionários
+    test_data = df.to_dict('records')
+
+    typifications = {}
+    
+    # Processar cada linha do Excel para pegar as tipificações
+    for row in test_data:
+        typification_name = row.get('typification_name')
+        
+        if typification_name and typification_name not in typifications:
+            try:
+                # Criar tipificação via API usando cliente com componentes reais
+                typification_response = ai_client.post(
+                    "/typification/",
+                    json={"name": typification_name}
+                )
+                
+                assert typification_response.status_code == 201
+                typifications[typification_name] = typification_response.json()["id"]
+                print(f"✅ Tipificação criada: {typification_name}")
+                
+            except Exception as e:
+                pytest.fail(f"Erro ao criar tipificação '{typification_name}': {e}")
+    
+    taxonomies = {}
+    
+    # Processar cada linha do Excel para pegar as taxonomias
+    for row in test_data:
+        taxonomy_title = row.get('taxonomy_title')
+        taxonomy_description = row.get('taxonomy_description')
+        
+        if taxonomy_title and taxonomy_title not in taxonomies:
+            # Obter typification_id da linha atual
+            typification_name = row.get('typification_name')         
+            try:
+                # Criar taxonomia via API usando cliente com componentes reais
+                taxonomy_response = ai_client.post(
+                    "/taxonomy/",
+                    json={
+                        "typification_id": typifications[typification_name],
+                        "title": taxonomy_title,
+                        "description": taxonomy_description
+                    }
+                )
+                
+                # Debug: verificar resposta em caso de erro
+                if taxonomy_response.status_code != 201:
+                    print(f"❌ Erro ao criar taxonomia '{taxonomy_title}':")
+                    print(f"   Status: {taxonomy_response.status_code}")
+                    print(f"   Resposta: {taxonomy_response.text}")
+                    pytest.fail(f"Erro ao criar taxonomia '{taxonomy_title}': Status {taxonomy_response.status_code} - {taxonomy_response.text}")
+                
+                assert taxonomy_response.status_code == 201
+                taxonomies[taxonomy_title] = taxonomy_response.json()["id"]
+                print(f"✅ Taxonomia criada: {taxonomy_title}")
+                
+            except Exception as e:
+                pytest.fail(f"Erro ao criar taxonomia '{taxonomy_title}': {e}")
+    
+    branches = {}
+    
+    # Processar cada linha do Excel para extrair branches únicas
+    for row in test_data:
+        branch_title = row.get('branch_title', '').strip()
+        branch_description = row.get('branch_description', '').strip()
+        taxonomy_title = row.get('taxonomy_title', '').strip()
+            
+        try:
+            # Criar branch via API usando cliente com componentes reais
+            branch_response = ai_client.post(
+                "/taxonomy/branch/",
+                json={
+                    "title": branch_title,
+                    "description": branch_description,
+                    "taxonomy_id": taxonomies[taxonomy_title]
+                }
+            )
+                
+            assert branch_response.status_code == 201
+            branches[branch_title] = branch_response.json()["id"]
+            print(f"✅ Branch criada: {branch_title}")
+            
+        except Exception as e:
+            pytest.fail(f"Erro ao criar branch '{branch_title}': {e}")
+    
+    return {
+        "typifications": typifications,    # IDs das tipificações criadas
+        "taxonomies": taxonomies,          # IDs das taxonomias criadas
+        "branches": branches,              # IDs das branches criadas
+        "test_data": test_data,            # Dados originais do Excel
+    }
+
+# Teste para documento que DEVE passar nos critérios de avaliação.
+@pytest.mark.asyncio
+async def test_llm_edital_correto(ai_client, ai_test_data_setup):
+
+    pdf_path = TEST_PDFS_CORRETOS[0]
+    setup_data = ai_test_data_setup
+    
+    # Verificar se o arquivo existe
+    if not os.path.exists(pdf_path):
+        pytest.skip(f"Arquivo PDF não encontrado: {pdf_path}")
+    
+    with open(pdf_path, 'rb') as f:
+        pdf_content = f.read()
+        print(f"\n🔄 Processando documento CORRETO: {Path(pdf_path).name}")
+
+    typification_ids = list(setup_data["typifications"].values())
+    
+    # Criar documento no sistema
+    doc_response = ai_client.post(
+        "/doc/",
+        json={
+            "name": f"Edital de teste CORRETO - {Path(pdf_path).stem}",
+            "identifier": f"CORRETO-{Path(pdf_path).stem}",
+            "description": "Documento para teste de IA - Caso CORRETO",
+            "typification": typification_ids
+        }
+    )
+        
+    # Verificar se o documento foi criado com sucesso
+    assert doc_response.status_code == 201, f"Erro ao criar documento: {doc_response.text}"
+    doc_data = doc_response.json()
+    doc_id = doc_data["id"]
+    print(f"✅ Documento criado: {doc_id}")
+
+    # Preparar arquivo para upload
+    files = {"file": (Path(pdf_path).name, pdf_content, "application/pdf")}
+    
+    # Processar documento com IA real
+    release_response = ai_client.post(
+        f"/doc/{doc_id}/release/",
+        files=files
+    )
+    
+    # Verificar se o processamento foi bem-sucedido
+    assert release_response.status_code == 201, f"Erro no processamento: {release_response.text}"
+    release_data = release_response.json()
+
+    # Resultados esperados para documento CORRETO
+    expected_output_correto = {
+        "Cadastro no SICAF e ramo de atividade compatível": {
+            "feedback": "O critério específico Cadastro no SICAF e ramo de atividade compatível está contemplado no edital.",
+            "fulfilled": True
+        },
+        "Condições especiais sobre Micros e Pequenas Empresas": {
+            "feedback": "O critério específico sobre as condições para Micros e Pequenas Empresas está contemplado no edital, especificamente nas seções que mencionam os benefícios destinados a microempresas e empresas de pequeno porte, conforme a Lei Complementar n. 123/2006.",
+            "fulfilled": True
+        }
+    }
+    
+    # Processar cada branch do resultado
+    branches_processed = 0
+    for typification in release_data["taxonomy"]:
+        for taxonomy in typification.get("taxonomy", []):
+            branches_in_taxonomy = taxonomy.get("branch", [])
+            
+            # Processar cada branch da Taxonomia
+            for branch in branches_in_taxonomy:
+                branches_processed += 1
+                branch_title = branch.get("title")
+                
+                # Pega os dados da avaliação do branch
+                evaluate_data = branch["evaluate"]
+                actual_fulfilled = evaluate_data.get("fulfilled")
+                actual_feedback = evaluate_data.get("feedback")
+                
+
+                if branch_title in expected_output_correto:
+                    expected_data = expected_output_correto[branch_title]
+                    expected_fulfilled = expected_data["fulfilled"]
+                    expected_feedback = expected_data["feedback"]
+                    
+                    print(f"Branch: {branch_title}")
+                    print(f"Fulfilled retornado: {actual_fulfilled}")
+                    print(f"Fulfilled esperado: {expected_fulfilled}")
+                    print(f"Feedback retornado: {actual_feedback}") 
+                    print(f"Feedback esperado: {expected_feedback}")
+                    
+                    # TESTE 1: Verificar se fulfilled está correto
+                    assert actual_fulfilled == expected_fulfilled, \
+                        f"Fulfilled incorreto para {branch_title}. Esperado: {expected_fulfilled}, Atual: {actual_fulfilled}"
+                    
+                    # TESTE 2: Avaliar precisão do feedback
+                    precision_test_case = LLMTestCase(
+                        input=f"Avaliar critério: {branch_title}",
+                        actual_output=actual_feedback,
+                        expected_output=expected_feedback
+                    )
+                    
+                    precision_metric = GEval(
+                        name="Precision",
+                        criteria="Evaluate the precision of the analysis based on the expected criteria.",
+                        evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
+                        evaluation_steps=[
+                            "Verifique se o feedback está alinhado com o critério esperado",
+                            "Verifique se a análise é objetiva e mensurável",
+                            "Verifique se não há informações contraditórias"
+                        ]
+                    )
+                    
+                    precision_score = precision_metric.measure(precision_test_case)
+                    print(f"📊 Precisão: {precision_score:.2f}")
+                    
+                    # Verificar threshold de precisão (mais rigoroso para documento correto)
+                    assert precision_score >= 0.7, f"Baixa precisão para {branch_title}: {precision_score}"
+                    
+                    # TESTE 3: Avaliar correctness
+                    correctness_test_case = LLMTestCase(
+                        input=f"Avaliar critério: {branch_title}",
+                        actual_output=actual_feedback,
+                        expected_output=expected_feedback
+                    )
+                    
+                    correctness_metric = GEval(
+                        name="Correctness",
+                        criteria="Determine if the 'actual output' is correct based on the 'expected output'.",
+                        evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
+                        threshold=0.5
+                    )
+                    
+                    correctness_score = correctness_metric.measure(correctness_test_case)
+                    print(f"  📊 Correctness: {correctness_score:.2f}")
+                    
+                    # Verificar threshold de correctness
+                    assert correctness_score >= 0.5, f"Baixa correctness para {branch_title}: {correctness_score}"
+
+@pytest.mark.asyncio
+async def test_llm_edital_incorreto(ai_client, ai_test_data_setup):
+    pdf_path = TEST_PDFS_INCORRETOS[0]
+    setup_data = ai_test_data_setup
+    
+    if not os.path.exists(pdf_path):
+        pytest.skip(f"Arquivo PDF incorreto não encontrado: {pdf_path}")
+    
+    with open(pdf_path, 'rb') as f:
+        pdf_content = f.read()
+        print(f"\n🔄 Processando documento INCORRETO: {Path(pdf_path).name}")
+
+    typification_ids = list(setup_data["typifications"].values())
+    
+    # Criar documento no sistema
+    doc_response = ai_client.post(
+        "/doc/",
+        json={
+            "name": f"Edital de teste INCORRETO - {Path(pdf_path).stem}",
+            "identifier": f"INCORRETO-{Path(pdf_path).stem}",
+            "description": "Documento para teste de IA - Caso INCORRETO",
+            "typification": typification_ids
+        }
+    )
+        
+    # Verificar se o documento foi criado com sucesso
+    assert doc_response.status_code == 201, f"Erro ao criar documento: {doc_response.text}"
+    doc_data = doc_response.json()
+    doc_id = doc_data["id"]
+    print(f"✅ Documento criado: {doc_id}")
+
+    # Preparar arquivo para upload
+    files = {"file": (Path(pdf_path).name, pdf_content, "application/pdf")}
+    
+    # Processar documento com IA real
+    release_response = ai_client.post(
+        f"/doc/{doc_id}/release/",
+        files=files
+    )
+    
+    # Verificar se o processamento foi bem-sucedido
+    assert release_response.status_code == 201, f"Erro no processamento: {release_response.text}"
+    release_data = release_response.json()
+
+    # Resultados esperados para documento INCORRETO
+    expected_output_incorreto = {
+        "Cadastro no SICAF e ramo de atividade compatível": {
+            "feedback": "O critério específico Cadastro no SICAF e ramo de atividade compatível NÃO está contemplado no edital",
+            "fulfilled": False
+        },
+        "Condições especiais sobre Micros e Pequenas Empresas": {
+            "feedback": "O critério específico sobre as condições para Micros e Pequenas Empresas NÃO está contemplado no edital",
+            "fulfilled": False
+        }
+    }
+    
+    # Processar cada branch do resultado
+    branches_processed = 0
+    for typification in release_data["taxonomy"]:
+        for taxonomy in typification.get("taxonomy", []):
+            branches_in_taxonomy = taxonomy.get("branch", [])
+            
+            # Processar cada branch da Taxonomia
+            for branch in branches_in_taxonomy:
+                branches_processed += 1
+                branch_title = branch.get("title")
+                
+                # Pega os dados da avaliação do branch
+                evaluate_data = branch["evaluate"]
+                actual_fulfilled = evaluate_data.get("fulfilled")
+                actual_feedback = evaluate_data.get("feedback")
+                
+                if branch_title in expected_output_incorreto:
+                    expected_data = expected_output_incorreto[branch_title]
+                    expected_fulfilled = expected_data["fulfilled"]
+                    expected_feedback = expected_data["feedback"]
+                    
+                    print(f"Branch: {branch_title}")
+                    print(f"Fulfilled retornado: {actual_fulfilled}")
+                    print(f"Fulfilled esperado: {expected_fulfilled}")
+                    print(f"Feedback retornado: {actual_feedback}") 
+                    print(f"Feedback esperado: {expected_feedback}")
+                    
+                    # TESTE 1: Verificar se fulfilled está correto (deve ser False para documento incorreto)
+                    assert actual_fulfilled == expected_fulfilled, \
+                        f"Fulfilled incorreto para {branch_title}. Esperado: {expected_fulfilled}, Atual: {actual_fulfilled}"
+                    
+                    # TESTE 2: Avaliar precisão do feedback
+                    precision_test_case = LLMTestCase(
+                        input=f"Avaliar critério: {branch_title}",
+                        actual_output=actual_feedback,
+                        expected_output=expected_feedback
+                    )
+                    
+                    precision_metric = GEval(
+                        name="Precision",
+                        criteria="Evaluate the precision of the analysis based on the expected criteria.",
+                        evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
+                        evaluation_steps=[
+                            "Verifique se o feedback indica corretamente que o critério NÃO foi atendido",
+                            "Verifique se a análise é objetiva e mensurável",
+                            "Verifique se não há informações contraditórias"
+                        ]
+                    )
+                    
+                    precision_score = precision_metric.measure(precision_test_case)
+                    print(f"  📊 Precisão: {precision_score:.2f}")
+                    
+                    # Verificar threshold de precisão (mais flexível para documento incorreto)
+                    assert precision_score >= 0.7, f"Baixa precisão para {branch_title}: {precision_score}"
+                    
+                    # TESTE 3: Avaliar correctness
+                    correctness_test_case = LLMTestCase(
+                        input=f"Avaliar critério: {branch_title}",
+                        actual_output=actual_feedback,
+                        expected_output=expected_feedback
+                    )
+                    
+                    correctness_metric = GEval(
+                        name="Correctness",
+                        criteria="Determine if the 'actual output' is correct based on the 'expected output'.",
+                        evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
+                        threshold=0.5
+                    )
+                    
+                    correctness_score = correctness_metric.measure(correctness_test_case)
+                    print(f"  📊 Correctness: {correctness_score:.2f}")
+                    
+                    # Verificar threshold de correctness
+                    assert correctness_score >= 0.5, f"Baixa correctness para {branch_title}: {correctness_score}"
+                    
+                    print(f"  ✅ Branch INCORRETA {branch_title} passou em todos os testes!")
+                else:
+                    print(f"  ⚠️ Branch '{branch_title}' não está no resultado esperado")
+    
+    print(f"✅ Teste INCORRETO concluído: {branches_processed} branches processadas")

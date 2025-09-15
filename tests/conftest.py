@@ -2,6 +2,11 @@ import json
 from pathlib import Path
 from typing import override
 
+# Imports for windows
+import sys
+import asyncio
+import os
+
 import fakeredis.aioredis
 import pytest
 import pytest_asyncio
@@ -38,6 +43,9 @@ from tests.factories import (
     user_factory,
 )
 
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
+
 
 @pytest.fixture(scope='session', autouse=True)
 def postgres():
@@ -52,14 +60,33 @@ async def reset_database(conn: Connection):
         await conn.exec(buffer.read())
 
 
-@pytest_asyncio.fixture
-async def conn(postgres):
-    connection_url = f'postgresql://{postgres.username}:{postgres.password}@{postgres.get_container_host_ip()}:{postgres.get_exposed_port(5432)}/{postgres.dbname}'
-    conn = Connection(connection_url, max_size=20, timeout=10)
-    await conn.connect()
-    await reset_database(conn)
-    yield conn
-    await conn.disconnect()
+@pytest.fixture(scope="session")
+def conn(postgres):
+    import asyncio
+    
+    async def _get_conn():
+        connection_url = f'postgresql://{postgres.username}:{postgres.password}@{postgres.get_container_host_ip()}:{postgres.get_exposed_port(5432)}/{postgres.dbname}'
+        conn = Connection(connection_url, max_size=20, timeout=10)
+        await conn.connect()
+        await reset_database(conn)
+        return conn
+    
+    # Criar event loop para sessão
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    
+    try:
+        conn = loop.run_until_complete(_get_conn())
+        yield conn
+    finally:
+        # Verificar se o loop ainda está aberto antes de usar
+        if not loop.is_closed():
+            try:
+                loop.run_until_complete(conn.disconnect())
+            except Exception:
+                pass
+            finally:
+                loop.close()
 
 
 @pytest_asyncio.fixture
@@ -265,3 +292,51 @@ def login(client, get_token):
         return client
 
     return _login
+
+
+@pytest.fixture(scope="session")
+def real_model():
+    from langchain_openai import ChatOpenAI
+    return ChatOpenAI(
+        model="gpt-4o-mini",
+        api_key=os.getenv("OPENAI_API_KEY")
+    )
+
+@pytest.fixture(scope="session") 
+def real_vectorstore(postgres):
+    from langchain_openai import OpenAIEmbeddings
+    from langchain_postgres import PGVector
+    
+    embeddings = OpenAIEmbeddings(
+        model="text-embedding-3-small",
+        api_key=os.getenv("OPENAI_API_KEY")
+    )
+    
+    connection_string = f'postgresql+psycopg://{postgres.username}:{postgres.password}@{postgres.get_container_host_ip()}:{postgres.get_exposed_port(5432)}/{postgres.dbname}'
+    
+    return PGVector(
+        embeddings=embeddings,
+        connection=connection_string,
+        use_jsonb=True,
+        pre_delete_collection=True,
+        async_mode=True
+    )
+
+@pytest.fixture(scope="session")
+def real_cache():
+    import redis.asyncio as redis
+    
+    return redis.Redis(
+        host=os.getenv("REDIS_HOST", "localhost"),
+        port=int(os.getenv("REDIS_PORT", 6379)),
+        db=1
+    )
+
+@pytest.fixture(scope="session")
+def ai_client(conn, real_model, real_vectorstore, real_cache):
+    app.dependency_overrides[get_conn] = lambda: conn
+    app.dependency_overrides[get_model] = lambda: real_model
+    app.dependency_overrides[get_vectorstore] = lambda: real_vectorstore
+    app.dependency_overrides[get_cache] = lambda: real_cache
+    
+    return TestClient(app)

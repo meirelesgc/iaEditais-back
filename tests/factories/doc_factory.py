@@ -11,6 +11,7 @@ class CreateDocFactory(factory.Factory):
         model = CreateDoc
 
     name = factory.Faker('word')
+    identifier = factory.Faker('bothify', text='DOC-####')
     typification = factory.LazyFunction(lambda: [uuid.uuid4()])
 
 

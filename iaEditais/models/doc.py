@@ -9,7 +9,7 @@ class CreateDoc(BaseModel):
     name: str
     identifier: str
     description: Optional[str] = None
-    editors: list[UUID]
+    editors: Optional[list[UUID]] = []
     typification: list[UUID]
 
 
