@@ -28,7 +28,7 @@ from iaEditais.repositories import source_repository
 def load_documents(path: str):
     if path.endswith('.pdf'):
         document_loader = PyMuPDFLoader(path)
-    if path.endswith('.pdf'):
+    if path.endswith('.docx') or path.endswith('.doc'):
         document_loader = Docx2txtLoader(path)
     return document_loader.load()
 
