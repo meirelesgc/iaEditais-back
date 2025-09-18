@@ -1,10 +1,12 @@
 from contextlib import contextmanager
 from datetime import datetime
+from typing import override
 
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
 from langchain_community.embeddings import FakeEmbeddings
+from langchain_core.language_models.fake_chat_models import FakeChatModel
 from langchain_postgres import PGVector
 from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
@@ -12,10 +14,12 @@ from testcontainers.postgres import PostgresContainer
 
 from iaEditais.app import app
 from iaEditais.core.database import get_session
+from iaEditais.core.llm import get_model
 from iaEditais.core.vectorstore import get_vectorstore
 from iaEditais.models import (
     DocumentHistory,
     DocumentStatus,
+    Source,
     Taxonomy,
     Typification,
     table_registry,
@@ -41,11 +45,19 @@ def client(session, engine):
     async def get_vectorstore_override():
         vectorstore = PGVector(
             embeddings=FakeEmbeddings(size=256),
-            connection=str(engine.url),
+            connection=engine.url.render_as_string(hide_password=False),
             use_jsonb=True,
             async_mode=True,
         )
         yield vectorstore
+
+    async def get_model_override():
+        class FakeModel(FakeChatModel):
+            @override
+            def _call(self, messages, stop=None, run_manager=None, **kwargs):
+                return '{"feedback": "", "fulfilled": true, "score": "3"}'
+
+        return FakeModel()
 
     def get_session_override():
         return session
@@ -53,6 +65,7 @@ def client(session, engine):
     with TestClient(app) as client:
         app.dependency_overrides[get_session] = get_session_override
         app.dependency_overrides[get_vectorstore] = get_vectorstore_override
+        app.dependency_overrides[get_model] = get_model_override
         yield client
 
     app.dependency_overrides.clear()
@@ -172,13 +185,23 @@ def create_source(session):
 @pytest_asyncio.fixture
 def create_typification(session):
     async def _create_typification(**kwargs):
-        typification = TypificationFactory.build(**kwargs)
-        session.add(typification)
+        source_ids = kwargs.pop('source_ids', None)
+        db_typification = TypificationFactory.build(**kwargs)
+
+        if source_ids:
+            sources = await session.scalars(
+                select(Source).where(Source.id.in_(source_ids))
+            )
+            db_typification.sources = sources.all()
+
+        session.add(db_typification)
         await session.commit()
         await session.refresh(
-            typification, attribute_names=['sources', 'taxonomies']
+            db_typification, attribute_names=['sources', 'taxonomies']
         )
-        return typification
+        for source in db_typification.sources:
+            await session.refresh(source, attribute_names=['typifications'])
+        return db_typification
 
     return _create_typification
 

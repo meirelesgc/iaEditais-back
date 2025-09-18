@@ -481,6 +481,13 @@ class DocumentRelease:
 
     file_path: Mapped[str] = mapped_column(nullable=False)
 
+    typifications: Mapped[List['AppliedTypification']] = relationship(
+        'AppliedTypification',
+        back_populates='release',
+        default_factory=list,
+        init=False,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )
@@ -555,6 +562,221 @@ class DocumentMessage:
     )
     deleted_by: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey('users.id', name='fk_document_messages_deleted_by'),
+        nullable=True,
+        default=None,
+    )
+
+
+@table_registry.mapped_as_dataclass
+class AppliedSource:
+    __tablename__ = 'applied_sources'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False, primary_key=True, default=uuid4
+    )
+
+    name: Mapped[str] = mapped_column(unique=False, nullable=False)
+
+    typifications: Mapped[List['AppliedTypification']] = relationship(
+        secondary='applied_typification_sources',
+        back_populates='sources',
+        default_factory=list,
+        init=False,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+
+    original_id: Mapped[Optional[UUID]] = mapped_column(
+        nullable=True,
+        default=None,
+    )
+    description: Mapped[Optional[str]] = mapped_column(
+        nullable=True, default=None
+    )
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        nullable=True,
+        default=None,
+    )
+
+
+@table_registry.mapped_as_dataclass
+class AppliedTypificationSource:
+    __tablename__ = 'applied_typification_sources'
+
+    typification_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            'applied_typifications.id',
+            name='fk_applied_typ_source_typification_id',
+        ),
+        primary_key=True,
+    )
+
+    source_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            'applied_sources.id', name='fk_applied_typ_source_source_id'
+        ),
+        primary_key=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_applied_typ_source_created_by'),
+        nullable=True,
+        default=None,
+    )
+
+
+@table_registry.mapped_as_dataclass
+class AppliedTypification:
+    __tablename__ = 'applied_typifications'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False, primary_key=True, default=uuid4
+    )
+    name: Mapped[str] = mapped_column(nullable=False)
+
+    applied_release_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            'document_releases.id',
+            name='fk_applied_typification_release_id',
+        ),
+        nullable=False,
+    )
+
+    release: Mapped['DocumentRelease'] = relationship(
+        back_populates='typifications', init=False
+    )
+
+    original_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey(
+            'typifications.id',
+            name='fk_applied_typification_original_id',
+        ),
+        nullable=True,
+        default=None,
+    )
+
+    taxonomies: Mapped[List['AppliedTaxonomy']] = relationship(
+        back_populates='typification',
+        default_factory=list,
+        init=False,
+    )
+
+    sources: Mapped[List[AppliedSource]] = relationship(
+        'AppliedSource',
+        secondary='applied_typification_sources',
+        back_populates='typifications',
+        default_factory=list,
+        init=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_applied_typification_created_by'),
+        nullable=True,
+        default=None,
+    )
+
+
+@table_registry.mapped_as_dataclass
+class AppliedTaxonomy:
+    __tablename__ = 'applied_taxonomies'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False, primary_key=True, default=uuid4
+    )
+
+    title: Mapped[str] = mapped_column(nullable=False)
+
+    applied_typification_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            'applied_typifications.id',
+            name='fk_applied_taxonomy_typification_id',
+        ),
+        nullable=False,
+    )
+
+    description: Mapped[Optional[str]] = mapped_column(
+        nullable=True, default=None
+    )
+
+    typification: Mapped['AppliedTypification'] = relationship(
+        back_populates='taxonomies', init=False
+    )
+
+    original_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('taxonomies.id', name='fk_applied_taxonomy_original_id'),
+        nullable=True,
+        default=None,
+    )
+
+    branches: Mapped[List['AppliedBranch']] = relationship(
+        back_populates='taxonomy',
+        default_factory=list,
+        init=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_applied_taxonomy_created_by'),
+        nullable=True,
+        default=None,
+    )
+
+
+@table_registry.mapped_as_dataclass
+class AppliedBranch:
+    __tablename__ = 'applied_branches'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False, primary_key=True, default=uuid4
+    )
+    title: Mapped[str] = mapped_column(nullable=False)
+
+    applied_taxonomy_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            'applied_taxonomies.id', name='fk_applied_branch_taxonomy_id'
+        ),
+        nullable=False,
+    )
+    description: Mapped[Optional[str]] = mapped_column(
+        nullable=True, default=None
+    )
+
+    taxonomy: Mapped['AppliedTaxonomy'] = relationship(
+        back_populates='branches', init=False
+    )
+
+    original_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('branches.id', name='fk_applied_branch_original_id'),
+        nullable=True,
+        default=None,
+    )
+
+    feedback: Mapped[Optional[str]] = mapped_column(
+        nullable=True, default=None
+    )
+    fulfilled: Mapped[Optional[bool]] = mapped_column(
+        nullable=True, default=None
+    )
+    score: Mapped[Optional[int]] = mapped_column(nullable=True, default=None)
+
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_applied_branch_created_by'),
         nullable=True,
         default=None,
     )

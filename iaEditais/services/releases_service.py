@@ -2,7 +2,7 @@ import os
 import shutil
 import uuid
 from http import HTTPStatus
-from typing import Annotated
+from typing import Annotated, Optional
 from uuid import UUID
 
 from fastapi import Depends, File, HTTPException, UploadFile
@@ -16,8 +16,14 @@ from iaEditais.core.database import get_session
 from iaEditais.core.llm import get_model
 from iaEditais.core.vectorstore import get_vectorstore
 from iaEditais.models import (
+    AppliedBranch,
+    AppliedSource,
+    AppliedTaxonomy,
+    AppliedTypification,
+    AppliedTypificationSource,
     Branch,
     DocumentRelease,
+    Source,
     Taxonomy,
     Typification,
     User,
@@ -90,7 +96,7 @@ async def create_release(
     db_release = await releases_repository.insert_db_release(
         latest_history, file_path, session, current_user
     )
-    # await process_release(model, session, vectorstore, db_release)
+    response = await process_release(model, session, vectorstore, db_release)
     return db_release
 
 
@@ -98,18 +104,18 @@ async def process_release(
     model: Model,
     session: Session,
     vectorstore: VStore,
-    release: DocumentRelease,
+    db_release: DocumentRelease,
 ):
-    check_tree = await releases_repository.get_check_tree(session, release)
+    check_tree = await releases_repository.get_check_tree(session, db_release)
     if not check_tree:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
             detail='There are no associated typifications',
         )
     chain = get_chain(model)
-    input_vars = await get_vars(check_tree, session, vectorstore, release)
-
-    print('Caminho feliz')
+    input_vars = await get_vars(check_tree, session, vectorstore, db_release)
+    response = await aplly_check_tree(chain, db_release, input_vars)
+    return await save_result(session, db_release, check_tree, response)
 
 
 def get_chain(model: Model):
@@ -167,12 +173,15 @@ async def get_vars(
     vectorstore: VStore,
     release: DocumentRelease,
 ):
+    input_vars = list()
     for typification in check_tree:
         for taxonomy in typification.taxonomies:
             for branch in taxonomy.branches:
                 _branch = await process_branch(
                     typification, taxonomy, branch, vectorstore
                 )
+                input_vars.append(_branch)
+    return input_vars
 
 
 async def process_branch(
@@ -181,9 +190,11 @@ async def process_branch(
     branch: Branch,
     vectorstore: VStore,
 ):
-    sources = [f'{s.name}\n{s.description}' for s in {typification.sources}]
+    sources = [f'{s.name}\n{s.description}' for s in typification.sources]
     query = f'{branch.title} {branch.description}'
-    c = [d.page_content for d in vectorstore.similarity_search(query, k=3)]
+    c = list()
+    for d in await vectorstore.asimilarity_search(query, k=3):
+        c.append(d.page_content)
     return {
         'docs': c,
         'taxonomy_title': taxonomy.title,
@@ -193,3 +204,124 @@ async def process_branch(
         'taxonomy_branch_description': branch.description,
         'query': 'Justifique sua resposta com base no conteúdo do edital.',
     }
+
+
+async def aplly_check_tree(chain, release, input_vars):
+    response = chain.batch(input_vars)
+    return response
+
+
+async def apply_typification(
+    session: Session,
+    db_release: DocumentRelease,
+    typification: Typification,
+):
+    applied_typ = AppliedTypification(
+        name=typification.name,
+        applied_release_id=db_release.id,
+        original_id=typification.id,
+    )
+    session.add(applied_typ)
+    await session.flush()
+    return applied_typ
+
+
+async def apply_source(session: Session, source_cache: dict, source: Source):
+    key = getattr(source, 'id', None) or getattr(source, 'name', None)
+    applied_src = source_cache.get(key)
+    if not applied_src:
+        applied_src = AppliedSource(
+            name=source.name,
+            description=getattr(source, 'description', None),
+            original_id=getattr(source, 'id', None),
+        )
+        session.add(applied_src)
+        await session.flush()
+        source_cache[key] = applied_src
+    return applied_src
+
+
+async def link_typification_sources(
+    session: Session,
+    applied_typ: AppliedTypification,
+    typification: Typification,
+    source_cache: dict,
+):
+    for source in getattr(typification, 'sources', []):
+        applied_src = await apply_source(session, source_cache, source)
+        session.add(
+            AppliedTypificationSource(
+                typification_id=applied_typ.id,
+                source_id=applied_src.id,
+            )
+        )
+
+
+async def apply_taxonomy(
+    session: Session, applied_typ: AppliedTypification, taxonomy: Taxonomy
+):
+    applied_tax = AppliedTaxonomy(
+        title=taxonomy.title,
+        description=taxonomy.description,
+        applied_typification_id=applied_typ.id,
+        original_id=taxonomy.id,
+    )
+    session.add(applied_tax)
+    await session.flush()
+    return applied_tax
+
+
+async def apply_branch(
+    session: Session,
+    applied_tax: AppliedTaxonomy,
+    branch: 'Branch',
+    resp: dict,
+):
+    applied_branch = AppliedBranch(
+        title=branch.title,
+        description=branch.description,
+        applied_taxonomy_id=applied_tax.id,
+        original_id=branch.id,
+        feedback=resp.get('feedback'),
+        fulfilled=resp.get('fulfilled'),
+        score=resp.get('score'),
+    )
+    session.add(applied_branch)
+    return applied_branch
+
+
+async def save_result(
+    session: Session,
+    db_release: DocumentRelease,
+    check_tree: list[Typification],
+    response: list,
+):
+    input_vars = []
+    response_index = 0
+    source_cache: dict[Optional[UUID], 'AppliedSource'] = {}
+
+    for typification in check_tree:
+        applied_typ = await apply_typification(
+            session, db_release, typification
+        )
+        await link_typification_sources(
+            session, applied_typ, typification, source_cache
+        )
+
+        for taxonomy in typification.taxonomies:
+            applied_tax = await apply_taxonomy(session, applied_typ, taxonomy)
+
+            for branch in taxonomy.branches:
+                resp = (
+                    response[response_index]
+                    if response_index < len(response)
+                    else {}
+                )
+                applied_branch = await apply_branch(
+                    session, applied_tax, branch, resp or {}
+                )
+                input_vars.append(applied_branch)
+                response_index += 1
+
+    await session.commit()
+    return input_vars

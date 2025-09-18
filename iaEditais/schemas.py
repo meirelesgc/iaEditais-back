@@ -133,7 +133,6 @@ class BranchUpdate(BranchSchema):
 
 class SourcePublic(SourceSchema):
     id: UUID
-    typifications: list[TypificationPublic]
 
     created_at: datetime
     updated_at: Optional[datetime] = None

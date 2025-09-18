@@ -22,12 +22,17 @@ async def test_create_release(
     logged_client,
     create_doc,
     mock_upload_directory,
+    create_source,
     create_typification,
     create_taxonomy,
     create_branch,
 ):
-    typification = await create_typification()
+    sources = await create_source(), await create_source()
+    typification = await create_typification(
+        source_ids=[s.id for s in sources]
+    )
     taxonomy = await create_taxonomy(typification_id=typification.id)
+    await create_branch(taxonomy_id=taxonomy.id)
     await create_branch(taxonomy_id=taxonomy.id)
     client, *_ = await logged_client()
     doc = await create_doc(
