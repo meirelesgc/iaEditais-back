@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from iaEditais.core.database import get_session
 from iaEditais.models import (
@@ -90,6 +91,10 @@ async def read_docs(
     query = await session.scalars(
         select(Document)
         .where(Document.deleted_at.is_(None))
+        .options(
+            selectinload(Document.history),
+            selectinload(Document.typifications),
+        )
         .offset(filters.offset)
         .limit(filters.limit)
     )
