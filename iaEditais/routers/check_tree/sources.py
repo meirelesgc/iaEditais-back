@@ -11,7 +11,6 @@ from iaEditais.core.database import get_session
 from iaEditais.models import Source, User
 from iaEditais.schemas import (
     FilterPage,
-    Message,
     SourceCreate,
     SourceList,
     SourcePublic,
@@ -126,7 +125,10 @@ async def update_source(
     return db_source
 
 
-@router.delete('/{source_id}', response_model=Message)
+@router.delete(
+    '/{source_id}',
+    status_code=HTTPStatus.NO_CONTENT,
+)
 async def delete_source(
     source_id: UUID,
     session: Session,
