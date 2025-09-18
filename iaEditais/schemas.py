@@ -228,8 +228,8 @@ class DocumentUpdate(DocumentSchema):
 
 class DocumentPublic(DocumentSchema):
     id: UUID
-    history: list[DocumentHistoryPublic]
-    typifications: list[TypificationPublic]
+    history: list[DocumentHistoryPublic] = []
+    typifications: list[TypificationPublic] = []
 
     created_at: datetime
     updated_at: Optional[datetime] = None

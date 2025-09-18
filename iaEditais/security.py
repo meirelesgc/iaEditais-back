@@ -3,7 +3,8 @@ from http import HTTPStatus
 from uuid import uuid4
 from zoneinfo import ZoneInfo
 
-from fastapi import Depends, HTTPException, Request
+from fastapi import Depends, HTTPException, Request, Security
+from fastapi.security import OAuth2PasswordBearer
 from jwt import DecodeError, ExpiredSignatureError, decode, encode
 from pwdlib import PasswordHash
 from sqlalchemy import select
@@ -17,6 +18,8 @@ settings = Settings()
 pwd_context = PasswordHash.recommended()
 
 ACCESS_TOKEN_COOKIE_NAME = 'access_token'
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/login', auto_error=False)
 
 
 def create_access_token(data: dict):
@@ -39,7 +42,9 @@ def verify_password(plain_password: str, hashed_password: str):
 
 
 async def get_current_user(
-    request: Request, session: AsyncSession = Depends(get_session)
+    request: Request,
+    token: str | None = Security(oauth2_scheme),
+    session: AsyncSession = Depends(get_session),
 ):
     credentials_exception = HTTPException(
         status_code=HTTPStatus.UNAUTHORIZED,
@@ -47,12 +52,7 @@ async def get_current_user(
         headers={'WWW-Authenticate': 'Bearer'},
     )
 
-    token = None
-    auth_header = request.headers.get('Authorization')
-    if auth_header and auth_header.lower().startswith('bearer '):
-        token = auth_header.split(' ', 1)[1].strip()
-    else:
-        token = request.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
+    token = token or request.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
 
     if not token:
         raise credentials_exception

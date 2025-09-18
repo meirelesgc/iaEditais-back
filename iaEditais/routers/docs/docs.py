@@ -94,6 +94,7 @@ async def read_docs(
         .limit(filters.limit)
     )
     docs = query.all()
+    print(DocumentList.model_validate({'documents': docs}))
     return {'documents': docs}
 
 
