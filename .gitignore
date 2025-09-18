@@ -9,7 +9,7 @@ __pycache__/
 iaEditais/storage/temp
 # C extensions
 *.so
-
+.*
 # Distribution / packaging
 .Python
 build/
