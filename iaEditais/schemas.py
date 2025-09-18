@@ -23,6 +23,10 @@ class FilterPage(BaseModel):
     limit: int = Field(100, ge=1)
 
 
+class BranchFilter(FilterPage):
+    taxonomy_id: UUID = None
+
+
 class UnitSchema(BaseModel):
     name: str
     location: Optional[str] = None

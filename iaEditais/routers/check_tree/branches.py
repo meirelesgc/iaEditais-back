@@ -11,10 +11,10 @@ from iaEditais.core.database import get_session
 from iaEditais.models import Branch, Taxonomy, User
 from iaEditais.schemas import (
     BranchCreate,
+    BranchFilter,
     BranchList,
     BranchPublic,
     BranchUpdate,
-    FilterPage,
 )
 from iaEditais.security import get_current_user
 
@@ -74,15 +74,18 @@ async def create_branch(
 
 @router.get('/', response_model=BranchList)
 async def read_branches(
-    session: Session, filters: Annotated[FilterPage, Depends()]
+    session: Session, filters: Annotated[BranchFilter, Depends()]
 ):
-    query = await session.scalars(
-        select(Branch)
-        .where(Branch.deleted_at.is_(None))
-        .offset(filters.offset)
-        .limit(filters.limit)
-    )
-    branches = query.all()
+    query = select(Branch).where(Branch.deleted_at.is_(None))
+
+    if filters.taxonomy_id:
+        query = query.where(Branch.taxonomy_id == filters.taxonomy_id)
+
+    query = query.offset(filters.offset).limit(filters.limit)
+
+    result = await session.scalars(query)
+    branches = result.all()
+
     return {'branches': branches}
 
 
