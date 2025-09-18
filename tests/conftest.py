@@ -16,6 +16,7 @@ from iaEditais.core.vectorstore import get_vectorstore
 from iaEditais.models import (
     DocumentHistory,
     DocumentStatus,
+    Taxonomy,
     Typification,
     table_registry,
 )
@@ -170,14 +171,16 @@ def create_source(session):
 
 @pytest_asyncio.fixture
 def create_typification(session):
-    async def _create_source(**kwargs):
-        source = TypificationFactory.build(**kwargs)
-        session.add(source)
+    async def _create_typification(**kwargs):
+        typification = TypificationFactory.build(**kwargs)
+        session.add(typification)
         await session.commit()
-        await session.refresh(source, attribute_names=['sources'])
-        return source
+        await session.refresh(
+            typification, attribute_names=['sources', 'taxonomies']
+        )
+        return typification
 
-    return _create_source
+    return _create_typification
 
 
 @pytest_asyncio.fixture
@@ -186,10 +189,9 @@ def create_taxonomy(session):
         taxonomy = TaxonomyFactory.build(**kwargs)
         session.add(taxonomy)
         await session.commit()
-        await session.refresh(
-            taxonomy,
-            attribute_names=['branches'],
-        )
+        await session.refresh(taxonomy, attribute_names=['typification'])
+        typ = await session.get(Typification, taxonomy.typification_id)
+        await session.refresh(typ, attribute_names=['taxonomies'])
         return taxonomy
 
     return _create_taxonomy
@@ -201,7 +203,9 @@ def create_branch(session):
         branch = BranchFactory.build(**kwargs)
         session.add(branch)
         await session.commit()
-        await session.refresh(branch)
+        await session.refresh(branch, attribute_names=['taxonomy'])
+        tax = await session.get(Taxonomy, branch.taxonomy_id)
+        await session.refresh(tax, attribute_names=['branches'])
         return branch
 
     return _create_branch

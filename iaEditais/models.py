@@ -199,9 +199,13 @@ class Typification:
         back_populates='typifications',
         default_factory=list,
         init=False,
+        lazy='selectin',
     )
     taxonomies: Mapped[List['Taxonomy']] = relationship(
-        back_populates='typification', default_factory=list, init=False
+        back_populates='typification',
+        default_factory=list,
+        init=False,
+        lazy='selectin',
     )
     documents: Mapped[List['Document']] = relationship(
         'Document',
@@ -256,7 +260,10 @@ class Taxonomy:
     )
 
     branches: Mapped[List['Branch']] = relationship(
-        back_populates='taxonomy', default_factory=list, init=False
+        back_populates='taxonomy',
+        default_factory=list,
+        init=False,
+        lazy='selectin',
     )
 
     created_at: Mapped[datetime] = mapped_column(

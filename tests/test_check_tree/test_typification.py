@@ -136,3 +136,17 @@ async def test_delete_nonexistent_typification(logged_client):
     response = client.delete(f'/typification/{uuid.uuid4()}')
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == {'detail': 'Typification not found'}
+
+
+@pytest.mark.asyncio
+async def test_listing_taxonomies_typification(
+    logged_client, create_typification, create_taxonomy
+):
+    client, *_ = await logged_client()
+    typification = await create_typification()
+    await create_taxonomy(typification_id=typification.id)
+
+    response = client.get('/typification/')
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+    assert data['typifications'][0]['taxonomies'][0]['id']

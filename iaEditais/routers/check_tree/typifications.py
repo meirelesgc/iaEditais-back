@@ -6,9 +6,10 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from iaEditais.core.database import get_session
-from iaEditais.models import Source, Typification, User
+from iaEditais.models import Source, Taxonomy, Typification, User
 from iaEditais.schemas import (
     FilterPage,
     Message,
@@ -77,6 +78,12 @@ async def read_typifications(
     query = await session.scalars(
         select(Typification)
         .where(Typification.deleted_at.is_(None))
+        .options(
+            selectinload(Typification.taxonomies).selectinload(
+                Taxonomy.branches
+            ),
+            selectinload(Typification.sources),
+        )
         .offset(filters.offset)
         .limit(filters.limit)
     )
