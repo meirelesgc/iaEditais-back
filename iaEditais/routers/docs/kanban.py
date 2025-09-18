@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from iaEditais.core.database import get_session
 from iaEditais.models import Document, DocumentHistory, DocumentStatus, User
@@ -20,7 +21,14 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 async def get_doc_or_404(doc_id: UUID, session: Session) -> Document:
-    doc = await session.get(Document, doc_id)
+    doc = await session.get(
+        Document,
+        doc_id,
+        options=[
+            selectinload(Document.history),
+            selectinload(Document.typifications),
+        ],
+    )
     if not doc or doc.deleted_at:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
