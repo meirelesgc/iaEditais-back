@@ -12,7 +12,6 @@ from iaEditais.core.database import get_session
 from iaEditais.models import Source, Taxonomy, Typification, User
 from iaEditais.schemas import (
     FilterPage,
-    Message,
     TypificationCreate,
     TypificationList,
     TypificationPublic,
@@ -151,7 +150,10 @@ async def update_typification(
     return db_typification
 
 
-@router.delete('/{typification_id}', response_model=Message)
+@router.delete(
+    '/{typification_id}',
+    status_code=HTTPStatus.NO_CONTENT,
+)
 async def delete_typification(
     typification_id: UUID,
     session: Session,
