@@ -99,13 +99,19 @@ async def read_docs(
         .limit(filters.limit)
     )
     docs = query.all()
-    print(DocumentList.model_validate({'documents': docs}))
     return {'documents': docs}
 
 
 @router.get('/{doc_id}', response_model=DocumentPublic)
 async def read_doc(doc_id: UUID, session: Session):
-    doc = await session.get(Document, doc_id)
+    doc = await session.get(
+        Document,
+        doc_id,
+        options=[
+            selectinload(Document.history),
+            selectinload(Document.typifications),
+        ],
+    )
     if not doc or doc.deleted_at:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
