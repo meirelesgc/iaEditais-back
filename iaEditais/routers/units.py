@@ -11,7 +11,6 @@ from iaEditais.core.database import get_session
 from iaEditais.models import Unit, User
 from iaEditais.schemas import (
     FilterPage,
-    Message,
     UnitCreate,
     UnitList,
     UnitPublic,
@@ -118,7 +117,10 @@ async def update_unit(
     return db_unit
 
 
-@router.delete('/{unit_id}', response_model=Message)
+@router.delete(
+    '/{unit_id}',
+    status_code=HTTPStatus.NO_CONTENT,
+)
 async def delete_unit(
     unit_id: UUID,
     session: Session,

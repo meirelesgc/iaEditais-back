@@ -22,7 +22,6 @@ from iaEditais.schemas import (
     DocumentPublic,
     DocumentUpdate,
     FilterPage,
-    Message,
 )
 from iaEditais.security import get_current_user
 
@@ -170,7 +169,10 @@ async def update_doc(
     return db_doc
 
 
-@router.delete('/{doc_id}', response_model=Message)
+@router.delete(
+    '/{doc_id}',
+    status_code=HTTPStatus.NO_CONTENT,
+)
 async def delete_doc(
     doc_id: UUID, session: Session, current_user: CurrentUser
 ):

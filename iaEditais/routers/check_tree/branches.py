@@ -15,7 +15,6 @@ from iaEditais.schemas import (
     BranchPublic,
     BranchUpdate,
     FilterPage,
-    Message,
 )
 from iaEditais.security import get_current_user
 
@@ -149,7 +148,10 @@ async def update_branch(
     return db_branch
 
 
-@router.delete('/{branch_id}', response_model=Message)
+@router.delete(
+    '/{branch_id}',
+    status_code=HTTPStatus.NO_CONTENT,
+)
 async def delete_branch(
     branch_id: UUID,
     session: Session,

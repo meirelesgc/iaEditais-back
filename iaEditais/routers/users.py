@@ -11,7 +11,6 @@ from iaEditais.core.database import get_session
 from iaEditais.models import User
 from iaEditais.schemas import (
     FilterPage,
-    Message,
     UserCreate,
     UserList,
     UserPublic,
@@ -133,7 +132,10 @@ async def update_user(
     return db_user
 
 
-@router.delete('/{user_id}/', response_model=Message)
+@router.delete(
+    '/{user_id}/',
+    status_code=HTTPStatus.NO_CONTENT,
+)
 async def delete_user(
     user_id: UUID,
     session: Session,

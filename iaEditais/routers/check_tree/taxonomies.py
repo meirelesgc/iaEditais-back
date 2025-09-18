@@ -11,7 +11,6 @@ from iaEditais.core.database import get_session
 from iaEditais.models import Taxonomy, Typification, User
 from iaEditais.schemas import (
     FilterPage,
-    Message,
     TaxonomyCreate,
     TaxonomyList,
     TaxonomyPublic,
@@ -150,7 +149,10 @@ async def update_taxonomy(
     return db_taxonomy
 
 
-@router.delete('/{taxonomy_id}', response_model=Message)
+@router.delete(
+    '/{taxonomy_id}',
+    status_code=HTTPStatus.NO_CONTENT,
+)
 async def delete_taxonomy(
     taxonomy_id: UUID,
     session: Session,
