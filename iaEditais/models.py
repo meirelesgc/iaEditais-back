@@ -90,6 +90,17 @@ class User:
         back_populates='users', init=False, foreign_keys=[unit_id]
     )
 
+    editable_documents: Mapped[List['Document']] = relationship(
+        'Document',
+        secondary='document_editors',
+        primaryjoin='User.id==DocumentEditor.user_id',
+        secondaryjoin='Document.id==DocumentEditor.document_id',
+        back_populates='editors',
+        lazy='selectin',
+        default_factory=list,
+        init=False,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )
@@ -361,6 +372,28 @@ class DocumentTypification:
 
 
 @table_registry.mapped_as_dataclass
+class DocumentEditor:
+    __tablename__ = 'document_editors'
+
+    document_id: Mapped[UUID] = mapped_column(
+        ForeignKey('documents.id', name='fk_doc_editor_document_id'),
+        primary_key=True,
+    )
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey('users.id', name='fk_doc_editor_user_id'),
+        primary_key=True,
+    )
+    granted_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+    granted_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_doc_editor_granted_by'),
+        nullable=True,
+        default=None,
+    )
+
+
+@table_registry.mapped_as_dataclass
 class Document:
     __tablename__ = 'documents'
     id: Mapped[UUID] = mapped_column(
@@ -383,6 +416,17 @@ class Document:
         secondary='document_typifications',
         back_populates='documents',
         default_factory=list,
+        init=False,
+    )
+
+    editors: Mapped[List['User']] = relationship(
+        'User',
+        secondary='document_editors',
+        primaryjoin='Document.id==DocumentEditor.document_id',
+        secondaryjoin='User.id==DocumentEditor.user_id',
+        back_populates='editable_documents',
+        default_factory=list,
+        lazy='selectin',
         init=False,
     )
 

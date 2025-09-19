@@ -78,6 +78,12 @@ async def create_doc(
         )
         db_doc.typifications = [typ for typ in typifications.all()]
 
+    if doc.editors_ids:
+        editors = await session.scalars(
+            select(User).where(User.id.in_(doc.editors_ids))
+        )
+        db_doc.editors = [user for user in editors.all()]
+
     await session.commit()
     await session.refresh(db_doc, attribute_names=['history', 'typifications'])
     return db_doc
@@ -93,6 +99,7 @@ async def read_docs(
         .options(
             selectinload(Document.history),
             selectinload(Document.typifications),
+            selectinload(Document.editors),
         )
         .offset(filters.offset)
         .limit(filters.limit)

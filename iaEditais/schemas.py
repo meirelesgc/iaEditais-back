@@ -78,6 +78,8 @@ class UserPublic(UserSchema):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
+    editable_documents: list[DocumentPublic] = []
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -227,17 +229,20 @@ class DocumentSchema(BaseModel):
 
 class DocumentCreate(DocumentSchema):
     typification_ids: Optional[list[UUID]] = []
+    editors_ids: Optional[list[UUID]] = []
 
 
 class DocumentUpdate(DocumentSchema):
     id: UUID
     typification_ids: Optional[list[UUID]] = []
+    editors_ids: Optional[list[UUID]] = []
 
 
 class DocumentPublic(DocumentSchema):
     id: UUID
     history: list[DocumentHistoryPublic] = []
     typifications: list[TypificationPublic] = []
+    editors: list[UserPublic] = []
 
     created_at: datetime
     updated_at: Optional[datetime] = None
