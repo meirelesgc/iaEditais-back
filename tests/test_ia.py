@@ -191,18 +191,21 @@ async def test_llm_edital_correto(ai_client, ai_test_data_setup):
                 evaluate_data = branch["evaluate"]
                 actual_fulfilled = evaluate_data.get("fulfilled")
                 actual_feedback = evaluate_data.get("feedback")
-                
-
+            
                 if branch_title in expected_output_correto:
                     expected_data = expected_output_correto[branch_title]
                     expected_fulfilled = expected_data["fulfilled"]
                     expected_feedback = expected_data["feedback"]
                     
-                    print(f"Branch: {branch_title}")
-                    print(f"Fulfilled retornado: {actual_fulfilled}")
-                    print(f"Fulfilled esperado: {expected_fulfilled}")
-                    print(f"Feedback retornado: {actual_feedback}") 
-                    print(f"Feedback esperado: {expected_feedback}")
+                    print()
+                    print(50 * "-")
+                    print(f"🏷️ Critério: {branch_title}")
+                    print()
+                    print(f"📌 Cumprido esperado: {expected_fulfilled}")
+                    print(f"📝 Cumprido retornado: {actual_fulfilled}")
+                    print()
+                    print(f"📝 Feedback esperado: {expected_feedback}")
+                    print(f"📌 Feedback retornado: {actual_feedback}")
                     
                     # TESTE 1: Verificar se fulfilled está correto
                     assert actual_fulfilled == expected_fulfilled, \
@@ -247,10 +250,12 @@ async def test_llm_edital_correto(ai_client, ai_test_data_setup):
                     )
                     
                     correctness_score = correctness_metric.measure(correctness_test_case)
-                    print(f"  📊 Correctness: {correctness_score:.2f}")
+                    print(f"🎯 Conformidade: {correctness_score:.2f}")
                     
                     # Verificar threshold de correctness
-                    assert correctness_score >= 0.5, f"Baixa correctness para {branch_title}: {correctness_score}"
+                    assert correctness_score >= 0.5, f"Baixa Conformidade para {branch_title}: {correctness_score}"
+                    print(50*"-")
+                    print("\n")
 
 @pytest.mark.asyncio
 async def test_llm_edital_incorreto(ai_client, ai_test_data_setup):
@@ -329,11 +334,15 @@ async def test_llm_edital_incorreto(ai_client, ai_test_data_setup):
                     expected_fulfilled = expected_data["fulfilled"]
                     expected_feedback = expected_data["feedback"]
                     
-                    print(f"Branch: {branch_title}")
-                    print(f"Fulfilled retornado: {actual_fulfilled}")
-                    print(f"Fulfilled esperado: {expected_fulfilled}")
-                    print(f"Feedback retornado: {actual_feedback}") 
-                    print(f"Feedback esperado: {expected_feedback}")
+                    print()
+                    print(50 * "-")
+                    print(f"🏷️ Critério: {branch_title}")
+                    print()
+                    print(f"📌 Cumprido esperado: {expected_fulfilled}")
+                    print(f"📝 Cumprido retornado: {actual_fulfilled}")
+                    print()
+                    print(f"📝 Feedback esperado: {expected_feedback}")
+                    print(f"📌 Feedback retornado: {actual_feedback}")
                     
                     # TESTE 1: Verificar se fulfilled está correto (deve ser False para documento incorreto)
                     assert actual_fulfilled == expected_fulfilled, \
@@ -378,13 +387,16 @@ async def test_llm_edital_incorreto(ai_client, ai_test_data_setup):
                     )
                     
                     correctness_score = correctness_metric.measure(correctness_test_case)
-                    print(f"  📊 Correctness: {correctness_score:.2f}")
+                    print(f"  📊 Conformidade: {correctness_score:.2f}")
                     
                     # Verificar threshold de correctness
-                    assert correctness_score >= 0.5, f"Baixa correctness para {branch_title}: {correctness_score}"
+                    assert correctness_score >= 0.5, f"Baixa Conformidade para {branch_title}: {correctness_score}"
                     
-                    print(f"  ✅ Branch INCORRETA {branch_title} passou em todos os testes!")
+                    print(50 * "-")
+                    print("\n")
+
+                    # print(f"  ✅ Branch INCORRETA {branch_title} passou em todos os testes!")
                 else:
                     print(f"  ⚠️ Branch '{branch_title}' não está no resultado esperado")
     
-    print(f"✅ Teste INCORRETO concluído: {branches_processed} branches processadas")
+    # print(f"✅ Teste INCORRETO concluído: {branches_processed} branches processadas")

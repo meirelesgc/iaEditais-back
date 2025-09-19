@@ -298,7 +298,7 @@ def login(client, get_token):
 def real_model():
     from langchain_openai import ChatOpenAI
     return ChatOpenAI(
-        model="gpt-4o-mini",
+        model="gpt-4o",
         api_key=os.getenv("OPENAI_API_KEY")
     )
 
@@ -324,13 +324,9 @@ def real_vectorstore(postgres):
 
 @pytest.fixture(scope="session")
 def real_cache():
-    import redis.asyncio as redis
-    
-    return redis.Redis(
-        host=os.getenv("REDIS_HOST", "localhost"),
-        port=int(os.getenv("REDIS_PORT", 6379)),
-        db=1
-    )
+    # Usar FakeRedis para evitar problemas de event loop
+    import fakeredis.aioredis
+    return fakeredis.aioredis.FakeRedis(decode_responses=True)
 
 @pytest.fixture(scope="session")
 def ai_client(conn, real_model, real_vectorstore, real_cache):
