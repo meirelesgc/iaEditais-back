@@ -3,7 +3,7 @@ from enum import Enum
 from typing import List, Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import ForeignKey, func
+from sqlalchemy import ForeignKey, Index, func
 from sqlalchemy.orm import Mapped, mapped_column, registry, relationship
 
 table_registry = registry()
@@ -30,7 +30,7 @@ class Unit:
     id: Mapped[UUID] = mapped_column(
         init=False, primary_key=True, default=uuid4
     )
-    name: Mapped[str] = mapped_column(unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(nullable=False)
     location: Mapped[Optional[str]] = mapped_column(default=None)
 
     users: Mapped[List['User']] = relationship(
@@ -65,6 +65,14 @@ class Unit:
         nullable=True,
         default=None,
     )
+    __table_args__ = (
+        Index(
+            'ix_uq_units_name_active',
+            'name',
+            unique=True,
+            postgresql_where=(deleted_at.is_(None)),
+        ),
+    )
 
 
 @table_registry.mapped_as_dataclass
@@ -76,8 +84,8 @@ class User:
     )
 
     username: Mapped[str]
-    phone_number: Mapped[str] = mapped_column(unique=True)
-    email: Mapped[str] = mapped_column(unique=True)
+    phone_number: Mapped[str] = mapped_column()
+    email: Mapped[str] = mapped_column()
     password: Mapped[str]
     access_level: Mapped[str] = mapped_column(default=AccessType.DEFAULT)
 
@@ -126,6 +134,20 @@ class User:
         nullable=True,
         default=None,
     )
+    __table_args__ = (
+        Index(
+            'ix_uq_users_phone_number_active',
+            'phone_number',
+            unique=True,
+            postgresql_where=(deleted_at.is_(None)),
+        ),
+        Index(
+            'ix_uq_users_email_active',
+            'email',
+            unique=True,
+            postgresql_where=(deleted_at.is_(None)),
+        ),
+    )
 
 
 @table_registry.mapped_as_dataclass
@@ -158,7 +180,7 @@ class Source:
         init=False, primary_key=True, default=uuid4
     )
 
-    name: Mapped[str] = mapped_column(unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str]
 
     typifications: Mapped[List['Typification']] = relationship(
@@ -194,6 +216,14 @@ class Source:
         nullable=True,
         default=None,
     )
+    __table_args__ = (
+        Index(
+            'ix_uq_sources_name_active',
+            'name',
+            unique=True,
+            postgresql_where=(deleted_at.is_(None)),
+        ),
+    )
 
 
 @table_registry.mapped_as_dataclass
@@ -202,7 +232,7 @@ class Typification:
     id: Mapped[UUID] = mapped_column(
         init=False, primary_key=True, default=uuid4
     )
-    name: Mapped[str] = mapped_column(unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(nullable=False)
 
     sources: Mapped[List[Source]] = relationship(
         'Source',
@@ -250,6 +280,14 @@ class Typification:
         nullable=True,
         default=None,
     )
+    __table_args__ = (
+        Index(
+            'ix_uq_typifications_name_active',
+            'name',
+            unique=True,
+            postgresql_where=(deleted_at.is_(None)),
+        ),
+    )
 
 
 @table_registry.mapped_as_dataclass
@@ -259,7 +297,7 @@ class Taxonomy:
     id: Mapped[UUID] = mapped_column(
         init=False, primary_key=True, default=uuid4
     )
-    title: Mapped[str] = mapped_column(unique=True, nullable=False)
+    title: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str] = mapped_column()
 
     typification_id: Mapped[UUID] = mapped_column(
@@ -303,6 +341,15 @@ class Taxonomy:
         default=None,
     )
 
+    __table_args__ = (
+        Index(
+            'ix_uq_taxonomies_title_active',
+            'title',
+            unique=True,
+            postgresql_where=(deleted_at.is_(None)),
+        ),
+    )
+
 
 @table_registry.mapped_as_dataclass
 class Branch:
@@ -311,7 +358,7 @@ class Branch:
         init=False, primary_key=True, default=uuid4
     )
 
-    title: Mapped[str] = mapped_column(unique=True, nullable=False)
+    title: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str]
 
     taxonomy_id: Mapped[UUID] = mapped_column(
@@ -346,6 +393,15 @@ class Branch:
         ForeignKey('users.id', name='fk_branch_deleted_by'),
         nullable=True,
         default=None,
+    )
+
+    __table_args__ = (
+        Index(
+            'ix_uq_taxonomies_title_active',
+            'title',
+            unique=True,
+            postgresql_where=(deleted_at.is_(None)),
+        ),
     )
 
 
@@ -400,8 +456,8 @@ class Document:
         init=False, primary_key=True, default=uuid4
     )
 
-    name: Mapped[str] = mapped_column(unique=True, nullable=False)
-    identifier: Mapped[str] = mapped_column(unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(nullable=False)
+    identifier: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str]
 
     history: Mapped[List['DocumentHistory']] = relationship(
@@ -454,6 +510,20 @@ class Document:
         ForeignKey('users.id', name='fk_doc_deleted_by'),
         nullable=True,
         default=None,
+    )
+    __table_args__ = (
+        Index(
+            'ix_uq_documents_name_active',
+            'name',
+            unique=True,
+            postgresql_where=(deleted_at.is_(None)),
+        ),
+        Index(
+            'ix_uq_documents_identifier_active',
+            'identifier',
+            unique=True,
+            postgresql_where=(deleted_at.is_(None)),
+        ),
     )
 
 
