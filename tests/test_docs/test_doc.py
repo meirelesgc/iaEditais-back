@@ -188,8 +188,7 @@ async def test_delete_doc(logged_client, create_doc):
     doc = await create_doc(name='Doc Delete', identifier='DEL-001')
 
     delete_response = client.delete(f'/doc/{doc.id}')
-    assert delete_response.status_code == HTTPStatus.OK
-    assert delete_response.json() == {'message': 'Doc deleted successfully'}
+    assert delete_response.status_code == HTTPStatus.NO_CONTENT
 
     get_response = client.get(f'/doc/{doc.id}')
     assert get_response.status_code == HTTPStatus.NOT_FOUND

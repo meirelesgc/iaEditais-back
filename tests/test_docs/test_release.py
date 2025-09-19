@@ -115,8 +115,7 @@ async def test_delete_release(logged_client, create_doc, create_typification):
     release_id = upload_response.json()['id']
 
     delete_response = client.delete(f'/doc/{doc.id}/release/{release_id}')
-    assert delete_response.status_code == HTTPStatus.OK
-    assert delete_response.json() == {'message': 'File deleted successfully'}
+    assert delete_response.status_code == HTTPStatus.NO_CONTENT
 
     list_response = client.get(f'/doc/{doc.id}/release/')
     assert list_response.status_code == HTTPStatus.OK

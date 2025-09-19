@@ -94,8 +94,7 @@ async def test_delete_unit(logged_client, create_unit):
     client, *_ = await logged_client()
     unit = await create_unit(name='ToDelete', location='BH')
     response = client.delete(f'/unit/{unit.id}')
-    assert response.status_code == HTTPStatus.OK
-    assert response.json() == {'message': 'Unit deleted'}
+    assert response.status_code == HTTPStatus.NO_CONTENT
 
 
 def test_read_nonexistent_unit(client):

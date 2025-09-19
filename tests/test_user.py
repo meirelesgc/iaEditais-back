@@ -187,8 +187,7 @@ async def test_delete_user(logged_client, create_user, create_unit):
     )
 
     response = client.delete(f'/user/{user.id}')
-    assert response.status_code == HTTPStatus.OK
-    assert response.json()['message'] == 'User deleted'
+    assert response.status_code == HTTPStatus.NO_CONTENT
 
 
 @pytest.mark.asyncio

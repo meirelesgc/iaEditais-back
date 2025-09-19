@@ -12,7 +12,6 @@ services:
       - "5432:5432"
     networks:
       - iaeditais_network
-
   iaeditais_api:
     image: gleidsoncosta/fiotec-iaeditais:latest
     container_name: iaeditais_api
@@ -47,18 +46,18 @@ services:
     networks:
       - iaeditais_network
 
-  evolution_api:
-    container_name: evolution_api
-    image: atendai/evolution-api:latest
-    restart: always
-    ports:
-      - "8080:8080"
-    env_file:
-      - .env
-    volumes:
-      - evolution_instances:/evolution/instances
-    networks:
-      - iaeditais_network
+#   evolution_api:
+#     container_name: evolution_api
+#     image: atendai/evolution-api:latest
+#     restart: always
+#     ports:
+#       - "8080:8080"
+#     env_file:
+#       - .env
+#     volumes:
+#       - evolution_instances:/evolution/instances
+#     networks:
+#       - iaeditais_network
 
 volumes:
   dbdata:

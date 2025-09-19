@@ -217,8 +217,7 @@ async def test_delete_taxonomy(
     )
 
     delete_response = client.delete(f'/taxonomy/{taxonomy.id}')
-    assert delete_response.status_code == HTTPStatus.OK
-    assert delete_response.json() == {'message': 'Taxonomy deleted'}
+    assert delete_response.status_code == HTTPStatus.NO_CONTENT
 
     get_response = client.get(f'/taxonomy/{taxonomy.id}')
     assert get_response.status_code == HTTPStatus.NOT_FOUND

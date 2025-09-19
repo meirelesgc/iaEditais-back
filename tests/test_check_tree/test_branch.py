@@ -241,8 +241,7 @@ async def test_delete_branch(
     )
 
     delete_response = client.delete(f'/branch/{branch.id}')
-    assert delete_response.status_code == HTTPStatus.OK
-    assert delete_response.json() == {'message': 'Branch deleted'}
+    assert delete_response.status_code == HTTPStatus.NO_CONTENT
 
     get_response = client.get(f'/branch/{branch.id}')
     assert get_response.status_code == HTTPStatus.NOT_FOUND

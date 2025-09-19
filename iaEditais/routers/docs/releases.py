@@ -16,7 +16,6 @@ from iaEditais.models import DocumentHistory, DocumentRelease, User
 from iaEditais.schemas import (
     DocumentReleaseList,
     DocumentReleasePublic,
-    Message,
 )
 from iaEditais.security import get_current_user
 from iaEditais.services import releases_service
@@ -70,14 +69,10 @@ async def read_releases(doc_id: UUID, session: Session):
 
     result = await session.scalars(query)
     releases = result.all()
-
     return {'releases': releases}
 
 
-@router.delete(
-    '/{release_id}',
-    response_model=Message,
-)
+@router.delete('/{release_id}', status_code=HTTPStatus.NO_CONTENT)
 async def delete_release(
     doc_id: UUID,
     release_id: UUID,

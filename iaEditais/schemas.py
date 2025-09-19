@@ -24,11 +24,11 @@ class FilterPage(BaseModel):
 
 
 class UserFilter(FilterPage):
-    unit_id: UUID = None
+    unit_id: Optional[UUID] = None
 
 
 class BranchFilter(FilterPage):
-    taxonomy_id: UUID = None
+    taxonomy_id: Optional[UUID] = None
 
 
 class UnitSchema(BaseModel):

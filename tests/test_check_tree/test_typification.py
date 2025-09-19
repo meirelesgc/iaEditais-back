@@ -126,8 +126,7 @@ async def test_delete_typification(logged_client, create_typification):
     client, *_ = await logged_client()
     typification = await create_typification(name='ToDelete')
     response = client.delete(f'/typification/{typification.id}')
-    assert response.status_code == HTTPStatus.OK
-    assert response.json() == {'message': 'Typification deleted'}
+    assert response.status_code == HTTPStatus.NO_CONTENT
 
 
 @pytest.mark.asyncio

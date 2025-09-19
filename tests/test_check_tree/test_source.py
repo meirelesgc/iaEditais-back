@@ -140,8 +140,7 @@ async def test_delete_source(logged_client, create_source):
     client, *_ = await logged_client()
     source = await create_source(name='ToDelete', description='Will be gone')
     response = client.delete(f'/source/{source.id}')
-    assert response.status_code == HTTPStatus.OK
-    assert response.json() == {'message': 'Source deleted'}
+    assert response.status_code == HTTPStatus.NO_CONTENT
 
 
 @pytest.mark.asyncio
