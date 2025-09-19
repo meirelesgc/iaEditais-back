@@ -23,6 +23,10 @@ class FilterPage(BaseModel):
     limit: int = Field(100, ge=1)
 
 
+class UserFilter(FilterPage):
+    unit_id: UUID = None
+
+
 class BranchFilter(FilterPage):
     taxonomy_id: UUID = None
 
@@ -61,7 +65,7 @@ class UserSchema(BaseModel):
 
 
 class UserCreate(UserSchema):
-    password: str
+    password: Optional[str] = None
 
 
 class UserUpdate(UserSchema):

@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from http import HTTPStatus
+from secrets import token_hex
 from typing import Annotated
 from uuid import UUID
 
@@ -10,8 +11,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from iaEditais.core.database import get_session
 from iaEditais.models import User
 from iaEditais.schemas import (
-    FilterPage,
     UserCreate,
+    UserFilter,
     UserList,
     UserPublic,
     UserUpdate,
@@ -40,7 +41,8 @@ async def create_user(user: UserCreate, session: Session):
             status_code=HTTPStatus.CONFLICT,
             detail='Email or phone number already registered',
         )
-
+    if not user.password:
+        user.password = token_hex(256)
     hashed_password = get_password_hash(user.password)
 
     db_user = User(
@@ -61,15 +63,18 @@ async def create_user(user: UserCreate, session: Session):
 
 @router.get('/', response_model=UserList)
 async def read_users(
-    session: Session, filters: Annotated[FilterPage, Depends()]
+    session: Session, filters: Annotated[UserFilter, Depends()]
 ):
-    query = await session.scalars(
-        select(User)
-        .where(User.deleted_at.is_(None))
-        .offset(filters.offset)
-        .limit(filters.limit)
-    )
-    users = query.all()
+    query = select(User).where(User.deleted_at.is_(None))
+
+    if filters.unit_id:
+        query = query.where(User.unit_id == filters.unit_id)
+
+    query = query.offset(filters.offset).limit(filters.limit)
+
+    result = await session.scalars(query)
+    users = result.all()
+
     return {'users': users}
 
 
