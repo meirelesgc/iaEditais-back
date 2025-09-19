@@ -190,7 +190,13 @@ class Source:
         default_factory=list,
         init=False,
     )
-
+    taxonomies: Mapped[List['Taxonomy']] = relationship(
+        'Taxonomy',
+        secondary='taxonomy_sources',
+        back_populates='sources',
+        default_factory=list,
+        init=False,
+    )
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )
@@ -253,6 +259,7 @@ class Typification:
         secondary='document_typifications',
         back_populates='typifications',
         default_factory=list,
+        lazy='selectin',
         init=False,
     )
     created_at: Mapped[datetime] = mapped_column(
@@ -291,6 +298,29 @@ class Typification:
 
 
 @table_registry.mapped_as_dataclass
+class TaxonomySource:
+    __tablename__ = 'taxonomy_sources'
+
+    taxonomy_id: Mapped[UUID] = mapped_column(
+        ForeignKey('taxonomies.id', name='fk_tax_source_taxonomy_id'),
+        primary_key=True,
+    )
+    source_id: Mapped[UUID] = mapped_column(
+        ForeignKey('sources.id', name='fk_tax_source_source_id'),
+        primary_key=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_tax_source_created_by'),
+        nullable=True,
+        default=None,
+    )
+
+
+@table_registry.mapped_as_dataclass
 class Taxonomy:
     __tablename__ = 'taxonomies'
 
@@ -314,7 +344,13 @@ class Taxonomy:
         init=False,
         lazy='selectin',
     )
-
+    sources: Mapped[List['Source']] = relationship(
+        'Source',
+        secondary='taxonomy_sources',
+        back_populates='taxonomies',
+        default_factory=list,
+        init=False,
+    )
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )
@@ -397,7 +433,7 @@ class Branch:
 
     __table_args__ = (
         Index(
-            'ix_uq_taxonomies_title_active',
+            'ix_uq_branch_title_active',
             'title',
             unique=True,
             postgresql_where=(deleted_at.is_(None)),

@@ -9,7 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from iaEditais.core.database import get_session
-from iaEditais.models import Source, Taxonomy, Typification, User
+from iaEditais.models import (
+    Source,
+    Taxonomy,
+    Typification,
+    TypificationSource,
+    User,
+)
 from iaEditais.schemas import (
     FilterPage,
     TypificationCreate,
@@ -56,14 +62,28 @@ async def create_typification(
         name=typification.name,
         created_by=current_user.id,
     )
+    session.add(db_typification)
 
     if typification.source_ids:
-        sources = await session.scalars(
-            select(Source).where(Source.id.in_(typification.source_ids))
+        source_check = await session.scalars(
+            select(Source.id).where(Source.id.in_(typification.source_ids))
         )
-        db_typification.sources = sources.all()
+        existing_source_ids = set(source_check.all())
 
-    session.add(db_typification)
+        if len(existing_source_ids) != len(typification.source_ids):
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail='One or more sources not found',
+            )
+
+        for source_id in typification.source_ids:
+            association_entry = TypificationSource(
+                typification_id=db_typification.id,
+                source_id=source_id,
+                created_by=current_user.id,
+            )
+            session.add(association_entry)
+
     await session.commit()
     await session.refresh(db_typification, attribute_names=['sources'])
 
@@ -81,7 +101,9 @@ async def read_typifications(
             selectinload(Typification.taxonomies).selectinload(
                 Taxonomy.branches
             ),
-            selectinload(Typification.sources),
+            selectinload(Typification.taxonomies).selectinload(
+                Taxonomy.sources
+            ),
         )
         .offset(filters.offset)
         .limit(filters.limit)

@@ -120,11 +120,13 @@ class TaxonomySchema(BaseModel):
 
 class TaxonomyCreate(TaxonomySchema):
     typification_id: UUID
+    source_ids: list[UUID] = []
 
 
 class TaxonomyUpdate(TaxonomySchema):
     id: UUID
     typification_id: UUID
+    source_ids: list[UUID] = []
 
 
 class BranchSchema(BaseModel):
@@ -154,6 +156,7 @@ class TypificationPublic(TypificationSchema):
     id: UUID
     sources: list[SourcePublic] = []
     taxonomies: list[TaxonomyPublic] = []
+    sources: list[SourcePublic] = []
 
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -163,7 +166,8 @@ class TypificationPublic(TypificationSchema):
 
 class TaxonomyPublic(TaxonomySchema):
     id: UUID
-    branches: list[BranchPublic]
+    branches: list[BranchPublic] = []
+    sources: list[SourcePublic] = []
 
     created_at: datetime
     updated_at: Optional[datetime] = None

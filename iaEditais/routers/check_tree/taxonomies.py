@@ -6,9 +6,16 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from iaEditais.core.database import get_session
-from iaEditais.models import Taxonomy, Typification, User
+from iaEditais.models import (
+    Source,
+    Taxonomy,
+    TaxonomySource,
+    Typification,
+    User,
+)
 from iaEditais.schemas import (
     FilterPage,
     TaxonomyCreate,
@@ -64,8 +71,28 @@ async def create_taxonomy(
         typification_id=taxonomy.typification_id,
         created_by=current_user.id,
     )
-
     session.add(db_taxonomy)
+
+    if taxonomy.source_ids:
+        source_check = await session.scalars(
+            select(Source.id).where(Source.id.in_(taxonomy.source_ids))
+        )
+        existing_source_ids = set(source_check.all())
+
+        if len(existing_source_ids) != len(taxonomy.source_ids):
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail='One or more sources not found',
+            )
+
+        for source_id in taxonomy.source_ids:
+            association_entry = TaxonomySource(
+                taxonomy_id=db_taxonomy.id,
+                source_id=source_id,
+                created_by=current_user.id,
+            )
+            session.add(association_entry)
+
     await session.commit()
     await session.refresh(db_taxonomy, attribute_names=['typification'])
 
@@ -79,6 +106,10 @@ async def read_taxonomies(
     query = await session.scalars(
         select(Taxonomy)
         .where(Taxonomy.deleted_at.is_(None))
+        .options(
+            selectinload(Taxonomy.branches),
+            selectinload(Taxonomy.sources),
+        )
         .offset(filters.offset)
         .limit(filters.limit)
     )
@@ -136,6 +167,14 @@ async def update_taxonomy(
                 status_code=HTTPStatus.NOT_FOUND,
                 detail='Typification not found',
             )
+
+    if taxonomy.source_ids:
+        sources = await session.scalars(
+            select(Source).where(Source.id.in_(typification.source_ids))
+        )
+        db_taxonomy.sources = sources.all()
+    else:
+        db_taxonomy.sources = []
 
     db_taxonomy.title = taxonomy.title
     db_taxonomy.description = taxonomy.description

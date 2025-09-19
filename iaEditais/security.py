@@ -19,7 +19,9 @@ pwd_context = PasswordHash.recommended()
 
 ACCESS_TOKEN_COOKIE_NAME = 'access_token'
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl='/login', auto_error=False)
+oauth2_scheme = OAuth2PasswordBearer(
+    tokenUrl='/auth/sign-in', auto_error=False
+)
 
 
 def create_access_token(data: dict):
