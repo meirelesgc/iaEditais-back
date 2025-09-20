@@ -53,7 +53,7 @@ def safe_file(file: UploadFile, upload_directory) -> str:
     finally:
         file.file.close()
 
-    return file_path
+    return f'/uploads/{unique_filename}'
 
 
 async def create_release(
