@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from datetime import datetime
 from typing import Optional
 from uuid import UUID
@@ -78,8 +76,6 @@ class UserPublic(UserSchema):
     created_at: datetime
     updated_at: Optional[datetime] = None
 
-    editable_documents: list[DocumentPublic] = []
-
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -100,17 +96,42 @@ class SourceUpdate(SourceSchema):
     id: UUID
 
 
-class TypificationSchema(BaseModel):
-    name: str
-
-
-class TypificationCreate(TypificationSchema):
-    source_ids: list[UUID] = []
-
-
-class TypificationUpdate(TypificationSchema):
+class SourcePublic(SourceSchema):
     id: UUID
-    source_ids: list[UUID] = []
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class SourceList(BaseModel):
+    sources: list[SourcePublic]
+
+
+class BranchSchema(BaseModel):
+    title: str
+    description: str
+
+
+class BranchCreate(BranchSchema):
+    taxonomy_id: UUID
+
+
+class BranchUpdate(BranchSchema):
+    id: UUID
+    taxonomy_id: UUID
+
+
+class BranchPublic(BranchSchema):
+    id: UUID
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class BranchList(BaseModel):
+    branches: list[BranchPublic]
 
 
 class TaxonomySchema(BaseModel):
@@ -129,41 +150,6 @@ class TaxonomyUpdate(TaxonomySchema):
     source_ids: list[UUID] = []
 
 
-class BranchSchema(BaseModel):
-    title: str
-    description: str
-
-
-class BranchCreate(BranchSchema):
-    taxonomy_id: UUID
-
-
-class BranchUpdate(BranchSchema):
-    id: UUID
-    taxonomy_id: UUID
-
-
-class SourcePublic(SourceSchema):
-    id: UUID
-
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class TypificationPublic(TypificationSchema):
-    id: UUID
-    sources: list[SourcePublic] = []
-    taxonomies: list[TaxonomyPublic] = []
-    sources: list[SourcePublic] = []
-
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
 class TaxonomyPublic(TaxonomySchema):
     id: UUID
     branches: list[BranchPublic] = []
@@ -175,54 +161,36 @@ class TaxonomyPublic(TaxonomySchema):
     model_config = ConfigDict(from_attributes=True)
 
 
-class BranchPublic(BranchSchema):
-    id: UUID
-
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class SourceList(BaseModel):
-    sources: list[SourcePublic]
-
-
-class TypificationList(BaseModel):
-    typifications: list[TypificationPublic]
-
-
 class TaxonomyList(BaseModel):
     taxonomies: list[TaxonomyPublic]
 
 
-class BranchList(BaseModel):
-    branches: list[BranchPublic]
+class TypificationSchema(BaseModel):
+    name: str
 
 
-class DocumentReleasePublic(BaseModel):
+class TypificationCreate(TypificationSchema):
+    source_ids: list[UUID] = []
+
+
+class TypificationUpdate(TypificationSchema):
     id: UUID
-    file_path: str
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
+    source_ids: list[UUID] = []
 
 
-class DocumentReleaseList(BaseModel):
-    releases: list[DocumentReleasePublic]
-
-
-class DocumentHistorySchema(BaseModel):
-    status: DocumentStatus = DocumentStatus.PENDING
-
-
-class DocumentHistoryPublic(DocumentHistorySchema):
+class TypificationPublic(TypificationSchema):
     id: UUID
+    sources: list[SourcePublic] = []
+    taxonomies: list[TaxonomyPublic] = []
 
     created_at: datetime
     updated_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class TypificationList(BaseModel):
+    typifications: list[TypificationPublic]
 
 
 class DocumentSchema(BaseModel):
@@ -242,11 +210,23 @@ class DocumentUpdate(DocumentSchema):
     editors_ids: Optional[list[UUID]] = []
 
 
+class DocumentHistorySchema(BaseModel):
+    status: DocumentStatus = DocumentStatus.PENDING
+
+
+class DocumentHistoryPublic(DocumentHistorySchema):
+    id: UUID
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class DocumentPublic(DocumentSchema):
     id: UUID
     history: list[DocumentHistoryPublic] = []
     typifications: list[TypificationPublic] = []
-    editors: list[UserPublic] = []
+    editors: list['UserPublic'] = []
 
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -258,9 +238,16 @@ class DocumentList(BaseModel):
     documents: list[DocumentPublic]
 
 
-SourcePublic.model_rebuild()
-TypificationPublic.model_rebuild()
-TaxonomyPublic.model_rebuild()
+class DocumentReleasePublic(BaseModel):
+    id: UUID
+    file_path: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DocumentReleaseList(BaseModel):
+    releases: list[DocumentReleasePublic]
 
 
 class DocumentReleaseFeedback(BaseModel):

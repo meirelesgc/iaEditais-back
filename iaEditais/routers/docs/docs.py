@@ -116,6 +116,7 @@ async def read_doc(doc_id: UUID, session: Session):
         options=[
             selectinload(Document.history),
             selectinload(Document.typifications),
+            selectinload(Document.editors),
         ],
     )
     if not doc or doc.deleted_at:
@@ -130,7 +131,15 @@ async def read_doc(doc_id: UUID, session: Session):
 async def update_doc(
     doc: DocumentUpdate, session: Session, current_user: CurrentUser
 ):
-    db_doc = await session.get(Document, doc.id)
+    db_doc = await session.get(
+        Document,
+        doc.id,
+        options=[
+            selectinload(Document.history),
+            selectinload(Document.typifications),
+            selectinload(Document.editors),
+        ],
+    )
     if not db_doc or db_doc.deleted_at:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -167,6 +176,12 @@ async def update_doc(
             )
         )
         db_doc.typifications = [typ for typ in typifications.all()]
+
+    if doc.editors_ids:
+        editors = await session.scalars(
+            select(User).where(User.id.in_(doc.editors_ids))
+        )
+        db_doc.editors = [user for user in editors.all()]
 
     await session.commit()
     await session.refresh(

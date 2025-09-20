@@ -350,6 +350,7 @@ class Taxonomy:
         back_populates='taxonomies',
         default_factory=list,
         init=False,
+        lazy='selectin',
     )
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()

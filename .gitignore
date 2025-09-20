@@ -11,6 +11,7 @@ iaEditais/storage/temp
 *.so
 .*
 # Distribution / packaging
+iaEditais/storage
 .Python
 build/
 develop-eggs/
