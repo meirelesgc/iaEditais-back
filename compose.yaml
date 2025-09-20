@@ -45,19 +45,18 @@ services:
       retries: 5
     networks:
       - iaeditais_network
-
-#   evolution_api:
-#     container_name: evolution_api
-#     image: atendai/evolution-api:latest
-#     restart: always
-#     ports:
-#       - "8080:8080"
-#     env_file:
-#       - .env
-#     volumes:
-#       - evolution_instances:/evolution/instances
-#     networks:
-#       - iaeditais_network
+  # evolution_api:
+  #   container_name: evolution_api
+  #   image: atendai/evolution-api:latest
+  #   restart: always
+  #   ports:
+  #     - "8080:8080"
+  #   env_file:
+  #     - .evolution.env
+  #   volumes:
+  #     - evolution_instances:/evolution/instances
+  #   networks:
+  #     - iaeditais_network
 
 volumes:
   dbdata:
