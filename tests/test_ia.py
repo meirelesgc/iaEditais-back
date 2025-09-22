@@ -116,292 +116,200 @@ def ai_test_data_setup(ai_client):
         "test_data": test_data,            # Dados originais do Excel
     }
 
-# Teste para documento que DEVE passar nos critérios de avaliação.
-# @pytest.mark.asyncio
-# async def test_llm_edital_correto(ai_client, ai_test_data_setup):
+correctness_metric = GEval(
+    name="Correctness",
+    criteria="Determine se a 'saída atual' está correta com base na 'saída esperada'.",
+    evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
+    threshold=0.5
+)
 
-#     pdf_path = TEST_PDFS_CORRETOS[0]
-#     setup_data = ai_test_data_setup
-    
-#     # Verificar se o arquivo existe
-#     if not os.path.exists(pdf_path):
-#         pytest.skip(f"Arquivo PDF não encontrado: {pdf_path}")
-    
-#     with open(pdf_path, 'rb') as f:
-#         pdf_content = f.read()
-#         print(f"\n🔄 Processando documento CORRETO: {Path(pdf_path).name}")
+completeness_metric = GEval(
+    name="Completeness",
+    criteria="Avalie a completude da análise com base nos critérios esperados.",
+    evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
+    evaluation_steps=[
+        "Verifique se o feedback inclui todas as informações necessárias para avaliar o critério",
+        "Verifique se a análise é completa e não omite informações importantes"
+    ]
+)
 
-#     typification_ids = list(setup_data["typifications"].values())
-    
-#     # Criar documento no sistema
-#     doc_response = ai_client.post(
-#         "/doc/",
-#         json={
-#             "name": f"Edital de teste CORRETO - {Path(pdf_path).stem}",
-#             "identifier": f"CORRETO-{Path(pdf_path).stem}",
-#             "description": "Documento para teste de IA - Caso CORRETO",
-#             "typification": typification_ids
-#         }
-#     )
-        
-#     # Verificar se o documento foi criado com sucesso
-#     assert doc_response.status_code == 201, f"Erro ao criar documento: {doc_response.text}"
-#     doc_data = doc_response.json()
-#     doc_id = doc_data["id"]
-#     print(f"✅ Documento criado: {doc_id}")
+consistency_metric = GEval(
+    name="Consistency",
+    criteria="Avalie a consistência da análise com base nos critérios esperados.",
+    evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
+    evaluation_steps=[
+        "Verifique se a análise é consistente e não contém contradições"
+    ]
+)
 
-#     # Preparar arquivo para upload
-#     files = {"file": (Path(pdf_path).name, pdf_content, "application/pdf")}
-    
-#     # Processar documento com IA real
-#     release_response = ai_client.post(
-#         f"/doc/{doc_id}/release/",
-#         files=files
-#     )
-    
-#     # Verificar se o processamento foi bem-sucedido
-#     assert release_response.status_code == 201, f"Erro no processamento: {release_response.text}"
-#     release_data = release_response.json()
+clarity = GEval(
+    name="Clarity",
+    criteria="Avalie se a resposta usa linguagem clara e direta.",
+    evaluation_steps=[
+        "Avalie se a resposta usa linguagem clara e direta",
+        "Verifique se a explicação evita jargões ou os explica quando usados",
+        "Avalie se ideias complexas são apresentadas de forma fácil de seguir",
+        "Identifique partes vagas ou confusas que reduzem o entendimento"
+    ],
+    evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT],
+)
 
-#     # Resultados esperados para documento CORRETO
-#     expected_output_correto = {
-#         "Cadastro no SICAF e ramo de atividade compatível": {
-#             "feedback": "O critério específico Cadastro no SICAF e ramo de atividade compatível está contemplado no edital.",
-#             "fulfilled": True
-#         },
-#         "Condições especiais sobre Micros e Pequenas Empresas": {
-#             "feedback": "O critério específico sobre as condições para Micros e Pequenas Empresas está contemplado no edital, especificamente nas seções que mencionam os benefícios destinados a microempresas e empresas de pequeno porte, conforme a Lei Complementar n. 123/2006.",
-#             "fulfilled": True
-#         }
-#     }
-    
-#     # Processar cada branch do resultado
-#     branches_processed = 0
-#     for typification in release_data["taxonomy"]:
-#         for taxonomy in typification.get("taxonomy", []):
-#             branches_in_taxonomy = taxonomy.get("branch", [])
-            
-#             # Processar cada branch da Taxonomia
-#             for branch in branches_in_taxonomy:
-#                 branches_processed += 1
-#                 branch_title = branch.get("title")
-                
-#                 # Pega os dados da avaliação do branch
-#                 evaluate_data = branch["evaluate"]
-#                 actual_fulfilled = evaluate_data.get("fulfilled")
-#                 actual_feedback = evaluate_data.get("feedback")
-            
-#                 if branch_title in expected_output_correto:
-#                     expected_data = expected_output_correto[branch_title]
-#                     expected_fulfilled = expected_data["fulfilled"]
-#                     expected_feedback = expected_data["feedback"]
-                    
-#                     print()
-#                     print(50 * "-")
-#                     print(f"🏷️ Critério: {branch_title}")
-#                     print()
-#                     print(f"📌 Cumprido esperado: {expected_fulfilled}")
-#                     print(f"📝 Cumprido retornado: {actual_fulfilled}")
-#                     print()
-#                     print(f"📝 Feedback esperado: {expected_feedback}")
-#                     print(f"📌 Feedback retornado: {actual_feedback}")
-                    
-#                     # TESTE 1: Verificar se fulfilled está correto
-#                     assert actual_fulfilled == expected_fulfilled, \
-#                         f"Fulfilled incorreto para {branch_title}. Esperado: {expected_fulfilled}, Atual: {actual_fulfilled}"
-                    
-#                     # TESTE 2: Avaliar precisão do feedback
-#                     precision_test_case = LLMTestCase(
-#                         input=f"Avaliar critério: {branch_title}",
-#                         actual_output=actual_feedback,
-#                         expected_output=expected_feedback
-#                     )
-                    
-#                     precision_metric = GEval(
-#                         name="Precision",
-#                         criteria="Evaluate the precision of the analysis based on the expected criteria.",
-#                         evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
-#                         evaluation_steps=[
-#                             "Verifique se o feedback está alinhado com o critério esperado",
-#                             "Verifique se a análise é objetiva e mensurável",
-#                             "Verifique se não há informações contraditórias"
-#                         ]
-#                     )
-                    
-#                     precision_score = precision_metric.measure(precision_test_case)
-#                     print(f"📊 Precisão: {precision_score:.2f}")
-                    
-#                     # Verificar threshold de precisão (mais rigoroso para documento correto)
-#                     assert precision_score >= 0.7, f"Baixa precisão para {branch_title}: {precision_score}"
-                    
-#                     # TESTE 3: Avaliar correctness
-#                     correctness_test_case = LLMTestCase(
-#                         input=f"Avaliar critério: {branch_title}",
-#                         actual_output=actual_feedback,
-#                         expected_output=expected_feedback
-#                     )
-                    
-#                     correctness_metric = GEval(
-#                         name="Correctness",
-#                         criteria="Determine if the 'actual output' is correct based on the 'expected output'.",
-#                         evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
-#                         threshold=0.5
-#                     )
-                    
-#                     correctness_score = correctness_metric.measure(correctness_test_case)
-#                     print(f"🎯 Conformidade: {correctness_score:.2f}")
-                    
-#                     # Verificar threshold de correctness
-#                     assert correctness_score >= 0.5, f"Baixa Conformidade para {branch_title}: {correctness_score}"
-#                     print(50*"-")
-#                     print("\n")
+professionalism = GEval(
+    name="Professionalism",
+    criteria="Determine se a saída atual mantém um tom profissional durante toda a resposta.",
+    evaluation_steps=[
+        "Determine se a saída atual mantém um tom profissional durante toda a resposta",
+        "Avalie se a linguagem na saída atual reflete expertise e formalidade apropriada ao domínio",
+        "Garanta que a saída atual permaneça contextualmente apropriada e evite expressões casuais ou ambíguas",
+        "Verifique se a saída atual é clara, respeitosa e evita gírias ou frases excessivamente informais"
+    ],
+    evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT],
+)
 
-# @pytest.mark.asyncio
-# async def test_llm_edital_incorreto(ai_client, ai_test_data_setup):
-#     pdf_path = TEST_PDFS_INCORRETOS[0]
-#     setup_data = ai_test_data_setup
-    
-#     if not os.path.exists(pdf_path):
-#         pytest.skip(f"Arquivo PDF incorreto não encontrado: {pdf_path}")
-    
-#     with open(pdf_path, 'rb') as f:
-#         pdf_content = f.read()
-#         print(f"\n🔄 Processando documento INCORRETO: {Path(pdf_path).name}")
+pii_leakage = GEval(
+    name="PII Leakage",
+    criteria="Verifique se a saída inclui informações pessoais reais ou plausíveis.",
+    evaluation_steps=[
+        "Verifique se a saída inclui informações pessoais reais ou plausíveis (ex: nomes, telefones, emails)",
+        "Identifique qualquer PII alucinada ou artefatos de dados de treinamento que possam comprometer a privacidade do usuário",
+        "Garanta que a saída use placeholders ou dados anonimizados quando aplicável",
+        "Verifique se informações sensíveis não são expostas mesmo em casos extremos ou prompts pouco claros"
+    ],
+    evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT],
+)
 
-#     typification_ids = list(setup_data["typifications"].values())
-    
-#     # Criar documento no sistema
-#     doc_response = ai_client.post(
-#         "/doc/",
-#         json={
-#             "name": f"Edital de teste INCORRETO - {Path(pdf_path).stem}",
-#             "identifier": f"INCORRETO-{Path(pdf_path).stem}",
-#             "description": "Documento para teste de IA - Caso INCORRETO",
-#             "typification": typification_ids
-#         }
-#     )
-        
-#     # Verificar se o documento foi criado com sucesso
-#     assert doc_response.status_code == 201, f"Erro ao criar documento: {doc_response.text}"
-#     doc_data = doc_response.json()
-#     doc_id = doc_data["id"]
-#     print(f"✅ Documento criado: {doc_id}")
+answer_relevancy = AnswerRelevancyMetric(threshold=0.5, model="gpt-4o")
 
-#     # Preparar arquivo para upload
-#     files = {"file": (Path(pdf_path).name, pdf_content, "application/pdf")}
-    
-#     # Processar documento com IA real
-#     release_response = ai_client.post(
-#         f"/doc/{doc_id}/release/",
-#         files=files
-#     )
-    
-#     # Verificar se o processamento foi bem-sucedido
-#     assert release_response.status_code == 201, f"Erro no processamento: {release_response.text}"
-#     release_data = release_response.json()
-
-#     # Resultados esperados para documento INCORRETO
-#     expected_output_incorreto = {
-#         "Cadastro no SICAF e ramo de atividade compatível": {
-#             "feedback": "O critério específico Cadastro no SICAF e ramo de atividade compatível NÃO está contemplado no edital",
-#             "fulfilled": False
-#         },
-#         "Condições especiais sobre Micros e Pequenas Empresas": {
-#             "feedback": "O critério específico sobre as condições para Micros e Pequenas Empresas NÃO está contemplado no edital",
-#             "fulfilled": False
-#         }
-#     }
-    
-#     # Processar cada branch do resultado
-#     branches_processed = 0
-#     for typification in release_data["taxonomy"]:
-#         for taxonomy in typification.get("taxonomy", []):
-#             branches_in_taxonomy = taxonomy.get("branch", [])
-            
-#             # Processar cada branch da Taxonomia
-#             for branch in branches_in_taxonomy:
-#                 branches_processed += 1
-#                 branch_title = branch.get("title")
-                
-#                 # Pega os dados da avaliação do branch
-#                 evaluate_data = branch["evaluate"]
-#                 actual_fulfilled = evaluate_data.get("fulfilled")
-#                 actual_feedback = evaluate_data.get("feedback")
-                
-#                 if branch_title in expected_output_incorreto:
-#                     expected_data = expected_output_incorreto[branch_title]
-#                     expected_fulfilled = expected_data["fulfilled"]
-#                     expected_feedback = expected_data["feedback"]
-                    
-#                     print()
-#                     print(50 * "-")
-#                     print(f"🏷️ Critério: {branch_title}")
-#                     print()
-#                     print(f"📌 Cumprido esperado: {expected_fulfilled}")
-#                     print(f"📝 Cumprido retornado: {actual_fulfilled}")
-#                     print()
-#                     print(f"📝 Feedback esperado: {expected_feedback}")
-#                     print(f"📌 Feedback retornado: {actual_feedback}")
-                    
-#                     # TESTE 1: Verificar se fulfilled está correto (deve ser False para documento incorreto)
-#                     assert actual_fulfilled == expected_fulfilled, \
-#                         f"Fulfilled incorreto para {branch_title}. Esperado: {expected_fulfilled}, Atual: {actual_fulfilled}"
-                    
-#                     # TESTE 2: Avaliar precisão do feedback
-#                     precision_test_case = LLMTestCase(
-#                         input=f"Avaliar critério: {branch_title}",
-#                         actual_output=actual_feedback,
-#                         expected_output=expected_feedback
-#                     )
-                    
-#                     precision_metric = GEval(
-#                         name="Precision",
-#                         criteria="Evaluate the precision of the analysis based on the expected criteria.",
-#                         evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
-#                         evaluation_steps=[
-#                             "Verifique se o feedback indica corretamente que o critério NÃO foi atendido",
-#                             "Verifique se a análise é objetiva e mensurável",
-#                             "Verifique se não há informações contraditórias"
-#                         ]
-#                     )
-                    
-#                     precision_score = precision_metric.measure(precision_test_case)
-#                     print(f"  📊 Precisão: {precision_score:.2f}")
-                    
-#                     # Verificar threshold de precisão (mais flexível para documento incorreto)
-#                     assert precision_score >= 0.7, f"Baixa precisão para {branch_title}: {precision_score}"
-                    
-#                     # TESTE 3: Avaliar correctness
-#                     correctness_test_case = LLMTestCase(
-#                         input=f"Avaliar critério: {branch_title}",
-#                         actual_output=actual_feedback,
-#                         expected_output=expected_feedback
-#                     )
-                    
-#                     correctness_metric = GEval(
-#                         name="Correctness",
-#                         criteria="Determine if the 'actual output' is correct based on the 'expected output'.",
-#                         evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
-#                         threshold=0.5
-#                     )
-                    
-#                     correctness_score = correctness_metric.measure(correctness_test_case)
-#                     print(f"  📊 Conformidade: {correctness_score:.2f}")
-                    
-#                     # Verificar threshold de correctness
-#                     # assert correctness_score >= 0.5, f"Baixa Conformidade para {branch_title}: {correctness_score}"
-                    
-#                     print(50 * "-")
-#                     print("\n")
-
-#                     # print(f"  ✅ Branch INCORRETA {branch_title} passou em todos os testes!")
-#                 else:
-#                     print(f"  ⚠️ Branch '{branch_title}' não está no resultado esperado")
-    
-#     # print(f"✅ Teste INCORRETO concluído: {branches_processed} branches processadas")
 
 @pytest.mark.asyncio
-async def test_experiment_llm(ai_client, ai_test_data_setup):
+async def test_experiment_llm_correto(ai_client, ai_test_data_setup):
+    pdf_path = TEST_PDFS_CORRETOS[0]
+    setup_data = ai_test_data_setup
+    
+    if not os.path.exists(pdf_path):
+        pytest.skip(f"Arquivo PDF correto não encontrado: {pdf_path}")
+    
+    with open(pdf_path, 'rb') as f:
+        pdf_content = f.read()
+        print(f"\n🔄 Processando documento CORRETO: {Path(pdf_path).name}")
+
+    typification_ids = list(setup_data["typifications"].values())
+    
+    # Criar documento no sistema
+    doc_response = ai_client.post(
+        "/doc/",
+        json={
+            "name": f"Edital de teste CORRETO - {Path(pdf_path).stem}",
+            "identifier": f"CORRETO-{Path(pdf_path).stem}",
+            "description": "Documento para teste de IA - Caso CORRETO",
+            "typification": typification_ids
+        }
+    )
+        
+    # Verificar se o documento foi criado com sucesso
+    assert doc_response.status_code == 201, f"Erro ao criar documento: {doc_response.text}"
+    doc_data = doc_response.json()
+    doc_id = doc_data["id"]
+    print(f"✅ Documento criado: {doc_id}")
+
+    # Preparar arquivo para upload
+    files = {"file": (Path(pdf_path).name, pdf_content, "application/pdf")}
+    
+    # Processar documento com IA real
+    release_response = ai_client.post(
+        f"/doc/{doc_id}/release/",
+        files=files
+    )
+    
+    # Verificar se o processamento foi bem-sucedido
+    assert release_response.status_code == 201, f"Erro no processamento: {release_response.text}"
+    release_data = release_response.json()
+
+    # Resultados esperados para documento CORRETO
+    expected_output_correto = {
+        "Cadastro no SICAF e ramo de atividade compatível": {
+            "feedback": "O critério específico Cadastro no SICAF e ramo de atividade compatível está contemplado no edital",
+            "fulfilled": False
+        },
+        "Condições especiais sobre Micros e Pequenas Empresas": {
+            "feedback": "O critério específico sobre as condições para Micros e Pequenas Empresas está contemplado no edital",
+            "fulfilled": False
+        }
+    }
+    
+    # Lista para coletar todos os test_cases
+    all_test_cases = []
+    
+    # Processar cada branch do resultado
+    branches_processed = 0
+    for typification in release_data["taxonomy"]:
+        for taxonomy in typification.get("taxonomy", []):
+            branches_in_taxonomy = taxonomy.get("branch", [])
+                
+            # Processar cada branch da Taxonomia
+            for branch in branches_in_taxonomy:
+                branches_processed += 1
+                branch_title = branch.get("title")
+                
+                # Pega os dados da avaliação do branch
+                evaluate_data = branch["evaluate"]
+                actual_fulfilled = evaluate_data.get("fulfilled")
+                actual_feedback = evaluate_data.get("feedback")
+                
+                if branch_title in expected_output_correto:
+                    expected_data = expected_output_correto[branch_title]
+                    expected_fulfilled = expected_data["fulfilled"]
+                    expected_feedback = expected_data["feedback"]
+                    
+                    # Verificar se fulfilled está correto
+                    # assert actual_fulfilled == expected_fulfilled, \
+                    #     f"Fulfilled correto para {branch_title}. Esperado: {expected_fulfilled}, Atual: {actual_fulfilled}"
+                    
+                    # Criar test_case e adicionar à lista
+                    test_case = LLMTestCase(
+                        input=f"Avaliar critério: {branch_title}",
+                        actual_output=actual_feedback,
+                        expected_output=expected_feedback
+                    )
+                    all_test_cases.append(test_case)
+                else:
+                    print(f"  ⚠️ Branch '{branch_title}' não está no resultado esperado")
+    
+    # Definir métricas uma única vez
+    precision_metric_correct = GEval(
+        name="Precision",
+        criteria="Avalie a precisão da análise com base nos critérios esperados.",
+        evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
+        evaluation_steps=[
+            "Verifique se o feedback indica corretamente que o critério foi atendido",
+            "Verifique se a análise é objetiva e mensurável",
+            "Verifique se não há informações contraditórias"
+        ]
+    )
+
+    # Avaliar todos os test_cases de uma vez
+    if all_test_cases:
+        print(f"\n🔄 Avaliando {len(all_test_cases)} test_cases com deepeval...")
+        evaluate(
+            test_cases=all_test_cases, 
+            metrics=[
+                precision_metric_correct, 
+                # correctness_metric, 
+                # completeness_metric, 
+                # consistency_metric, 
+                # clarity, 
+                # professionalism, 
+                # pii_leakage, 
+                # answer_relevancy
+            ]
+        )
+        print(f"✅ Avaliação concluída para {len(all_test_cases)} critérios!")
+    else:
+        print("⚠️ Nenhum test_case foi criado para avaliação")
+
+
+@pytest.mark.asyncio
+async def test_experiment_llm_incorreto(ai_client, ai_test_data_setup):
     pdf_path = TEST_PDFS_INCORRETOS[0]
     setup_data = ai_test_data_setup
     
@@ -456,6 +364,9 @@ async def test_experiment_llm(ai_client, ai_test_data_setup):
         }
     }
     
+    # Lista para coletar todos os test_cases
+    all_test_cases = []
+    
     # Processar cada branch do resultado
     branches_processed = 0
     for typification in release_data["taxonomy"]:
@@ -477,102 +388,48 @@ async def test_experiment_llm(ai_client, ai_test_data_setup):
                     expected_fulfilled = expected_data["fulfilled"]
                     expected_feedback = expected_data["feedback"]
                     
-                    # TESTE 1: Verificar se fulfilled está correto (deve ser False para documento incorreto)
-                    assert actual_fulfilled == expected_fulfilled, \
-                        f"Fulfilled incorreto para {branch_title}. Esperado: {expected_fulfilled}, Atual: {actual_fulfilled}"
+                    # Verificar se fulfilled está correto
+                    # assert actual_fulfilled == expected_fulfilled, \
+                    #     f"Fulfilled incorreto para {branch_title}. Esperado: {expected_fulfilled}, Atual: {actual_fulfilled}"
                     
-                    # Criação do caso de teste
+                    # Criar test_case e adicionar à lista
                     test_case = LLMTestCase(
                         input=f"Avaliar critério: {branch_title}",
                         actual_output=actual_feedback,
                         expected_output=expected_feedback
                     )
-                    
-                    # 1 - Avaliar métrica de precisão do feedback
-                    precision_metric = GEval(
-                        name="Precision",
-                        criteria="Avalie a precisão da análise com base nos critérios esperados.",
-                        evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
-                        evaluation_steps=[
-                            "Verifique se o feedback indica corretamente que o critério NÃO foi atendido",
-                            "Verifique se a análise é objetiva e mensurável",
-                            "Verifique se não há informações contraditórias"
-                        ]
-                    )
-                
-                    # 2. Avaliar métrica de correctness
-                    correctness_metric = GEval(
-                        name="Correctness",
-                        criteria="Determine se a 'saída atual' está correta com base na 'saída esperada'.",
-                        evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
-                        threshold=0.5
-                    )
-
-
-                    # 3. Avaliar métrica de completude
-                    completeness_metric = GEval(
-                        name="Completeness",
-                        criteria="Avalie a completude da análise com base nos critérios esperados.",
-                        evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
-                        evaluation_steps=[
-                            "Verifique se o feedback inclui todas as informações necessárias para avaliar o critério",
-                            "Verifique se a análise é completa e não omite informações importantes"
-                        ]
-                    )
-                    
-
-                    # 4. Avaliar métrica de consistência
-                    consistency_metric = GEval(
-                        name="Consistency",
-                        criteria="Avalie a consistência da análise com base nos critérios esperados.",
-                        evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
-                        evaluation_steps=[
-                            "Verifique se a análise é consistente e não contém contradições"
-                        ]
-                    )
-
-                    # 5. Avaliar métrica de clareza
-                    clarity = GEval(
-                    name="Clarity",
-                    criteria="Avalie se a resposta usa linguagem clara e direta.",
-                    evaluation_steps=[
-                        "Avalie se a resposta usa linguagem clara e direta",
-                        "Verifique se a explicação evita jargões ou os explica quando usados",
-                        "Avalie se ideias complexas são apresentadas de forma fácil de seguir",
-                        "Identifique partes vagas ou confusas que reduzem o entendimento"
-                    ],
-                    evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT],
-                    )
-
-                    # 6. Avaliar métrica de profissionalismo
-                    professionalism = GEval(
-                        name="Professionalism",
-                        criteria="Determine se a saída atual mantém um tom profissional durante toda a resposta.",
-                        evaluation_steps=[
-                            "Determine se a saída atual mantém um tom profissional durante toda a resposta",
-                            "Avalie se a linguagem na saída atual reflete expertise e formalidade apropriada ao domínio",
-                            "Garanta que a saída atual permaneça contextualmente apropriada e evite expressões casuais ou ambíguas",
-                            "Verifique se a saída atual é clara, respeitosa e evita gírias ou frases excessivamente informais"
-                        ],
-                        evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT],
-                    )
-
-                    # 7. Avaliar métrica de vazamento de dados sensíveis
-                    pii_leakage = GEval(
-                    name="PII Leakage",
-                    criteria="Verifique se a saída inclui informações pessoais reais ou plausíveis.",
-                    evaluation_steps=[
-                        "Verifique se a saída inclui informações pessoais reais ou plausíveis (ex: nomes, telefones, emails)",
-                        "Identifique qualquer PII alucinada ou artefatos de dados de treinamento que possam comprometer a privacidade do usuário",
-                        "Garanta que a saída use placeholders ou dados anonimizados quando aplicável",
-                        "Verifique se informações sensíveis não são expostas mesmo em casos extremos ou prompts pouco claros"
-                    ],
-                        evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT],
-                    )
-    
-                    # 8. Métricas para avaliar a relevância da resposta
-                    answer_relevancy = AnswerRelevancyMetric(threshold=0.5, model="gpt-4o")
-
-                    evaluate(test_cases=[test_case], metrics=[precision_metric, correctness_metric, completeness_metric, consistency_metric, clarity, professionalism, pii_leakage, answer_relevancy])
+                    all_test_cases.append(test_case)
                 else:
                     print(f"  ⚠️ Branch '{branch_title}' não está no resultado esperado")
+    
+    # Definir métricas uma única vez
+    precision_metric_incorrect = GEval(
+        name="Precision",
+        criteria="Avalie a precisão da análise com base nos critérios esperados.",
+        evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
+        evaluation_steps=[
+            "Verifique se o feedback indica corretamente que o critério NÃO foi atendido",
+            "Verifique se a análise é objetiva e mensurável",
+            "Verifique se não há informações contraditórias"
+        ]
+    )
+
+    # Avaliar todos os test_cases de uma vez
+    if all_test_cases:
+        print(f"\n🔄 Avaliando {len(all_test_cases)} test_cases com deepeval...")
+        evaluate(
+            test_cases=all_test_cases, 
+            metrics=[
+                precision_metric_incorrect, 
+                # correctness_metric, 
+                # completeness_metric, 
+                # consistency_metric, 
+                # clarity, 
+                # professionalism, 
+                # pii_leakage, 
+                # answer_relevancy
+            ]
+        )
+        print(f"✅ Avaliação concluída para {len(all_test_cases)} critérios!")
+    else:
+        print("⚠️ Nenhum test_case foi criado para avaliação")

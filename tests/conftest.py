@@ -324,7 +324,6 @@ def real_vectorstore(postgres):
 
 @pytest.fixture(scope="session")
 def real_cache():
-    # Usar FakeRedis para evitar problemas de event loop
     import fakeredis.aioredis
     return fakeredis.aioredis.FakeRedis(decode_responses=True)
 
