@@ -632,10 +632,11 @@ class DocumentRelease:
 
     file_path: Mapped[str] = mapped_column(nullable=False)
 
-    typifications: Mapped[List['AppliedTypification']] = relationship(
+    check_tree: Mapped[List['AppliedTypification']] = relationship(
         'AppliedTypification',
         back_populates='release',
         default_factory=list,
+        lazy='selectin',
         init=False,
     )
 
@@ -799,7 +800,7 @@ class AppliedTypification:
     )
 
     release: Mapped['DocumentRelease'] = relationship(
-        back_populates='typifications', init=False
+        back_populates='check_tree', init=False
     )
 
     original_id: Mapped[Optional[UUID]] = mapped_column(

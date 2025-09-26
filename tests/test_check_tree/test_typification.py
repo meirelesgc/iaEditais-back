@@ -11,7 +11,7 @@ async def test_create_typification(logged_client):
     client, *_ = await logged_client()
     response = client.post(
         '/typification/',
-        json={'name': 'Financial Reports'},
+        json={'name': 'Financial Reports', 'source_ids': []},
     )
 
     assert response.status_code == HTTPStatus.CREATED
@@ -44,7 +44,7 @@ async def test_create_typification_conflict(
 
     response = client.post(
         '/typification/',
-        json={'name': 'Existing Typification'},
+        json={'name': 'Existing Typification', 'source_ids': []},
     )
 
     assert response.status_code == HTTPStatus.CONFLICT
@@ -95,6 +95,7 @@ async def test_update_typification(logged_client, create_typification):
         json={
             'id': str(typification.id),
             'name': 'New Name',
+            'source_ids': [],
         },
     )
     assert response.status_code == HTTPStatus.OK
@@ -116,6 +117,7 @@ async def test_update_typification_conflict(
         json={
             'id': str(typification_b.id),
             'name': 'Typification A',
+            'source_ids': [],
         },
     )
     assert response.status_code == HTTPStatus.CONFLICT
@@ -130,6 +132,7 @@ async def test_update_nonexistent_typification(logged_client):
         json={
             'id': str(uuid.uuid4()),
             'name': 'Ghost Typification',
+            'source_ids': [],
         },
     )
     assert response.status_code == HTTPStatus.NOT_FOUND

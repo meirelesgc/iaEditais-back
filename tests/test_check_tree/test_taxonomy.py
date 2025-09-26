@@ -16,6 +16,7 @@ async def test_create_taxonomy(logged_client, create_typification):
             'title': 'New Taxonomy',
             'description': 'A detailed description.',
             'typification_id': str(typification.id),
+            'source_ids': [],
         },
     )
 
@@ -66,6 +67,7 @@ async def test_create_taxonomy_conflict(
             'title': 'Existing Title',
             'description': 'Another description.',
             'typification_id': str(typification.id),
+            'source_ids': [],
         },
     )
 
@@ -82,6 +84,7 @@ async def test_create_taxonomy_with_invalid_typification(logged_client):
             'title': 'Taxonomy with no Typification',
             'description': 'A description.',
             'typification_id': str(uuid.uuid4()),
+            'source_ids': [],
         },
     )
 
@@ -155,6 +158,7 @@ async def test_update_taxonomy(
             'title': 'New Title',
             'description': 'New desc.',
             'typification_id': str(typification2.id),
+            'source_ids': [],
         },
     )
 
@@ -216,6 +220,7 @@ async def test_update_taxonomy_conflict(
             'title': 'Taxonomy A',
             'description': taxonomy_b.description,
             'typification_id': str(typification.id),
+            'source_ids': [],
         },
     )
 
@@ -234,6 +239,7 @@ async def test_update_nonexistent_taxonomy(logged_client, create_typification):
             'title': 'Ghost Taxonomy',
             'description': '...',
             'typification_id': str(typification.id),
+            'source_ids': [],
         },
     )
     assert response.status_code == HTTPStatus.NOT_FOUND
@@ -257,6 +263,7 @@ async def test_update_taxonomy_with_nonexistent_typification(
             'title': 'New Title',
             'description': 'New Desc',
             'typification_id': str(uuid.uuid4()),
+            'source_ids': [],
         },
     )
     assert response.status_code == HTTPStatus.NOT_FOUND

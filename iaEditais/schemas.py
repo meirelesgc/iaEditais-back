@@ -141,19 +141,19 @@ class TaxonomySchema(BaseModel):
 
 class TaxonomyCreate(TaxonomySchema):
     typification_id: UUID
-    source_ids: list[UUID] = []
+    source_ids: list[UUID]
 
 
 class TaxonomyUpdate(TaxonomySchema):
     id: UUID
     typification_id: UUID
-    source_ids: list[UUID] = []
+    source_ids: list[UUID]
 
 
 class TaxonomyPublic(TaxonomySchema):
     id: UUID
-    branches: list[BranchPublic] = []
-    sources: list[SourcePublic] = []
+    branches: list[BranchPublic]
+    sources: list[SourcePublic]
 
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -170,18 +170,18 @@ class TypificationSchema(BaseModel):
 
 
 class TypificationCreate(TypificationSchema):
-    source_ids: list[UUID] = []
+    source_ids: list[UUID]
 
 
 class TypificationUpdate(TypificationSchema):
     id: UUID
-    source_ids: list[UUID] = []
+    source_ids: list[UUID]
 
 
 class TypificationPublic(TypificationSchema):
     id: UUID
-    sources: list[SourcePublic] = []
-    taxonomies: list[TaxonomyPublic] = []
+    sources: list[SourcePublic]
+    taxonomies: list[TaxonomyPublic]
 
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -200,14 +200,14 @@ class DocumentSchema(BaseModel):
 
 
 class DocumentCreate(DocumentSchema):
-    typification_ids: Optional[list[UUID]] = []
-    editors_ids: Optional[list[UUID]] = []
+    typification_ids: Optional[list[UUID]]
+    editors_ids: Optional[list[UUID]]
 
 
 class DocumentUpdate(DocumentSchema):
     id: UUID
-    typification_ids: Optional[list[UUID]] = []
-    editors_ids: Optional[list[UUID]] = []
+    typification_ids: Optional[list[UUID]]
+    editors_ids: Optional[list[UUID]]
 
 
 class DocumentHistorySchema(BaseModel):
@@ -224,9 +224,9 @@ class DocumentHistoryPublic(DocumentHistorySchema):
 
 class DocumentPublic(DocumentSchema):
     id: UUID
-    history: list[DocumentHistoryPublic] = []
-    typifications: list[TypificationPublic] = []
-    editors: list['UserPublic'] = []
+    history: list[DocumentHistoryPublic]
+    typifications: list[TypificationPublic]
+    editors: list[UserPublic]
 
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -238,9 +238,57 @@ class DocumentList(BaseModel):
     documents: list[DocumentPublic]
 
 
+class DocumentReleaseFeedback(BaseModel):
+    feedback: str = Field(
+        description=(
+            'Parecer detalhado sobre a conformidade do edital com o '
+            'critério avaliado.'
+        )
+    )
+    fulfilled: bool = Field(
+        description=(
+            'Indica se o edital atende ao requisito especificado '
+            '(True para cumprido, False para não cumprido).'
+        )
+    )
+    score: int = Field(
+        ge=0,
+        le=10,
+        description=(
+            'Nota atribuída à conformidade do edital com o critério, '
+            'variando de 0 a 10.'
+        ),
+    )
+
+
+class AppliedBranchPublic(BranchSchema):
+    id: UUID
+    evaluation: DocumentReleaseFeedback
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AppliedTaxonomyPublic(TaxonomySchema):
+    id: UUID
+    branches: list[AppliedBranchPublic]
+    sources: list[SourcePublic]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AppliedTypificationPublic(TypificationSchema):
+    id: UUID
+    sources: list[SourcePublic]
+    taxonomies: list[AppliedTaxonomyPublic]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class DocumentReleasePublic(BaseModel):
     id: UUID
     file_path: str
+    check_tree: list[AppliedTypificationPublic]
+
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -248,17 +296,3 @@ class DocumentReleasePublic(BaseModel):
 
 class DocumentReleaseList(BaseModel):
     releases: list[DocumentReleasePublic]
-
-
-class DocumentReleaseFeedback(BaseModel):
-    feedback: str = Field(
-        description='Parecer detalhado sobre a conformidade do edital com o critério avaliado.'
-    )
-    fulfilled: bool = Field(
-        description='Indica se o edital atende ao requisito especificado (True para cumprido, False para não cumprido).'
-    )
-    score: int = Field(
-        ge=0,
-        le=10,
-        description='Nota atribuída à conformidade do edital com o critério, variando de 0 a 10.',
-    )

@@ -15,8 +15,11 @@ async def test_create_doc(logged_client):
             'name': 'New Doc',
             'description': 'A doc description',
             'identifier': 'DOC-123',
+            'typification_ids': [],
+            'editors_ids': [],
         },
     )
+    print(response.json())
     assert response.status_code == HTTPStatus.CREATED
     data = response.json()
     assert data['name'] == 'New Doc'
@@ -35,6 +38,8 @@ async def test_create_doc_conflict(logged_client, create_doc):
             'name': 'Doc A',
             'description': 'Another desc',
             'identifier': 'DOC-002',
+            'typification_ids': [],
+            'editors_ids': [],
         },
     )
     assert response.status_code == HTTPStatus.CONFLICT
@@ -49,6 +54,8 @@ async def test_create_doc_conflict(logged_client, create_doc):
             'name': 'Doc B',
             'description': 'Another desc',
             'identifier': 'DOC-001',
+            'typification_ids': [],
+            'editors_ids': [],
         },
     )
     assert response.status_code == HTTPStatus.CONFLICT
@@ -111,6 +118,7 @@ async def test_update_doc(logged_client, create_doc, create_typification):
             'description': 'Updated Desc',
             'identifier': 'NEW-001',
             'typification_ids': [str(typ1.id), str(typ2.id)],
+            'editors_ids': [],
         },
     )
     assert response.status_code == HTTPStatus.OK
@@ -141,6 +149,7 @@ async def test_update_doc_conflict(
             'description': 'Some desc',
             'identifier': 'ID-B',
             'typification_ids': [str(typ.id)],
+            'editors_ids': [],
         },
     )
     assert response.status_code == HTTPStatus.CONFLICT
@@ -157,6 +166,7 @@ async def test_update_doc_conflict(
             'description': 'Some desc',
             'identifier': 'ID-A',
             'typification_ids': [str(typ.id)],
+            'editors_ids': [],
         },
     )
     assert response.status_code == HTTPStatus.CONFLICT
@@ -176,6 +186,8 @@ async def test_update_nonexistent_doc(logged_client):
             'name': 'Ghost Doc',
             'description': '...',
             'identifier': 'GHOST-001',
+            'typification_ids': [],
+            'editors_ids': [],
         },
     )
     assert response.status_code == HTTPStatus.NOT_FOUND
