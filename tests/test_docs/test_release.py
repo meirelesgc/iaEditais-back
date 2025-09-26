@@ -55,9 +55,12 @@ async def test_create_release(
     assert 'file_path' in data
     assert data['file_path'].endswith('.txt')
 
-    upload_path = Path(data['file_path'])
-    assert upload_path.exists()
-    assert upload_path.read_bytes() == file_content
+    file_name = Path(data['file_path']).name
+
+    actual_file_path = Path(mock_upload_directory) / file_name
+
+    assert actual_file_path.exists()
+    assert actual_file_path.read_bytes() == file_content
 
 
 @pytest.mark.asyncio
