@@ -21,6 +21,21 @@ async def test_create_typification(logged_client):
 
 
 @pytest.mark.asyncio
+async def test_create_typification_with_source(logged_client, create_source):
+    source = await create_source()
+    client, *_ = await logged_client()
+    response = client.post(
+        '/typification/',
+        json={'name': 'Financial Reports', 'source_ids': [str(source.id)]},
+    )
+
+    assert response.status_code == HTTPStatus.CREATED
+    data = response.json()
+    assert data['name'] == 'Financial Reports'
+    assert data['sources'][0]['name'] == source.name
+
+
+@pytest.mark.asyncio
 async def test_create_typification_conflict(
     logged_client, create_typification
 ):
