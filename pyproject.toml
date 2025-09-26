@@ -66,13 +66,42 @@ run = 'fastapi dev iaEditais/app.py'
 test = 'pytest -s -x --cov=iaEditais -vv'
 cov = 'coverage html'
 auto-migrate = """
-    sh -c '
-    MSG="$1";
-    git add .;
-    git commit -m "$MSG";
-    alembic upgrade head;
-    alembic revision --autogenerate -m "$MSG";
-    git add migrations/versions;
-    git commit -m "migration: $MSG";
-    ' --
-"""
+    bash -euo pipefail -c '
+    # 1. Verifica se o usuário passou mensagem
+    if [ -z \"$1\" ]; then
+        echo \"Uso: task auto-migrate \\\"Sua mensagem de commit\\\"\"
+        exit 1
+    fi
+
+    MSG=\"$1\"
+
+    # 2. Staging e commit do código
+    echo \"📦 Staging changes...\"
+    git add .
+
+    echo \"✏️  Commitando: $MSG\"
+    git commit -m \"$MSG\"
+
+    # 3. Atualiza o banco e gera nova migration
+    echo \"⚙️  Executando alembic upgrade head...\"
+    alembic upgrade head
+
+    echo \"⚙️  Gerando migration: $MSG\"
+    alembic revision --autogenerate -m \"$MSG\"
+
+    # 4. Staging e commit das migrations
+    echo \"📦 Staging migrations/versions...\"
+    git add migrations/versions
+
+    echo \"✏️  Commitando migration: $MSG\"
+    git commit -m \"migration: $MSG\"
+    ' -- 
+    """
+push = """
+    task test && \
+    git add . && \
+    git commit -m \"chore: deploy via taskipy\" && \
+    git push && \
+    docker build -t gleidsoncosta/fiotec-iaeditais:latest . && \
+    docker push gleidsoncosta/fiotec-iaeditais:latest
+    """
