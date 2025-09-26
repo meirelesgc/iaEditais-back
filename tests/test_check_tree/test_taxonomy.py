@@ -27,6 +27,30 @@ async def test_create_taxonomy(logged_client, create_typification):
 
 
 @pytest.mark.asyncio
+async def test_create_taxonomy_with_source(
+    logged_client, create_typification, create_source
+):
+    source = await create_source()
+    client, *_ = await logged_client()
+    typification = await create_typification(name='Typification for Taxonomy')
+    response = client.post(
+        '/taxonomy/',
+        json={
+            'title': 'New Taxonomy',
+            'description': 'A detailed description.',
+            'typification_id': str(typification.id),
+            'source_ids': [str(source.id)],
+        },
+    )
+
+    assert response.status_code == HTTPStatus.CREATED
+    data = response.json()
+    assert data['title'] == 'New Taxonomy'
+    assert data['description'] == 'A detailed description.'
+    assert 'id' in data
+
+
+@pytest.mark.asyncio
 async def test_create_taxonomy_conflict(
     logged_client, create_typification, create_taxonomy
 ):
@@ -131,6 +155,39 @@ async def test_update_taxonomy(
             'title': 'New Title',
             'description': 'New desc.',
             'typification_id': str(typification2.id),
+        },
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+    assert data['id'] == str(taxonomy.id)
+    assert data['title'] == 'New Title'
+    assert data['description'] == 'New desc.'
+
+
+@pytest.mark.asyncio
+async def test_update_taxonomy_with_source(
+    logged_client, create_typification, create_taxonomy, create_source
+):
+    client, *_ = await logged_client()
+    typification1 = await create_typification(name='Old Typification')
+    typification2 = await create_typification(name='New Typification')
+    taxonomy = await create_taxonomy(
+        title='Old Title',
+        description='Old desc.',
+        typification_id=typification1.id,
+    )
+
+    source = await create_source()
+
+    response = client.put(
+        '/taxonomy/',
+        json={
+            'id': str(taxonomy.id),
+            'title': 'New Title',
+            'description': 'New desc.',
+            'typification_id': str(typification2.id),
+            'source_ids': [str(source.id)],
         },
     )
 

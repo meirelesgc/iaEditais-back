@@ -147,7 +147,7 @@ class TaxonomyCreate(TaxonomySchema):
 class TaxonomyUpdate(TaxonomySchema):
     id: UUID
     typification_id: UUID
-    source_ids: list[UUID] = []
+    source_ids: list[UUID]
 
 
 class TaxonomyPublic(TaxonomySchema):

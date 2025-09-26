@@ -167,10 +167,9 @@ async def update_taxonomy(
                 status_code=HTTPStatus.NOT_FOUND,
                 detail='Typification not found',
             )
-
     if taxonomy.source_ids:
         sources = await session.scalars(
-            select(Source).where(Source.id.in_(typification.source_ids))
+            select(Source).where(Source.id.in_(taxonomy.source_ids))
         )
         db_taxonomy.sources = sources.all()
     else:
