@@ -12,14 +12,6 @@ from iaEditais.models import Document, DocumentHistory, DocumentStatus, User
 from iaEditais.schemas import DocumentPublic
 from iaEditais.security import get_current_user
 
-# URL = 'http://localhost:8080/message/sendText/Gleidson'
-
-# headers = {'Content-Type': 'application/json', 'apikey': 'secret'}
-# payload = {
-#     'number': '557598176422',
-#     'text': 'Olá, essa é uma mensagem de teste',
-# }
-
 router = APIRouter(
     prefix='/doc/{doc_id}/status', tags=['verificação dos documentos, kanban']
 )
@@ -86,15 +78,6 @@ async def set_status_waiting_review(
     doc_id: UUID, session: Session, current_user: CurrentUser
 ):
     doc = await get_doc_or_404(doc_id, session)
-
-    # response = httpx.post(URL, headers=headers, json=payload)
-
-    # if response.status_code != HTTPStatus.OK:
-    #     raise HTTPException(
-    #         status_code=HTTPStatus.BAD_GATEWAY,
-    #         detail=f'Erro ao enviar mensagem: {response.text}',
-    #     )
-
     return await _set_status(
         doc, DocumentStatus.WAITING_FOR_REVIEW, current_user, session
     )
