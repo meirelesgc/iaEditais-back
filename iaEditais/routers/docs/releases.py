@@ -1,34 +1,22 @@
 from datetime import datetime, timezone
 from http import HTTPStatus
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
-from langchain_core.language_models.chat_models import BaseChatModel
-from langchain_core.vectorstores import VectorStore
+from fastapi import APIRouter, File, HTTPException, UploadFile
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from iaEditais.core.database import get_session
-from iaEditais.core.llm import get_model
-from iaEditais.core.vectorstore import get_vectorstore
-from iaEditais.models import DocumentHistory, DocumentRelease, User
+from iaEditais.dependencies import CurrentUser, Model, Session, VStore
+from iaEditais.models import DocumentHistory, DocumentRelease
 from iaEditais.schemas import (
     DocumentReleaseList,
     DocumentReleasePublic,
 )
-from iaEditais.security import get_current_user
 from iaEditais.services import releases_service
 
 router = APIRouter(
     prefix='/doc/{doc_id}/release',
     tags=['verificação dos documentos, versões'],
 )
-
-Session = Annotated[AsyncSession, Depends(get_session)]
-CurrentUser = Annotated[User, Depends(get_current_user)]
-VStore = Annotated[VectorStore, Depends(get_vectorstore)]
-Model = Annotated[BaseChatModel, Depends(get_model)]
 
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 

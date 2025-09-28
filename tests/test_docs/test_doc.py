@@ -19,7 +19,6 @@ async def test_create_doc(logged_client):
             'editors_ids': [],
         },
     )
-    print(response.json())
     assert response.status_code == HTTPStatus.CREATED
     data = response.json()
     assert data['name'] == 'New Doc'

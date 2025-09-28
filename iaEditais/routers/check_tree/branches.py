@@ -5,10 +5,9 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from iaEditais.core.database import get_session
-from iaEditais.models import Branch, Taxonomy, User
+from iaEditais.dependencies import CurrentUser, Session
+from iaEditais.models import Branch, Taxonomy
 from iaEditais.schemas import (
     BranchCreate,
     BranchFilter,
@@ -16,16 +15,11 @@ from iaEditais.schemas import (
     BranchPublic,
     BranchUpdate,
 )
-from iaEditais.security import get_current_user
 
 router = APIRouter(
     prefix='/branch',
     tags=['árvore de verificação, branches'],
 )
-
-
-Session = Annotated[AsyncSession, Depends(get_session)]
-CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.post(

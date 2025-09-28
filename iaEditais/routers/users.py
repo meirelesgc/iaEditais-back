@@ -6,9 +6,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from iaEditais.core.database import get_session
+from iaEditais.dependencies import CurrentUser, Session
 from iaEditais.models import User
 from iaEditais.schemas import (
     UserCreate,
@@ -17,12 +16,9 @@ from iaEditais.schemas import (
     UserPublic,
     UserUpdate,
 )
-from iaEditais.security import get_current_user, get_password_hash
+from iaEditais.security import get_password_hash
 
 router = APIRouter(prefix='/user', tags=['operações de sistema, usuário'])
-
-Session = Annotated[AsyncSession, Depends(get_session)]
-CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.post('/', status_code=HTTPStatus.CREATED, response_model=UserPublic)

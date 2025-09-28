@@ -5,16 +5,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from iaEditais.core.database import get_session
+from iaEditais.dependencies import CurrentUser, Session
 from iaEditais.models import (
     Source,
     Taxonomy,
     TaxonomySource,
     Typification,
-    User,
 )
 from iaEditais.schemas import (
     FilterPage,
@@ -23,16 +21,11 @@ from iaEditais.schemas import (
     TaxonomyPublic,
     TaxonomyUpdate,
 )
-from iaEditais.security import get_current_user
 
 router = APIRouter(
     prefix='/taxonomy',
     tags=['árvore de verificação, taxonomias'],
 )
-
-
-Session = Annotated[AsyncSession, Depends(get_session)]
-CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.post(

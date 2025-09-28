@@ -1,18 +1,14 @@
 from http import HTTPStatus
-from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Response
-from fastapi.security import OAuth2PasswordRequestForm
+from fastapi import APIRouter, HTTPException, Response
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from iaEditais.core.database import get_session
+from iaEditais.dependencies import CurrentUser, OAuth2Form, Session
 from iaEditais.models import User
 from iaEditais.schemas import Token
 from iaEditais.security import (
     ACCESS_TOKEN_COOKIE_NAME,
     create_access_token,
-    get_current_user,
     verify_password,
 )
 from iaEditais.settings import Settings
@@ -20,10 +16,6 @@ from iaEditais.settings import Settings
 settings = Settings()
 
 router = APIRouter(prefix='/auth', tags=['operações de sistema, autenticação'])
-
-OAuth2Form = Annotated[OAuth2PasswordRequestForm, Depends()]
-Session = Annotated[AsyncSession, Depends(get_session)]
-CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 @router.post('/token', response_model=Token)

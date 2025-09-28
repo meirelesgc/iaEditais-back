@@ -1,23 +1,17 @@
 from datetime import datetime, timezone
 from http import HTTPStatus
-from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, HTTPException
 from sqlalchemy.orm import selectinload
 
-from iaEditais.core.database import get_session
+from iaEditais.dependencies import CurrentUser, Session
 from iaEditais.models import Document, DocumentHistory, DocumentStatus, User
 from iaEditais.schemas import DocumentPublic
-from iaEditais.security import get_current_user
 
 router = APIRouter(
     prefix='/doc/{doc_id}/status', tags=['verificação dos documentos, kanban']
 )
-
-Session = Annotated[AsyncSession, Depends(get_session)]
-CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 async def get_doc_or_404(doc_id: UUID, session: Session) -> Document:
