@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_, select
 from sqlalchemy.orm import selectinload
 
-from iaEditais.dependencies import CurrentUser, Session
+from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import (
     Document,
     DocumentHistory,

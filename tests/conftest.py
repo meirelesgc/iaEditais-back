@@ -15,6 +15,11 @@ from testcontainers.postgres import PostgresContainer
 from iaEditais.app import app
 from iaEditais.core.database import get_session
 from iaEditais.core.llm import get_model
+from iaEditais.core.security import (
+    ACCESS_TOKEN_COOKIE_NAME,
+    create_access_token,
+    get_password_hash,
+)
 from iaEditais.core.vectorstore import get_vectorstore
 from iaEditais.models import (
     DocumentHistory,
@@ -23,11 +28,6 @@ from iaEditais.models import (
     Taxonomy,
     Typification,
     table_registry,
-)
-from iaEditais.security import (
-    ACCESS_TOKEN_COOKIE_NAME,
-    create_access_token,
-    get_password_hash,
 )
 from tests.factories import (
     BranchFactory,

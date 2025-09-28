@@ -6,7 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 
-from iaEditais.dependencies import CurrentUser, Session
+from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import Branch, Taxonomy
 from iaEditais.schemas import (
     BranchCreate,

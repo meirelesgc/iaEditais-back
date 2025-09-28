@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from iaEditais.core.database import get_session
 from iaEditais.core.llm import get_model
+from iaEditais.core.security import get_current_user
 from iaEditais.core.vectorstore import get_vectorstore
 from iaEditais.models import (
     AppliedBranch,
@@ -28,9 +29,8 @@ from iaEditais.models import (
     Typification,
     User,
 )
-from iaEditais.repository import releases_repository
+from iaEditais.repositories import releases_repository
 from iaEditais.schemas import DocumentReleaseFeedback
-from iaEditais.security import get_current_user
 
 Session = Annotated[AsyncSession, Depends(get_session)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
@@ -58,9 +58,7 @@ def safe_file(file: UploadFile, upload_directory) -> str:
 
 async def create_release(
     doc_id: UUID,
-    model: Model,
     session: Session,
-    vectorstore: VStore,
     current_user: CurrentUser,
     file: UploadFile = File(...),
 ):
@@ -96,7 +94,6 @@ async def create_release(
     db_release = await releases_repository.insert_db_release(
         latest_history, file_path, session, current_user
     )
-    response = await process_release(model, session, vectorstore, db_release)
     return db_release
 
 

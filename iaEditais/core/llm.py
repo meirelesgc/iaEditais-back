@@ -1,6 +1,6 @@
 from langchain_openai import ChatOpenAI
 
-from iaEditais.settings import Settings
+from iaEditais.core.settings import Settings
 
 model = ChatOpenAI(
     model='gpt-4o-mini',

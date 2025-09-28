@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from iaEditais.core.database import get_session
+from iaEditais.core.security import get_current_user
 from iaEditais.models import (
     Document,
     DocumentHistory,
@@ -15,7 +16,6 @@ from iaEditais.models import (
     Typification,
     User,
 )
-from iaEditais.security import get_current_user
 
 Session = Annotated[AsyncSession, Depends(get_session)]
 CurrentUser = Annotated[User, Depends(get_current_user)]

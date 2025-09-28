@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from sqlalchemy import select
 
-from iaEditais.dependencies import CurrentUser, Model, Session, VStore
+from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import DocumentHistory, DocumentRelease
 from iaEditais.schemas import (
     DocumentReleaseList,
@@ -22,22 +22,18 @@ UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 
 
 @router.post(
-    '/',
-    status_code=HTTPStatus.CREATED,
-    response_model=DocumentReleasePublic,
+    '/', status_code=HTTPStatus.CREATED, response_model=DocumentReleasePublic
 )
 async def create_release(
     doc_id: UUID,
-    model: Model,
     session: Session,
-    vectorstore: VStore,
     current_user: CurrentUser,
     file: UploadFile = File(...),
 ):
-    release = await releases_service.create_release(
-        doc_id, model, session, vectorstore, current_user, file
+    db_release = await releases_service.create_release(
+        doc_id, session, current_user, file
     )
-    return release
+    return db_release
 
 
 @router.get(

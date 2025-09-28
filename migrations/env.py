@@ -9,7 +9,7 @@ from sqlalchemy import pool
 from alembic import context
 
 from iaEditais.models import table_registry
-from iaEditais.settings import Settings
+from iaEditais.core.settings import Settings
 
 config = context.config
 config.set_main_option('sqlalchemy.url', Settings().DATABASE_URL)

@@ -11,8 +11,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from iaEditais.core.database import get_session
+from iaEditais.core.settings import Settings
 from iaEditais.models import User
-from iaEditais.settings import Settings
 
 settings = Settings()
 pwd_context = PasswordHash.recommended()

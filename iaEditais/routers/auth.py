@@ -3,15 +3,15 @@ from http import HTTPStatus
 from fastapi import APIRouter, HTTPException, Response
 from sqlalchemy import select
 
-from iaEditais.dependencies import CurrentUser, OAuth2Form, Session
-from iaEditais.models import User
-from iaEditais.schemas import Token
-from iaEditais.security import (
+from iaEditais.core.dependencies import CurrentUser, OAuth2Form, Session
+from iaEditais.core.security import (
     ACCESS_TOKEN_COOKIE_NAME,
     create_access_token,
     verify_password,
 )
-from iaEditais.settings import Settings
+from iaEditais.core.settings import Settings
+from iaEditais.models import User
+from iaEditais.schemas import Token
 
 settings = Settings()
 

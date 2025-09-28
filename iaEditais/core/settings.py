@@ -11,3 +11,5 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ALGORITHM: str = 'HS256'
     OPENAI_API_KEY: str = '...'
+
+    BROKER_URL: str = 'amqp://guest:guest@localhost:5672/'

@@ -2,7 +2,7 @@ from http import HTTPStatus
 
 import pytest
 
-from iaEditais.security import create_access_token
+from iaEditais.core.security import create_access_token
 
 
 @pytest.mark.asyncio

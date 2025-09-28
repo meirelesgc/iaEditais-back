@@ -7,7 +7,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_, select
 
-from iaEditais.dependencies import CurrentUser, Session
+from iaEditais.core.dependencies import CurrentUser, Session
+from iaEditais.core.security import get_password_hash
 from iaEditais.models import User
 from iaEditais.schemas import (
     UserCreate,
@@ -16,7 +17,6 @@ from iaEditais.schemas import (
     UserPublic,
     UserUpdate,
 )
-from iaEditais.security import get_password_hash
 
 router = APIRouter(prefix='/user', tags=['operações de sistema, usuário'])
 

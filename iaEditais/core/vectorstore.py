@@ -1,7 +1,7 @@
 from langchain_openai import OpenAIEmbeddings
 from langchain_postgres import PGVector
 
-from iaEditais.settings import Settings
+from iaEditais.core.settings import Settings
 
 vectorstore = PGVector(
     embeddings=OpenAIEmbeddings(
