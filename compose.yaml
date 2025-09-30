@@ -24,7 +24,7 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@iaeditais_db:5432/iaeditais
-      RABBITMQ_URL: amqp://guest:guest@iaeditais_rabbitmq:5672/
+      BROKER_URL: amqp://guest:guest@iaeditais_rabbitmq:5672/
     volumes:
       - storage:/app/iaEditais/storage
     depends_on:
