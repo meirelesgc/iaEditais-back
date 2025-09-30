@@ -112,7 +112,51 @@ async def process_release(
     chain = get_chain(model)
     input_vars = await get_vars(check_tree, session, vectorstore, db_release)
     response = await aplly_check_tree(chain, db_release, input_vars)
-    return await save_result(session, db_release, check_tree, response)
+    appied_branch = await save_result(
+        session, db_release, check_tree, response
+    )
+    release = await create_description(
+        db_release, appied_branch, model, session
+    )
+    return release
+
+
+async def create_description(
+    release: DocumentRelease,
+    applied_branch: list[AppliedBranch],
+    model: Model,
+    session: Session,
+):
+    hits = []
+    errors = []
+
+    for branch in applied_branch:
+        if branch.fulfilled:
+            hits.append(branch)
+        if not branch.fulfilled:
+            errors.append(branch)
+
+    if errors:
+        prompt = (
+            'Elabore um resumo dos pontos que apresentaram problemas. '
+            'Liste de forma clara e objetiva os seguintes itens:\n\n'
+        )
+        for branch in errors:
+            prompt += (
+                f'- {branch.title}: {branch.description or "sem descrição"}\n'
+            )
+    else:
+        melhores = sorted(hits, key=lambda b: b.score or 0, reverse=True)[:3]
+        prompt = 'Tudo está conforme. Crie um resumo positivo destacando os seguintes pontos:\n\n'
+        for branch in melhores:
+            prompt += (
+                f'- {branch.title}: {branch.description or "sem descrição"}\n'
+            )
+    description = model.invoke(prompt)
+    description = description.content
+    return await releases_repository.save_description(
+        session, release, description
+    )
 
 
 def get_chain(model: Model):

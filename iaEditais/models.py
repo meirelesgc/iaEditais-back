@@ -501,6 +501,7 @@ class Document:
         back_populates='document',
         init=False,
         default_factory=list,
+        lazy='selectin',
         order_by='desc(DocumentHistory.created_at)',
     )
 
@@ -509,6 +510,7 @@ class Document:
         secondary='document_typifications',
         back_populates='documents',
         default_factory=list,
+        lazy='selectin',
         init=False,
     )
 
@@ -619,6 +621,7 @@ class DocumentRelease:
     id: Mapped[UUID] = mapped_column(
         init=False, primary_key=True, default=uuid4
     )
+
     history_id: Mapped[UUID] = mapped_column(
         ForeignKey(
             'document_histories.id',
@@ -640,6 +643,9 @@ class DocumentRelease:
         init=False,
     )
 
+    description: Mapped[Optional[str]] = mapped_column(
+        nullable=True, default=None
+    )
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )
@@ -738,7 +744,14 @@ class AppliedSource:
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )
-
+    applied_taxonomies: Mapped[List['AppliedTaxonomy']] = relationship(
+        'AppliedTaxonomy',
+        secondary='applied_taxonomy_sources',
+        back_populates='sources',
+        default_factory=list,
+        init=False,
+        lazy='selectin',
+    )
     original_id: Mapped[Optional[UUID]] = mapped_column(
         nullable=True,
         default=None,
@@ -816,6 +829,7 @@ class AppliedTypification:
         back_populates='typification',
         default_factory=list,
         init=False,
+        lazy='selectin',
     )
 
     sources: Mapped[List[AppliedSource]] = relationship(
@@ -824,6 +838,7 @@ class AppliedTypification:
         back_populates='typifications',
         default_factory=list,
         init=False,
+        lazy='selectin',
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -838,6 +853,36 @@ class AppliedTypification:
 
 
 @table_registry.mapped_as_dataclass
+class AppliedTaxonomySource:
+    __tablename__ = 'applied_taxonomy_sources'
+
+    taxonomy_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            'applied_taxonomies.id',
+            name='fk_applied_tax_source_taxonomy_id',
+        ),
+        primary_key=True,
+    )
+
+    source_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            'applied_sources.id', name='fk_applied_tax_source_source_id'
+        ),
+        primary_key=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_applied_tax_source_created_by'),
+        nullable=True,
+        default=None,
+    )
+
+
+@table_registry.mapped_as_dataclass
 class AppliedTaxonomy:
     __tablename__ = 'applied_taxonomies'
 
@@ -846,7 +891,6 @@ class AppliedTaxonomy:
     )
 
     title: Mapped[str] = mapped_column(nullable=False)
-
     applied_typification_id: Mapped[UUID] = mapped_column(
         ForeignKey(
             'applied_typifications.id',
@@ -858,27 +902,33 @@ class AppliedTaxonomy:
     description: Mapped[Optional[str]] = mapped_column(
         nullable=True, default=None
     )
-
-    typification: Mapped['AppliedTypification'] = relationship(
-        back_populates='taxonomies', init=False
-    )
-
     original_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey('taxonomies.id', name='fk_applied_taxonomy_original_id'),
         nullable=True,
         default=None,
     )
 
+    typification: Mapped['AppliedTypification'] = relationship(
+        back_populates='taxonomies', init=False
+    )
     branches: Mapped[List['AppliedBranch']] = relationship(
         back_populates='taxonomy',
         default_factory=list,
         init=False,
+        lazy='selectin',
+    )
+    sources: Mapped[List['AppliedSource']] = relationship(
+        'AppliedSource',
+        secondary='applied_taxonomy_sources',
+        back_populates='applied_taxonomies',
+        default_factory=list,
+        init=False,
+        lazy='selectin',
     )
 
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )
-
     created_by: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey('users.id', name='fk_applied_taxonomy_created_by'),
         nullable=True,
@@ -932,3 +982,11 @@ class AppliedBranch:
         nullable=True,
         default=None,
     )
+
+    @property
+    def evaluation(self) -> dict:
+        return {
+            'feedback': self.feedback,
+            'fulfilled': self.fulfilled,
+            'score': self.score,
+        }

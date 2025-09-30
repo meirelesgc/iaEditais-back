@@ -69,3 +69,12 @@ async def get_check_tree(session: Session, release: DocumentRelease):
         )
     )
     return query.all()
+
+
+async def save_description(
+    session: Session, release: DocumentRelease, description: str
+):
+    release.description = description
+    await session.commit()
+    await session.refresh(release)
+    return release

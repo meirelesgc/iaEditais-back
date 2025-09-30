@@ -287,6 +287,7 @@ class AppliedTypificationPublic(TypificationSchema):
 class DocumentReleasePublic(BaseModel):
     id: UUID
     file_path: str
+    description: str | None
     check_tree: list[AppliedTypificationPublic]
 
     created_at: datetime

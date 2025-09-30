@@ -1,7 +1,9 @@
 from datetime import datetime, timezone
+from enum import Enum
 from http import HTTPStatus
 from uuid import UUID
 
+import httpx
 from fastapi import APIRouter, HTTPException
 from sqlalchemy.orm import selectinload
 
@@ -9,9 +11,39 @@ from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import Document, DocumentHistory, DocumentStatus, User
 from iaEditais.schemas import DocumentPublic
 
+URL = 'http://localhost:8080/message/sendText/Gleidson'
+HEADERS = {'Content-Type': 'application/json', 'apikey': 'secret'}
+
 router = APIRouter(
     prefix='/doc/{doc_id}/status', tags=['verificação dos documentos, kanban']
 )
+
+
+class NotifyTarget(str, Enum):
+    EDITORS = 'editors'
+    CREATOR = 'creator'
+
+
+NOTIFICATION_RULES: dict[
+    DocumentStatus, dict[str, bool | NotifyTarget | list[NotifyTarget]]
+] = {
+    DocumentStatus.UNDER_CONSTRUCTION: {
+        'enabled': True,
+        'targets': [NotifyTarget.EDITORS],
+    },
+    DocumentStatus.WAITING_FOR_REVIEW: {
+        'enabled': True,
+        'targets': [NotifyTarget.CREATOR],
+    },
+    DocumentStatus.PENDING: {
+        'enabled': False,
+        'targets': [],
+    },
+    DocumentStatus.COMPLETED: {
+        'enabled': False,
+        'targets': [],
+    },
+}
 
 
 async def get_doc_or_404(doc_id: UUID, session: Session) -> Document:
@@ -21,6 +53,7 @@ async def get_doc_or_404(doc_id: UUID, session: Session) -> Document:
         options=[
             selectinload(Document.history),
             selectinload(Document.typifications),
+            selectinload(Document.editors),
         ],
     )
     if not doc or doc.deleted_at:
@@ -43,8 +76,56 @@ async def _set_status(
     doc.updated_by = user.id
     doc.updated_at = datetime.now(timezone.utc)
     await session.commit()
-    await session.refresh(doc, attribute_names=['history'])
+    await session.refresh(
+        doc, attribute_names=['history', 'editors', 'typifications']
+    )
     return doc
+
+
+async def _notify_users(
+    doc: Document, status: DocumentStatus, session: Session
+):
+    return
+    status_para_portugues = {
+        DocumentStatus.PENDING: 'Pendente',
+        DocumentStatus.UNDER_CONSTRUCTION: 'Em construção',
+        DocumentStatus.WAITING_FOR_REVIEW: 'Aguardando revisão',
+        DocumentStatus.COMPLETED: 'Concluído',
+    }
+
+    rules = NOTIFICATION_RULES.get(status, {'enabled': False})
+    if not rules['enabled']:
+        return
+
+    targets = []
+    for target in rules['targets']:
+        if target == NotifyTarget.EDITORS:
+            targets.extend(doc.editors)
+        elif target == NotifyTarget.CREATOR and doc.created_by:
+            creator = await session.get(User, doc.created_by)
+            if creator:
+                targets.append(creator)
+
+    async with httpx.AsyncClient() as client:
+        for user in targets:
+            if not user.phone_number:
+                continue
+
+            status_traduzido = status_para_portugues.get(status, status.value)
+
+            payload = {
+                'number': '557598176422',
+                'text': (
+                    f"Olá {user.username}, o documento '{doc.name}' "
+                    f'foi atualizado para o status: {status_traduzido}'
+                ),
+            }
+            response = await client.post(URL, headers=HEADERS, json=payload)
+            if response.status_code != HTTPStatus.OK:
+                raise HTTPException(
+                    status_code=HTTPStatus.BAD_GATEWAY,
+                    detail=f'Erro ao enviar mensagem para {user.name}: {response.text}',
+                )
 
 
 @router.put('/pending', response_model=DocumentPublic)
@@ -52,9 +133,9 @@ async def set_status_pending(
     doc_id: UUID, session: Session, current_user: CurrentUser
 ):
     doc = await get_doc_or_404(doc_id, session)
-    return await _set_status(
-        doc, DocumentStatus.PENDING, current_user, session
-    )
+    await _notify_users(doc, DocumentStatus.PENDING, session)
+    await _set_status(doc, DocumentStatus.PENDING, current_user, session)
+    return doc
 
 
 @router.put('/under-construction', response_model=DocumentPublic)
@@ -62,6 +143,7 @@ async def set_status_under_construction(
     doc_id: UUID, session: Session, current_user: CurrentUser
 ):
     doc = await get_doc_or_404(doc_id, session)
+    await _notify_users(doc, DocumentStatus.UNDER_CONSTRUCTION, session)
     return await _set_status(
         doc, DocumentStatus.UNDER_CONSTRUCTION, current_user, session
     )
@@ -72,6 +154,7 @@ async def set_status_waiting_review(
     doc_id: UUID, session: Session, current_user: CurrentUser
 ):
     doc = await get_doc_or_404(doc_id, session)
+    await _notify_users(doc, DocumentStatus.WAITING_FOR_REVIEW, session)
     return await _set_status(
         doc, DocumentStatus.WAITING_FOR_REVIEW, current_user, session
     )
@@ -82,6 +165,7 @@ async def set_status_completed(
     doc_id: UUID, session: Session, current_user: CurrentUser
 ):
     doc = await get_doc_or_404(doc_id, session)
+    await _notify_users(doc, DocumentStatus.COMPLETED, session)
     return await _set_status(
         doc, DocumentStatus.COMPLETED, current_user, session
     )

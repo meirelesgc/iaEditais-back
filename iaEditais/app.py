@@ -1,9 +1,11 @@
 import os
+from pprint import pprint
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from iaEditais.core.settings import Settings
 from iaEditais.routers import auth, units, users
 from iaEditais.routers.check_tree import (
     branches,
@@ -30,7 +32,7 @@ app.mount('/uploads', StaticFiles(directory=UPLOADS_DIR), name='uploads')
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=['*'],
+    allow_origins=Settings().ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
@@ -52,3 +54,5 @@ app.include_router(sources.router)
 app.include_router(typifications.router)
 app.include_router(taxonomies.router)
 app.include_router(branches.router)
+
+pprint(dict(Settings()))

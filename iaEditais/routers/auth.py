@@ -61,17 +61,20 @@ async def sign_in_for_cookie(
             detail='Incorrect email or password',
         )
     access_token = create_access_token(data={'sub': user.email})
+
     max_age = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+
     response.set_cookie(
-        key=ACCESS_TOKEN_COOKIE_NAME,
+        key=settings.ACCESS_TOKEN_COOKIE_NAME,
         value=access_token,
         httponly=True,
         max_age=max_age,
         expires=max_age,
-        path='/',
-        secure=True,
-        samesite='lax',
+        path=settings.COOKIE_PATH,
+        secure=settings.COOKIE_SECURE,
+        samesite=settings.COOKIE_SAMESITE,
     )
+
     return {'access_token': access_token, 'token_type': 'bearer'}
 
 
