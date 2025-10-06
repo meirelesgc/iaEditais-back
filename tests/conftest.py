@@ -173,10 +173,7 @@ def create_source(session):
         source = SourceFactory.build(**kwargs)
         session.add(source)
         await session.commit()
-        await session.refresh(
-            source,
-            attribute_names=['typifications'],
-        )
+        await session.refresh(source)
         return source
 
     return _create_source
@@ -196,11 +193,9 @@ def create_typification(session):
 
         session.add(db_typification)
         await session.commit()
-        await session.refresh(
-            db_typification, attribute_names=['sources', 'taxonomies']
-        )
+        await session.refresh(db_typification)
         for source in db_typification.sources:
-            await session.refresh(source, attribute_names=['typifications'])
+            await session.refresh(source)
         return db_typification
 
     return _create_typification
@@ -212,9 +207,9 @@ def create_taxonomy(session):
         taxonomy = TaxonomyFactory.build(**kwargs)
         session.add(taxonomy)
         await session.commit()
-        await session.refresh(taxonomy, attribute_names=['typification'])
+        await session.refresh(taxonomy)
         typ = await session.get(Typification, taxonomy.typification_id)
-        await session.refresh(typ, attribute_names=['taxonomies'])
+        await session.refresh(typ)
         return taxonomy
 
     return _create_taxonomy
@@ -226,9 +221,9 @@ def create_branch(session):
         branch = BranchFactory.build(**kwargs)
         session.add(branch)
         await session.commit()
-        await session.refresh(branch, attribute_names=['taxonomy'])
+        await session.refresh(branch)
         tax = await session.get(Taxonomy, branch.taxonomy_id)
-        await session.refresh(tax, attribute_names=['branches'])
+        await session.refresh(tax)
         return branch
 
     return _create_branch
@@ -256,9 +251,7 @@ def create_doc(session):
             doc.typifications = [typ for typ in typifications.all()]
 
         await session.commit()
-        await session.refresh(
-            doc, attribute_names=['history', 'typifications']
-        )
+        await session.refresh(doc)
         return doc
 
     return _create_doc

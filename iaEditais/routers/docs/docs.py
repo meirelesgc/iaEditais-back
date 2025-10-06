@@ -5,7 +5,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import or_, select
-from sqlalchemy.orm import selectinload
 
 from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import (
@@ -80,7 +79,7 @@ async def create_doc(
         db_doc.editors = [user for user in editors.all()]
 
     await session.commit()
-    await session.refresh(db_doc, attribute_names=['history', 'typifications'])
+    await session.refresh(db_doc)
     return db_doc
 
 
@@ -91,11 +90,6 @@ async def read_docs(
     query = await session.scalars(
         select(Document)
         .where(Document.deleted_at.is_(None))
-        .options(
-            selectinload(Document.history),
-            selectinload(Document.typifications),
-            selectinload(Document.editors),
-        )
         .offset(filters.offset)
         .limit(filters.limit)
     )
@@ -105,15 +99,7 @@ async def read_docs(
 
 @router.get('/{doc_id}', response_model=DocumentPublic)
 async def read_doc(doc_id: UUID, session: Session):
-    doc = await session.get(
-        Document,
-        doc_id,
-        options=[
-            selectinload(Document.history),
-            selectinload(Document.typifications),
-            selectinload(Document.editors),
-        ],
-    )
+    doc = await session.get(Document, doc_id)
     if not doc or doc.deleted_at:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -126,15 +112,7 @@ async def read_doc(doc_id: UUID, session: Session):
 async def update_doc(
     doc: DocumentUpdate, session: Session, current_user: CurrentUser
 ):
-    db_doc = await session.get(
-        Document,
-        doc.id,
-        options=[
-            selectinload(Document.history),
-            selectinload(Document.typifications),
-            selectinload(Document.editors),
-        ],
-    )
+    db_doc = await session.get(Document, doc.id)
     if not db_doc or db_doc.deleted_at:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -179,10 +157,7 @@ async def update_doc(
         db_doc.editors = [user for user in editors.all()]
 
     await session.commit()
-    await session.refresh(
-        db_doc,
-        attribute_names=['history', 'typifications', 'updated_at'],
-    )
+    await session.refresh(db_doc)
     return db_doc
 
 

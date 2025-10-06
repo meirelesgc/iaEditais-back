@@ -5,12 +5,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import (
     Source,
-    Taxonomy,
     Typification,
     TypificationSource,
 )
@@ -78,7 +76,7 @@ async def create_typification(
             session.add(association_entry)
 
     await session.commit()
-    await session.refresh(db_typification, attribute_names=['sources'])
+    await session.refresh(db_typification)
 
     return db_typification
 
@@ -90,14 +88,6 @@ async def read_typifications(
     query = await session.scalars(
         select(Typification)
         .where(Typification.deleted_at.is_(None))
-        .options(
-            selectinload(Typification.taxonomies).selectinload(
-                Taxonomy.branches
-            ),
-            selectinload(Typification.taxonomies).selectinload(
-                Taxonomy.sources
-            ),
-        )
         .offset(filters.offset)
         .limit(filters.limit)
     )
@@ -158,10 +148,7 @@ async def update_typification(
         db_typification.sources = []
 
     await session.commit()
-    await session.refresh(
-        db_typification,
-        attribute_names=['sources', 'updated_at'],
-    )
+    await session.refresh(db_typification)
     return db_typification
 
 

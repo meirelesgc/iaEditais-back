@@ -45,10 +45,7 @@ async def create_source(
 
     session.add(db_source)
     await session.commit()
-    await session.refresh(
-        db_source,
-        attribute_names=['typifications'],
-    )
+    await session.refresh(db_source)
 
     return db_source
 
@@ -112,10 +109,7 @@ async def update_source(
     db_source.updated_by = current_user.id
 
     await session.commit()
-    await session.refresh(
-        db_source,
-        attribute_names=['typifications', 'updated_at'],
-    )
+    await session.refresh(db_source)
 
     return db_source
 

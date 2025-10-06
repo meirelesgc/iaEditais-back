@@ -5,7 +5,6 @@ from uuid import UUID
 
 import httpx
 from fastapi import APIRouter, HTTPException
-from sqlalchemy.orm import selectinload
 
 from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import Document, DocumentHistory, DocumentStatus, User
@@ -47,15 +46,7 @@ NOTIFICATION_RULES: dict[
 
 
 async def get_doc_or_404(doc_id: UUID, session: Session) -> Document:
-    doc = await session.get(
-        Document,
-        doc_id,
-        options=[
-            selectinload(Document.history),
-            selectinload(Document.typifications),
-            selectinload(Document.editors),
-        ],
-    )
+    doc = await session.get(Document, doc_id)
     if not doc or doc.deleted_at:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -76,9 +67,7 @@ async def _set_status(
     doc.updated_by = user.id
     doc.updated_at = datetime.now(timezone.utc)
     await session.commit()
-    await session.refresh(
-        doc, attribute_names=['history', 'editors', 'typifications']
-    )
+    await session.refresh(doc)
     return doc
 
 

@@ -61,7 +61,7 @@ async def create_branch(
 
     session.add(db_branch)
     await session.commit()
-    await session.refresh(db_branch, attribute_names=['taxonomy'])
+    await session.refresh(db_branch)
 
     return db_branch
 
@@ -138,10 +138,7 @@ async def update_branch(
     db_branch.updated_by = current_user.id
 
     await session.commit()
-    await session.refresh(
-        db_branch,
-        attribute_names=['taxonomy', 'updated_at'],
-    )
+    await session.refresh(db_branch)
     return db_branch
 
 

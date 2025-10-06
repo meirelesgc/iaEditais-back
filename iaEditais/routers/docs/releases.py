@@ -4,7 +4,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from iaEditais.core.dependencies import CurrentUser, Model, Session, VStore
 from iaEditais.models import (
@@ -43,15 +42,7 @@ async def create_release(
         model, session, vectorstore, db_release
     )
 
-    r = await session.get(
-        DocumentRelease,
-        db_release.id,
-        options=[
-            selectinload(DocumentRelease.history),
-            selectinload(DocumentRelease.check_tree),
-        ],
-    )
-    print(DocumentReleasePublic.model_validate(r))
+    r = await session.get(DocumentRelease, db_release.id)
     return r
 
 

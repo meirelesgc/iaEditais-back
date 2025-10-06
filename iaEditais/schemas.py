@@ -210,12 +210,33 @@ class DocumentUpdate(DocumentSchema):
     editors_ids: Optional[list[UUID]]
 
 
+class UserPublicMessage(BaseModel):
+    id: UUID
+    username: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class DocumentMessageCreate(BaseModel):
+    message: str
+
+
+class DocumentMessagePublic(BaseModel):
+    id: UUID
+    message: str
+    created_at: datetime
+    user: UserPublicMessage
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class DocumentHistorySchema(BaseModel):
     status: DocumentStatus = DocumentStatus.PENDING
 
 
 class DocumentHistoryPublic(DocumentHistorySchema):
     id: UUID
+    messages: list[DocumentMessagePublic]
     created_at: datetime
     updated_at: Optional[datetime] = None
 

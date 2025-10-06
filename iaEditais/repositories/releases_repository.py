@@ -4,7 +4,6 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from iaEditais.core.database import get_session
 from iaEditais.core.security import get_current_user
@@ -22,10 +21,8 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 async def get_db_doc(doc_id, session: Session):
-    query = (
-        select(Document)
-        .options(selectinload(Document.history))
-        .where(Document.id == doc_id, Document.deleted_at.is_(None))
+    query = select(Document).where(
+        Document.id == doc_id, Document.deleted_at.is_(None)
     )
 
     db_doc = await session.scalar(query)

@@ -5,7 +5,6 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import (
@@ -29,9 +28,7 @@ router = APIRouter(
 
 
 @router.post(
-    '/',
-    status_code=HTTPStatus.CREATED,
-    response_model=TaxonomyPublic,
+    '/', status_code=HTTPStatus.CREATED, response_model=TaxonomyPublic
 )
 async def create_taxonomy(
     taxonomy: TaxonomyCreate,
@@ -87,7 +84,7 @@ async def create_taxonomy(
             session.add(association_entry)
 
     await session.commit()
-    await session.refresh(db_taxonomy, attribute_names=['typification'])
+    await session.refresh(db_taxonomy)
 
     return db_taxonomy
 
@@ -99,10 +96,6 @@ async def read_taxonomies(
     query = await session.scalars(
         select(Taxonomy)
         .where(Taxonomy.deleted_at.is_(None))
-        .options(
-            selectinload(Taxonomy.branches),
-            selectinload(Taxonomy.sources),
-        )
         .offset(filters.offset)
         .limit(filters.limit)
     )
@@ -174,9 +167,7 @@ async def update_taxonomy(
     db_taxonomy.updated_by = current_user.id
 
     await session.commit()
-    await session.refresh(
-        db_taxonomy, attribute_names=['typification', 'updated_at']
-    )
+    await session.refresh(db_taxonomy)
     return db_taxonomy
 
 

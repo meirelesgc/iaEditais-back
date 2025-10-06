@@ -38,6 +38,7 @@ class Unit:
         default_factory=list,
         init=False,
         foreign_keys='User.unit_id',
+        lazy='selectin',
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -100,11 +101,11 @@ class User:
 
     editable_documents: Mapped[List['Document']] = relationship(
         'Document',
+        lazy='selectin',
         secondary='document_editors',
         primaryjoin='User.id==DocumentEditor.user_id',
         secondaryjoin='Document.id==DocumentEditor.document_id',
         back_populates='editors',
-        lazy='selectin',
         default_factory=list,
         init=False,
     )
@@ -185,6 +186,7 @@ class Source:
 
     typifications: Mapped[List['Typification']] = relationship(
         'Typification',
+        lazy='noload',
         secondary='typification_sources',
         back_populates='sources',
         default_factory=list,
@@ -192,6 +194,7 @@ class Source:
     )
     taxonomies: Mapped[List['Taxonomy']] = relationship(
         'Taxonomy',
+        lazy='noload',
         secondary='taxonomy_sources',
         back_populates='sources',
         default_factory=list,
@@ -242,24 +245,24 @@ class Typification:
 
     sources: Mapped[List[Source]] = relationship(
         'Source',
+        lazy='selectin',
         secondary='typification_sources',
         back_populates='typifications',
         default_factory=list,
         init=False,
-        lazy='selectin',
     )
     taxonomies: Mapped[List['Taxonomy']] = relationship(
         back_populates='typification',
+        lazy='selectin',
         default_factory=list,
         init=False,
-        lazy='selectin',
     )
     documents: Mapped[List['Document']] = relationship(
         'Document',
+        lazy='selectin',
         secondary='document_typifications',
         back_populates='typifications',
         default_factory=list,
-        lazy='selectin',
         init=False,
     )
     created_at: Mapped[datetime] = mapped_column(
@@ -340,17 +343,17 @@ class Taxonomy:
 
     branches: Mapped[List['Branch']] = relationship(
         back_populates='taxonomy',
+        lazy='selectin',
         default_factory=list,
         init=False,
-        lazy='selectin',
     )
     sources: Mapped[List['Source']] = relationship(
         'Source',
+        lazy='selectin',
         secondary='taxonomy_sources',
         back_populates='taxonomies',
         default_factory=list,
         init=False,
-        lazy='selectin',
     )
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
@@ -499,29 +502,29 @@ class Document:
 
     history: Mapped[List['DocumentHistory']] = relationship(
         back_populates='document',
+        lazy='selectin',
         init=False,
         default_factory=list,
-        lazy='selectin',
         order_by='desc(DocumentHistory.created_at)',
     )
 
     typifications: Mapped[List['Typification']] = relationship(
         'Typification',
+        lazy='selectin',
         secondary='document_typifications',
         back_populates='documents',
         default_factory=list,
-        lazy='selectin',
         init=False,
     )
 
     editors: Mapped[List['User']] = relationship(
         'User',
+        lazy='selectin',
         secondary='document_editors',
         primaryjoin='Document.id==DocumentEditor.document_id',
         secondaryjoin='User.id==DocumentEditor.user_id',
         back_populates='editable_documents',
         default_factory=list,
-        lazy='selectin',
         init=False,
     )
 
@@ -582,7 +585,10 @@ class DocumentHistory:
     status: Mapped[str] = mapped_column(nullable=False)
 
     messages: Mapped[List['DocumentMessage']] = relationship(
-        back_populates='history', cascade='all, delete-orphan', init=False
+        back_populates='history',
+        lazy='selectin',
+        default_factory=list,
+        init=False,
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -611,7 +617,10 @@ class DocumentHistory:
     )
 
     releases: Mapped[List['DocumentRelease']] = relationship(
-        back_populates='history', cascade='all, delete-orphan', init=False
+        back_populates='history',
+        cascade='all, delete-orphan',
+        init=False,
+        lazy='noload',
     )
 
 
@@ -637,9 +646,9 @@ class DocumentRelease:
 
     check_tree: Mapped[List['AppliedTypification']] = relationship(
         'AppliedTypification',
+        lazy='selectin',
         back_populates='release',
         default_factory=list,
-        lazy='selectin',
         init=False,
     )
 
@@ -737,6 +746,7 @@ class AppliedSource:
 
     typifications: Mapped[List['AppliedTypification']] = relationship(
         secondary='applied_typification_sources',
+        lazy='selectin',
         back_populates='sources',
         default_factory=list,
         init=False,
@@ -746,11 +756,11 @@ class AppliedSource:
     )
     applied_taxonomies: Mapped[List['AppliedTaxonomy']] = relationship(
         'AppliedTaxonomy',
+        lazy='selectin',
         secondary='applied_taxonomy_sources',
         back_populates='sources',
         default_factory=list,
         init=False,
-        lazy='selectin',
     )
     original_id: Mapped[Optional[UUID]] = mapped_column(
         nullable=True,
@@ -827,18 +837,18 @@ class AppliedTypification:
 
     taxonomies: Mapped[List['AppliedTaxonomy']] = relationship(
         back_populates='typification',
+        lazy='selectin',
         default_factory=list,
         init=False,
-        lazy='selectin',
     )
 
     sources: Mapped[List[AppliedSource]] = relationship(
         'AppliedSource',
+        lazy='selectin',
         secondary='applied_typification_sources',
         back_populates='typifications',
         default_factory=list,
         init=False,
-        lazy='selectin',
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -913,17 +923,17 @@ class AppliedTaxonomy:
     )
     branches: Mapped[List['AppliedBranch']] = relationship(
         back_populates='taxonomy',
+        lazy='selectin',
         default_factory=list,
         init=False,
-        lazy='selectin',
     )
     sources: Mapped[List['AppliedSource']] = relationship(
         'AppliedSource',
+        lazy='selectin',
         secondary='applied_taxonomy_sources',
         back_populates='applied_taxonomies',
         default_factory=list,
         init=False,
-        lazy='selectin',
     )
 
     created_at: Mapped[datetime] = mapped_column(

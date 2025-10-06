@@ -13,7 +13,7 @@ from iaEditais.routers.check_tree import (
     taxonomies,
     typifications,
 )
-from iaEditais.routers.docs import docs, kanban, releases
+from iaEditais.routers.docs import docs, kanban, messages, releases
 
 # Diretórios
 BASE_DIR = os.path.dirname(__file__)
@@ -48,6 +48,7 @@ app.include_router(auth.router)
 app.include_router(docs.router)
 app.include_router(kanban.router)
 app.include_router(releases.router)
+app.include_router(messages.router)
 
 # Routers de árvore
 app.include_router(sources.router)
