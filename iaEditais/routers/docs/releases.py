@@ -36,12 +36,11 @@ async def create_release(
     file: UploadFile = File(...),
 ):
     db_release = await releases_service.create_release(
-        doc_id, session, current_user, file
+        doc_id, session, current_user, vectorstore, file
     )
     await releases_service.process_release(
         model, session, vectorstore, db_release
     )
-
     r = await session.get(DocumentRelease, db_release.id)
     return r
 

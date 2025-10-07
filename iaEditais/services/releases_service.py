@@ -40,7 +40,9 @@ Model = Annotated[BaseChatModel, Depends(get_model)]
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 
 
-def safe_file(file: UploadFile, upload_directory) -> str:
+async def safe_file(
+    file: UploadFile, upload_directory, vectorstore: VectorStore
+) -> str:
     os.makedirs(upload_directory, exist_ok=True)
 
     file_extension = os.path.splitext(file.filename)[1]
@@ -53,6 +55,7 @@ def safe_file(file: UploadFile, upload_directory) -> str:
     finally:
         file.file.close()
 
+    # await vectorstore.aadd_documents(docs)
     return f'/uploads/{unique_filename}'
 
 
@@ -60,6 +63,7 @@ async def create_release(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
+    vectorstore: VectorStore,
     file: UploadFile = File(...),
 ):
     allowed_content_types = {
@@ -90,7 +94,7 @@ async def create_release(
         )
 
     latest_history = db_doc.history[0]
-    file_path = safe_file(file, UPLOAD_DIRECTORY)
+    file_path = await safe_file(file, UPLOAD_DIRECTORY, vectorstore)
     db_release = await releases_repository.insert_db_release(
         latest_history, file_path, session, current_user
     )
@@ -234,7 +238,7 @@ async def process_branch(
     sources = [f'{s.name}\n{s.description}' for s in typification.sources]
     query = f'{branch.title} {branch.description}'
     c = list()
-    for d in await vectorstore.asimilarity_search(query, k=3):
+    for d in await vectorstore.asimilarity_search(query, k=5):
         c.append(d.page_content)
     return {
         'docs': c,

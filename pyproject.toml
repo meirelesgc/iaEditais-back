@@ -23,6 +23,7 @@ dependencies = [
     "langchain-postgres (>=0.0.15,<0.0.16)",
     "langchain-community (>=0.3.29,<0.4.0)",
     "faststream[rabbit] (>=0.5.48,<0.6.0)",
+    "pymupdf (>=1.26.4,<2.0.0)",
 ]
 
 [tool.poetry]
