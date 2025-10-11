@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from iaEditais.core.settings import Settings
+from iaEditais.events import events
 from iaEditais.routers import auth, units, users
 from iaEditais.routers.check_tree import (
     branches,
@@ -55,5 +56,8 @@ app.include_router(sources.router)
 app.include_router(typifications.router)
 app.include_router(taxonomies.router)
 app.include_router(branches.router)
+
+# Routers de eventos
+app.include_router(events.router)
 
 pprint(dict(Settings()))

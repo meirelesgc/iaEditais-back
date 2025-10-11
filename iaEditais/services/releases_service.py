@@ -1,11 +1,16 @@
+import json
 import os
+import re
 import shutil
 import uuid
 from http import HTTPStatus
 from typing import Annotated, Optional
 from uuid import UUID
 
+import json5
 from fastapi import Depends, File, HTTPException, UploadFile
+from langchain.schema.runnable import RunnableLambda
+from langchain_core.exceptions import OutputParserException
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
@@ -40,9 +45,7 @@ Model = Annotated[BaseChatModel, Depends(get_model)]
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 
 
-async def safe_file(
-    file: UploadFile, upload_directory, vectorstore: VectorStore
-) -> str:
+async def save_file(file: UploadFile, upload_directory) -> str:
     os.makedirs(upload_directory, exist_ok=True)
 
     file_extension = os.path.splitext(file.filename)[1]
@@ -55,7 +58,6 @@ async def safe_file(
     finally:
         file.file.close()
 
-    # await vectorstore.aadd_documents(docs)
     return f'/uploads/{unique_filename}'
 
 
@@ -63,7 +65,6 @@ async def create_release(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
-    vectorstore: VectorStore,
     file: UploadFile = File(...),
 ):
     allowed_content_types = {
@@ -94,7 +95,7 @@ async def create_release(
         )
 
     latest_history = db_doc.history[0]
-    file_path = await safe_file(file, UPLOAD_DIRECTORY, vectorstore)
+    file_path = await save_file(file, UPLOAD_DIRECTORY)
     db_release = await releases_repository.insert_db_release(
         latest_history, file_path, session, current_user
     )
@@ -115,7 +116,7 @@ async def process_release(
         )
     chain = get_chain(model)
     input_vars = await get_vars(check_tree, session, vectorstore, db_release)
-    response = await aplly_check_tree(chain, db_release, input_vars)
+    response = await apply_check_tree(chain, db_release, input_vars)
     appied_branch = await save_result(
         session, db_release, check_tree, response
     )
@@ -223,13 +224,14 @@ async def get_vars(
         for taxonomy in typification.taxonomies:
             for branch in taxonomy.branches:
                 _branch = await process_branch(
-                    typification, taxonomy, branch, vectorstore
+                    release, typification, taxonomy, branch, vectorstore
                 )
                 input_vars.append(_branch)
     return input_vars
 
 
 async def process_branch(
+    release: DocumentRelease,
     typification: Typification,
     taxonomy: Taxonomy,
     branch: Branch,
@@ -237,9 +239,18 @@ async def process_branch(
 ):
     sources = [f'{s.name}\n{s.description}' for s in typification.sources]
     query = f'{branch.title} {branch.description}'
-    c = list()
-    for d in await vectorstore.asimilarity_search(query, k=5):
+    c = []
+    path = release.file_path.split('/')[-1]
+
+    allowed_source = f'iaEditais/storage/uploads/{path}'
+
+    results = await vectorstore.asimilarity_search(
+        query, k=3, filter={'source': allowed_source}
+    )
+    for d in results:
+        print(d.metadata)
         c.append(d.page_content)
+
     return {
         'docs': c,
         'taxonomy_title': taxonomy.title,
@@ -251,9 +262,78 @@ async def process_branch(
     }
 
 
-async def aplly_check_tree(chain, release, input_vars):
-    response = chain.batch(input_vars)
-    return response
+def try_recover_json(msg: str):
+    json_match = re.search(r'\{[\s\S]*\}', msg)
+    if not json_match:
+        return None
+
+    raw_json = json_match.group(0)
+    cleaned = (
+        raw_json.replace('```json', '')
+        .replace('```', '')
+        .replace('\n', ' ')
+        .replace('\r', ' ')
+        .strip()
+    )
+    cleaned = re.sub(r',\s*([\]}])', r'\1', cleaned)
+    cleaned = re.sub(r'\s+', ' ', cleaned)
+
+    try:
+        return json.loads(cleaned)
+    except Exception:
+        try:
+            return json5.loads(cleaned)
+        except Exception:
+            return None
+
+
+def normalize_output(data):
+    default = {
+        'fulfilled': False,
+        'score': 0,
+        'feedback': 'Não foi possível gerar feedback para este item.',
+    }
+
+    if not isinstance(data, dict):
+        return default
+
+    fulfilled = bool(data.get('fulfilled', False))
+    score = (
+        int(data.get('score', 0))
+        if isinstance(data.get('score', (int, float)), (int, float))
+        else 0
+    )
+    feedback = str(data.get('feedback', default['feedback']))
+
+    return {'fulfilled': fulfilled, 'score': score, 'feedback': feedback}
+
+
+def safe_wrapper(chain):
+    def _safe_invoke(input_item):
+        try:
+            result = chain.invoke(input_item)
+            return normalize_output(result)
+
+        except OutputParserException as e:
+            msg = str(e)
+            recovered = try_recover_json(msg)
+            if recovered:
+                print('[SafeWrapper] JSON recuperado manualmente.')
+                return normalize_output(recovered)
+            print('[SafeWrapper] Falha ao recuperar JSON, fallback.')
+            return normalize_output(None)
+
+        except Exception as e:
+            print('[SafeWrapper] Erro inesperado:', e)
+            return normalize_output(None)
+
+    return RunnableLambda(_safe_invoke)
+
+
+async def apply_check_tree(chain: Model, release: DocumentRelease, input_vars):
+    safe_chain = safe_wrapper(chain)
+    result = await safe_chain.abatch(input_vars)
+    return result
 
 
 async def apply_typification(

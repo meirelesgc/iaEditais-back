@@ -2,10 +2,11 @@ from datetime import datetime, timezone
 from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import File, HTTPException, UploadFile
+from faststream.rabbit.fastapi import RabbitRouter as APIRouter
 from sqlalchemy import select
 
-from iaEditais.core.dependencies import CurrentUser, Model, Session, VStore
+from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import (
     DocumentHistory,
     DocumentRelease,
@@ -30,25 +31,17 @@ UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 async def create_release(
     doc_id: UUID,
     session: Session,
-    model: Model,
-    vectorstore: VStore,
     current_user: CurrentUser,
     file: UploadFile = File(...),
 ):
     db_release = await releases_service.create_release(
-        doc_id, session, current_user, vectorstore, file
+        doc_id, session, current_user, file
     )
-    await releases_service.process_release(
-        model, session, vectorstore, db_release
-    )
-    r = await session.get(DocumentRelease, db_release.id)
-    return r
+    await router.broker.publish(db_release.id, 'releases_create_vectors')
+    return db_release
 
 
-@router.get(
-    '/',
-    response_model=DocumentReleaseList,
-)
+@router.get('/', response_model=DocumentReleaseList)
 async def read_releases(doc_id: UUID, session: Session):
     query = (
         select(DocumentRelease)
