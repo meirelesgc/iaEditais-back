@@ -25,6 +25,7 @@ dependencies = [
     "faststream[rabbit] (>=0.5.48,<0.6.0)",
     "pymupdf (>=1.26.4,<2.0.0)",
     "json5 (>=0.12.1,<0.13.0)",
+    "redis (>=6.4.0,<7.0.0)",
 ]
 
 [tool.poetry]
@@ -68,43 +69,39 @@ format = 'ruff check --fix; ruff format'
 run = 'fastapi dev iaEditais/app.py'
 test = 'pytest -s -x --cov=iaEditais -vv'
 cov = 'coverage html'
-auto-migrate = """
-    bash -euo pipefail -c '
-    # 1. Verifica se o usuário passou mensagem
-    if [ -z \"$1\" ]; then
-        echo \"Uso: task auto-migrate \\\"Sua mensagem de commit\\\"\"
-        exit 1
+migrate = """
+    bash -c '
+    echo "📝 Digite uma mensagem para a migração (obrigatório):"
+    read MSG
+
+    if [ -z "$MSG" ]; then
+    MSG="migration"
     fi
 
-    MSG=\"$1\"
+    echo "🧠 Verificando se o banco está acessível..."
+    if ! alembic upgrade head --sql > /dev/null 2>&1; then
+    echo "❌ Banco não acessível ou configuração incorreta (verifique o alembic.ini)"
+    exit 1
+    fi
 
-    # 2. Staging e commit do código
-    echo \"📦 Staging changes...\"
-    git add .
+    echo "🧹 Limpando stage do git..."
+    git reset > /dev/null
 
-    echo \"✏️  Commitando: $MSG\"
-    git commit -m \"$MSG\"
+    echo "🛠️ Gerando migração..."
+    alembic revision --autogenerate -m "$MSG"
 
-    # 3. Atualiza o banco e gera nova migration
-    echo \"⚙️  Executando alembic upgrade head...\"
+    if [ ! -d "migrations/versions" ]; then
+    echo "❌ Diretório de migrações não encontrado (esperado: migrations/versions)"
+    exit 1
+    fi
+
+    echo "💾 Commitando migração..."
+    git add migrations/versions
+    git commit -m "migration: $MSG" || echo "⚠️ Nenhuma migração commitada (possivelmente sem alterações)."
+
+    echo "🚀 Aplicando migração..."
     alembic upgrade head
 
-    echo \"⚙️  Gerando migration: $MSG\"
-    alembic revision --autogenerate -m \"$MSG\"
-
-    # 4. Staging e commit das migrations
-    echo \"📦 Staging migrations/versions...\"
-    git add migrations/versions
-
-    echo \"✏️  Commitando migration: $MSG\"
-    git commit -m \"migration: $MSG\"
-    ' -- 
-    """
-push = """
-    task test && \
-    git add . && \
-    git commit -m \"chore: deploy via taskipy\" && \
-    git push && \
-    docker build -t gleidsoncosta/fiotec-iaeditais:latest . && \
-    docker push gleidsoncosta/fiotec-iaeditais:latest
+    echo "✅ Migração aplicada com sucesso!"
+    '
     """

@@ -1,11 +1,13 @@
 import os
-from pprint import pprint
 
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from iaEditais.core import ws
+from iaEditais.core.dependencies import Cache
 from iaEditais.core.settings import Settings
+from iaEditais.core.ws import manager
 from iaEditais.events import events
 from iaEditais.routers import auth, units, users
 from iaEditais.routers.check_tree import (
@@ -60,4 +62,16 @@ app.include_router(branches.router)
 # Routers de eventos
 app.include_router(events.router)
 
-pprint(dict(Settings()))
+
+@app.websocket('/ws/updates')
+async def websocket_endpoint(websocket: WebSocket, cache: Cache):
+    await manager.connect(websocket)
+    try:
+        while True:
+            ws.cache_listener
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+
+
+# print(Settings())

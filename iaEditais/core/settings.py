@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     ]
 
     BROKER_URL: str = 'amqp://guest:guest@localhost:5672/'
+    CACHE_URL: str = 'redis://localhost:6379/0'
 
     ACCESS_TOKEN_COOKIE_NAME: str = 'access_token'
     COOKIE_SECURE: bool = True

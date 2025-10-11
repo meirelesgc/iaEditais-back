@@ -94,6 +94,12 @@ async def create_release(
             detail='Document does not have a history to attach the file.',
         )
 
+    if len(db_doc.typifications) == 0:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='There are no associated typifications',
+        )
+
     latest_history = db_doc.history[0]
     file_path = await save_file(file, UPLOAD_DIRECTORY)
     db_release = await releases_repository.insert_db_release(
@@ -102,28 +108,8 @@ async def create_release(
     return db_release
 
 
-async def process_release(
-    model: Model,
-    session: Session,
-    vectorstore: VStore,
-    db_release: DocumentRelease,
-):
-    check_tree = await releases_repository.get_check_tree(session, db_release)
-    if not check_tree:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='There are no associated typifications',
-        )
-    chain = get_chain(model)
-    input_vars = await get_vars(check_tree, session, vectorstore, db_release)
-    response = await apply_check_tree(chain, db_release, input_vars)
-    appied_branch = await save_result(
-        session, db_release, check_tree, response
-    )
-    release = await create_description(
-        db_release, appied_branch, model, session
-    )
-    return release
+async def get_check_tree(session: Session, db_release: DocumentRelease):
+    return await releases_repository.get_check_tree(session, db_release)
 
 
 async def create_description(
@@ -248,7 +234,6 @@ async def process_branch(
         query, k=3, filter={'source': allowed_source}
     )
     for d in results:
-        print(d.metadata)
         c.append(d.page_content)
 
     return {
@@ -318,13 +303,10 @@ def safe_wrapper(chain):
             msg = str(e)
             recovered = try_recover_json(msg)
             if recovered:
-                print('[SafeWrapper] JSON recuperado manualmente.')
                 return normalize_output(recovered)
-            print('[SafeWrapper] Falha ao recuperar JSON, fallback.')
             return normalize_output(None)
 
-        except Exception as e:
-            print('[SafeWrapper] Erro inesperado:', e)
+        except Exception:
             return normalize_output(None)
 
     return RunnableLambda(_safe_invoke)
@@ -415,7 +397,7 @@ async def apply_branch(
     return applied_branch
 
 
-async def save_result(
+async def save_evaluation(
     session: Session,
     db_release: DocumentRelease,
     check_tree: list[Typification],
