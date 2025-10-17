@@ -74,4 +74,4 @@ async def websocket_endpoint(websocket: WebSocket, cache: Cache):
         manager.disconnect(websocket)
 
 
-# print(Settings())
+print(Settings())

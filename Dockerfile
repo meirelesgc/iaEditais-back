@@ -4,6 +4,8 @@ ENV POETRY_VIRTUALENVS_CREATE=false
 WORKDIR /app/
 COPY . .
 
+RUN apt-get update && apt-get install -y socat && rm -rf /var/lib/apt/lists/*
+
 RUN pip install poetry
 
 RUN poetry config installer.max-workers 10
