@@ -127,6 +127,20 @@ async def create_description(
         if not branch.fulfilled:
             errors.append(branch)
 
+    description = str()
+    prompt = """
+        Gostaria que você elaborasse um resumo geral e sucinto dos pontos
+        avaliados, destacando os melhores e os piores. Sintetize tudo em três
+        ou quatro frases.
+        """
+    for branch in errors:
+        prompt += (
+            f'- {branch.title}: {branch.description or "sem descrição"}\n'
+        )
+
+    description = model.invoke(prompt)
+    description += description.content + '\n\n'
+
     if errors:
         prompt = (
             'Elabore um resumo dos pontos que apresentaram problemas. '
@@ -144,7 +158,7 @@ async def create_description(
                 f'- {branch.title}: {branch.description or "sem descrição"}\n'
             )
     description = model.invoke(prompt)
-    description = description.content
+    description += description.content
     return await releases_repository.save_description(
         session, release, description
     )
@@ -152,11 +166,11 @@ async def create_description(
 
 def get_chain(model: Model):
     TEMPLATE = """
-        <Edital>
+        <Documento>
         {docs}
-        </Edital>
+        </Documento>
 
-        Você é um analista especializado em avaliação de editais do serviço público brasileiro. Sua tarefa é verificar a presença e relevância dos seguintes critérios no edital fornecido:
+        Você é um analista especializado em avaliação de documentos com base em regras especificas. Sua tarefa é verificar a presença e relevância dos seguintes critérios no documento fornecido:
 
         **Critério Principal:**
         Título: {taxonomy_title}
@@ -167,11 +181,11 @@ def get_chain(model: Model):
         Título: {taxonomy_branch_title}
         Descrição: {taxonomy_branch_description}
 
-        Com base no conteúdo do edital acima, responda às seguintes perguntas:
+        Com base no conteúdo acima, responda às seguintes perguntas:
 
-        1. O critério específico está contemplado no edital? Se sim, em qual seção ou parte?
-        2. Qual é a relevância desse critério no contexto geral do edital?
-        3. Há recomendações para aprimorar a inclusão ou a descrição desse critério no edital?
+        1. O critério específico foi contemplado? Se sim, em qual seção ou parte?
+        2. Qual é a relevância desse critério no contexto geral?
+        3. Há recomendações para aprimorar a inclusão ou a descrição desse critério?
 
         {format_instructions}
 
