@@ -17,4 +17,5 @@ async def load_document(file_path: str):
         loader = TextLoader(file_path, encoding='utf-8')
     else:
         raise ValueError(f'Tipo de arquivo não suportado: {ext}')
+    print('Loader de documentos')
     return loader.load()

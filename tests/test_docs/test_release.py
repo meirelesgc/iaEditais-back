@@ -14,6 +14,10 @@ def mock_upload_directory(monkeypatch):
         'iaEditais.services.releases_service.UPLOAD_DIRECTORY',
         str(temp_upload_dir),
     )
+    monkeypatch.setattr(
+        'iaEditais.workers.docs.releases.UPLOAD_DIRECTORY',
+        str(temp_upload_dir),
+    )
     return str(temp_upload_dir)
 
 
@@ -42,12 +46,9 @@ async def test_create_release(
     )
 
     file_content = b'Este eh um arquivo de teste.'
-    file_to_upload = {'file': ('test_release.txt', io.BytesIO(file_content))}
+    file = {'file': ('test_release.txt', io.BytesIO(file_content))}
 
-    response = client.post(
-        f'/doc/{doc.id}/release/',
-        files=file_to_upload,
-    )
+    response = client.post(f'/doc/{doc.id}/release/', files=file)
 
     assert response.status_code == HTTPStatus.CREATED
     data = response.json()

@@ -1,3 +1,4 @@
+import os
 from uuid import UUID
 
 from faststream.rabbit import RabbitRouter
@@ -6,6 +7,8 @@ from iaEditais.core.cache import publish_update
 from iaEditais.core.dependencies import Cache, Model, Session, VStore
 from iaEditais.models import DocumentRelease
 from iaEditais.services import releases_service, vstore_service
+
+UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 
 router = RabbitRouter()
 
@@ -16,8 +19,8 @@ async def create_vectors(
     release_id: UUID, session: Session, vectorstore: VStore, cache: Cache
 ):
     db_release = await session.get(DocumentRelease, release_id)
-    file_id = db_release.file_path.split('/')[-1]
-    file_path = f'iaEditais/storage/uploads/{file_id}'
+    unique_filename = db_release.file_path.split('/')[-1]
+    file_path = os.path.join(UPLOAD_DIRECTORY, unique_filename)
     docs = await vstore_service.load_document(file_path)
     await vectorstore.aadd_documents(docs)
     await publish_update(cache, 'PROCESS_RELEASE', 'Vectors were created', {})

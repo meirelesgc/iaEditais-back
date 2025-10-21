@@ -1,10 +1,10 @@
-from faststream.rabbit import fastapi
+from faststream.rabbit.fastapi import RabbitRouter
 
 from iaEditais.core.settings import Settings
 
 settings = Settings()
 
-router = fastapi.RabbitRouter(settings.BROKER_URL)
+router = RabbitRouter(settings.BROKER_URL)
 
 
 def get_broker():

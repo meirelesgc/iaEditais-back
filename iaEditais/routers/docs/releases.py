@@ -21,8 +21,6 @@ router = APIRouter(
     tags=['verificação dos documentos, versões'],
 )
 
-UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
-
 
 @router.post(
     '/', status_code=HTTPStatus.CREATED, response_model=DocumentReleasePublic

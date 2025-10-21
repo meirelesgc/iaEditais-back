@@ -5,6 +5,7 @@ from typing import override
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
+from faststream.rabbit import TestRabbitBroker
 from langchain_community.embeddings import FakeEmbeddings
 from langchain_core.language_models.fake_chat_models import FakeChatModel
 from langchain_postgres import PGVector
@@ -13,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from testcontainers.postgres import PostgresContainer
 
 from iaEditais.app import app
+from iaEditais.core.broker import get_broker, router
 from iaEditais.core.database import get_session
 from iaEditais.core.llm import get_model
 from iaEditais.core.security import (
@@ -41,7 +43,7 @@ from tests.factories import (
 
 
 @pytest.fixture
-def client(session, engine):
+def client(session, engine, broker):
     async def get_vectorstore_override():
         vectorstore = PGVector(
             embeddings=FakeEmbeddings(size=256),
@@ -62,10 +64,14 @@ def client(session, engine):
     def get_session_override():
         return session
 
+    def get_broker_override():
+        return broker
+
     with TestClient(app) as client:
         app.dependency_overrides[get_session] = get_session_override
         app.dependency_overrides[get_vectorstore] = get_vectorstore_override
         app.dependency_overrides[get_model] = get_model_override
+        app.dependency_overrides[get_broker] = get_broker_override
         yield client
 
     app.dependency_overrides.clear()
@@ -76,6 +82,12 @@ def engine():
     with PostgresContainer('pgvector/pgvector:pg17', driver='psycopg') as p:
         _engine = create_async_engine(p.get_connection_url())
         yield _engine
+
+
+@pytest_asyncio.fixture
+async def broker():
+    async with TestRabbitBroker(router.broker) as br:
+        yield br
 
 
 @pytest_asyncio.fixture

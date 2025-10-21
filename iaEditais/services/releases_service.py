@@ -57,7 +57,6 @@ async def save_file(file: UploadFile, upload_directory) -> str:
             shutil.copyfileobj(file.file, buffer)
     finally:
         file.file.close()
-
     return f'/uploads/{unique_filename}'
 
 
