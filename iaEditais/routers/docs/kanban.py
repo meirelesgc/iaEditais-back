@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timezone
 from enum import Enum
 from http import HTTPStatus
@@ -74,7 +75,6 @@ async def _set_status(
 async def _notify_users(
     doc: Document, status: DocumentStatus, session: Session
 ):
-    return
     status_para_portugues = {
         DocumentStatus.PENDING: 'Pendente',
         DocumentStatus.UNDER_CONSTRUCTION: 'Em construção',
@@ -100,20 +100,29 @@ async def _notify_users(
             if not user.phone_number:
                 continue
 
+            numero = (
+                user.phone_number.strip().replace(' ', '').replace('-', '')
+            )
+            if not re.fullmatch(r'55\d{10,11}', numero):
+                print(
+                    f'[ERRO] Número de telefone inválido para {user.username}: {numero}'
+                )
+                continue
+
             status_traduzido = status_para_portugues.get(status, status.value)
 
             payload = {
-                'number': '557598176422',
+                'number': numero,
                 'text': (
                     f"Olá {user.username}, o documento '{doc.name}' "
                     f'foi atualizado para o status: {status_traduzido}'
                 ),
             }
+
             response = await client.post(URL, headers=HEADERS, json=payload)
-            if response.status_code != HTTPStatus.OK:
-                raise HTTPException(
-                    status_code=HTTPStatus.BAD_GATEWAY,
-                    detail=f'Erro ao enviar mensagem para {user.name}: {response.text}',
+            if response.status_code != HTTPStatus.CREATED:
+                print(
+                    f'[ERRO] Falha ao enviar mensagem para {user.username}: {response.text}'
                 )
 
 
