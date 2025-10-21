@@ -66,7 +66,9 @@ async def create_check_tree(
         session, db_release, check_tree, evaluation
     )
     await publish_update(
-        cache, 'PROCESS_RELEASE', 'Resultado da avaliação salvo com sucesso.'
+        cache,
+        'PROCESS_RELEASE',
+        'Resultado da avaliação salvo com sucesso.',
     )
     await releases_service.create_description(
         db_release, applied_branch, model, session

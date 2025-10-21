@@ -138,8 +138,9 @@ async def create_description(
             f'- {branch.title}: {branch.description or "sem descrição"}\n'
         )
 
-    description = model.invoke(prompt)
-    description += description.content + '\n\n'
+    _ = model.invoke(prompt)
+    description += _.content
+    description += '\n\n'
 
     if errors:
         prompt = (
@@ -157,8 +158,8 @@ async def create_description(
             prompt += (
                 f'- {branch.title}: {branch.description or "sem descrição"}\n'
             )
-    description = model.invoke(prompt)
-    description += description.content
+    _ = model.invoke(prompt)
+    description += _.content
     return await releases_repository.save_description(
         session, release, description
     )

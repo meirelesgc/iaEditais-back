@@ -18,6 +18,7 @@ services:
 
   iaeditais_api:
     image: gleidsoncosta/fiotec-iaeditais:latest
+    profiles: [ "api" ]
     entrypoint: ./entrypoint.sh
     ports:
       - "8000:8000"
@@ -58,7 +59,7 @@ services:
   iaeditais_rabbitmq:
     image: rabbitmq:latest
     ports:
-      - "5672:5672"
+      - "5673:5672"
       - "15672:15672"
     environment:
       RABBITMQ_DEFAULT_USER: guest

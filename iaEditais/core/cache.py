@@ -5,9 +5,11 @@ import redis.asyncio as redis
 
 from iaEditais.core.settings import Settings
 
+settings = Settings()
+
 
 async def get_cache():
-    yield redis.from_url(Settings().CACHE_URL, decode_responses=True)
+    yield redis.from_url(settings.CACHE_URL, decode_responses=True)
 
 
 async def publish_update(

@@ -4,11 +4,11 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from iaEditais.core import ws
+from iaEditais import workers
+from iaEditais.core import broker, ws
 from iaEditais.core.dependencies import Cache
 from iaEditais.core.settings import Settings
 from iaEditais.core.ws import manager
-from iaEditais.events import events
 from iaEditais.routers import auth, units, users
 from iaEditais.routers.check_tree import (
     branches,
@@ -28,6 +28,8 @@ for directory in [STORAGE_DIR, UPLOADS_DIR, TEMP_DIR]:
     os.makedirs(directory, exist_ok=True)
 
 
+settings = Settings()
+
 # Aplicação
 app = FastAPI(docs_url='/swagger')
 
@@ -35,7 +37,7 @@ app.mount('/uploads', StaticFiles(directory=UPLOADS_DIR), name='uploads')
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=Settings().ALLOWED_ORIGINS,
+    allow_origins=settings.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],
@@ -59,8 +61,9 @@ app.include_router(typifications.router)
 app.include_router(taxonomies.router)
 app.include_router(branches.router)
 
-# Routers de eventos
-app.include_router(events.router)
+# FastStream
+app.include_router(workers.router)
+app.include_router(broker.router)
 
 
 @app.websocket('/ws/updates')
@@ -72,6 +75,3 @@ async def websocket_endpoint(websocket: WebSocket, cache: Cache):
             await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket)
-
-
-print(Settings())
