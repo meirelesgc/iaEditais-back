@@ -1,13 +1,11 @@
 import os
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from iaEditais.core import broker, ws
-from iaEditais.core.dependencies import Cache
+from iaEditais import workers
 from iaEditais.core.settings import Settings
-from iaEditais.core.ws import manager
 from iaEditais.routers import auth, units, users
 from iaEditais.routers.check_tree import (
     branches,
@@ -16,7 +14,6 @@ from iaEditais.routers.check_tree import (
     typifications,
 )
 from iaEditais.routers.docs import docs, kanban, messages, releases
-from iaEditais.workers.docs import releases as worker_releases
 
 # Diretórios
 BASE_DIR = os.path.dirname(__file__)
@@ -61,18 +58,5 @@ app.include_router(typifications.router)
 app.include_router(taxonomies.router)
 app.include_router(branches.router)
 
-# FastStream
-broker.router.include_router(worker_releases.router)
-
-app.include_router(broker.router)
-
-
-@app.websocket('/ws/updates')
-async def websocket_endpoint(websocket: WebSocket, cache: Cache):
-    await manager.connect(websocket)
-    try:
-        while True:
-            ws.cache_listener
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        manager.disconnect(websocket)
+# Eventos assincronos
+app.include_router(workers.router)

@@ -17,9 +17,8 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from testcontainers.postgres import PostgresContainer
 from testcontainers.redis import AsyncRedisContainer
 
+from iaEditais import workers
 from iaEditais.app import app
-from iaEditais.core.broker import get_broker, router
-from iaEditais.core.cache import get_cache
 from iaEditais.core.database import get_session
 from iaEditais.core.llm import get_model
 from iaEditais.core.security import (
@@ -49,9 +48,13 @@ from tests.factories import (
 )
 
 
-@pytest.fixture
-def client(session, engine, broker, cache):
-    async def get_vectorstore_override():
+@pytest_asyncio.fixture
+async def client(
+    session,
+    engine,
+    # cache,
+):
+    async def get_vstore_override():
         vectorstore = PGVector(
             embeddings=FakeEmbeddings(size=256),
             connection=engine.url.render_as_string(hide_password=False),
@@ -71,19 +74,17 @@ def client(session, engine, broker, cache):
     def get_session_override():
         return session
 
-    def get_broker_override():
-        return broker
+    # def get_cache_override():
+    #     yield cache.get_async_client()
 
-    def get_cache_override():
-        return cache
-
-    with TestClient(app) as client:
-        app.dependency_overrides[get_session] = get_session_override
-        app.dependency_overrides[get_vectorstore] = get_vectorstore_override
-        app.dependency_overrides[get_model] = get_model_override
-        app.dependency_overrides[get_broker] = get_broker_override
-        app.dependency_overrides[get_cache] = get_cache_override
-        yield client
+    async with TestRabbitBroker(workers.router.broker) as broker:
+        with TestClient(app) as client:
+            app.dependency_overrides[get_session] = get_session_override
+            app.dependency_overrides[get_vectorstore] = get_vstore_override
+            app.dependency_overrides[get_model] = get_model_override
+            # app.dependency_overrides[get_broker] = get_broker_override
+            # app.dependency_overrides[get_cache] = get_cache_override
+            yield client
 
     app.dependency_overrides.clear()
 
@@ -95,16 +96,10 @@ def engine():
         yield _engine
 
 
-@pytest_asyncio.fixture
-async def broker():
-    async with TestRabbitBroker(router.broker) as br:
-        yield br
-
-
-@pytest_asyncio.fixture
-async def cache():
-    with AsyncRedisContainer() as redis:
-        yield await redis.get_async_client()
+@pytest.fixture(scope='session')
+def cache():
+    with AsyncRedisContainer('redis:latest') as redis:
+        return redis
 
 
 @pytest_asyncio.fixture
