@@ -105,4 +105,3 @@ migrate = """
     echo "✅ Migração aplicada com sucesso!"
     '
     """
-...
