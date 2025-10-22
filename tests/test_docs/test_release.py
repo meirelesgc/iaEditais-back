@@ -80,18 +80,24 @@ async def test_create_release_doc_not_found(logged_client):
 
 
 @pytest.mark.asyncio
-async def test_read_releases(logged_client, create_doc):
+async def test_read_releases(
+    logged_client, create_doc, create_release, create_typification
+):
     client, *_ = await logged_client()
-    doc = await create_doc(name='Doc with Files', identifier='REL-002')
+    typ1 = await create_typification(name='Typ 1')
+    typ2 = await create_typification(name='Typ 2')
+
+    doc = await create_doc(
+        typification_ids=[str(typ1.id), str(typ2.id)],
+        name='Doc with Files',
+        identifier='REL-002',
+    )
 
     response = client.get(f'/doc/{doc.id}/release/')
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'releases': []}
 
-    client.post(
-        f'/doc/{doc.id}/release/',
-        files={'file': ('file1.txt', io.BytesIO(b'file 1'))},
-    )
+    await create_release(doc)
 
     response = client.get(f'/doc/{doc.id}/release/')
     assert response.status_code == HTTPStatus.OK

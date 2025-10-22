@@ -53,6 +53,7 @@ async def read_releases(doc_id: UUID, session: Session):
 
     result = await session.scalars(query)
     releases = result.all()
+    print('FIM DO READ RELEASE')
     return {'releases': releases}
 
 

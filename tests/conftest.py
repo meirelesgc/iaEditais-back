@@ -1,6 +1,9 @@
+import io
+import shutil
 from contextlib import contextmanager
 from datetime import datetime
 from typing import override
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -12,9 +15,11 @@ from langchain_postgres import PGVector
 from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from testcontainers.postgres import PostgresContainer
+from testcontainers.redis import AsyncRedisContainer
 
 from iaEditais.app import app
 from iaEditais.core.broker import get_broker, router
+from iaEditais.core.cache import get_cache
 from iaEditais.core.database import get_session
 from iaEditais.core.llm import get_model
 from iaEditais.core.security import (
@@ -24,7 +29,9 @@ from iaEditais.core.security import (
 )
 from iaEditais.core.vectorstore import get_vectorstore
 from iaEditais.models import (
+    Document,
     DocumentHistory,
+    DocumentRelease,
     DocumentStatus,
     Source,
     Taxonomy,
@@ -43,7 +50,7 @@ from tests.factories import (
 
 
 @pytest.fixture
-def client(session, engine, broker):
+def client(session, engine, broker, cache):
     async def get_vectorstore_override():
         vectorstore = PGVector(
             embeddings=FakeEmbeddings(size=256),
@@ -67,11 +74,15 @@ def client(session, engine, broker):
     def get_broker_override():
         return broker
 
+    def get_cache_override():
+        return cache
+
     with TestClient(app) as client:
         app.dependency_overrides[get_session] = get_session_override
         app.dependency_overrides[get_vectorstore] = get_vectorstore_override
         app.dependency_overrides[get_model] = get_model_override
         app.dependency_overrides[get_broker] = get_broker_override
+        app.dependency_overrides[get_cache] = get_cache_override
         yield client
 
     app.dependency_overrides.clear()
@@ -88,6 +99,12 @@ def engine():
 async def broker():
     async with TestRabbitBroker(router.broker) as br:
         yield br
+
+
+@pytest_asyncio.fixture
+async def cache():
+    with AsyncRedisContainer() as redis:
+        yield await redis.get_async_client()
 
 
 @pytest_asyncio.fixture
@@ -267,3 +284,30 @@ def create_doc(session):
         return doc
 
     return _create_doc
+
+
+@pytest_asyncio.fixture
+def create_release(session):
+    async def _create_release(doc: Document):
+        if len(doc.typifications) == 0:
+            raise Exception('There are no associated typifications')
+
+        latest_history = doc.history[0]
+        file_content = b'Este eh um arquivo de teste.'
+        file = {'file': ('test_release.txt', io.BytesIO(file_content))}
+
+        file_path = f'{uuid4()}.txt'
+        with open(file_path, 'wb') as buffer:
+            shutil.copyfileobj(file['file'][1], buffer)
+
+        db_release = DocumentRelease(
+            history_id=latest_history.id, file_path=file_path
+        )
+
+        session.add(db_release)
+        await session.commit()
+        await session.refresh(db_release)
+
+        return db_release
+
+    return _create_release

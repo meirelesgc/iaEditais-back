@@ -18,12 +18,14 @@ router = RabbitRouter()
 async def create_vectors(
     release_id: UUID, session: Session, vectorstore: VStore, cache: Cache
 ):
+    print('INICIO DO CREATE VECTORS')
     db_release = await session.get(DocumentRelease, release_id)
     unique_filename = db_release.file_path.split('/')[-1]
     file_path = os.path.join(UPLOAD_DIRECTORY, unique_filename)
     docs = await vstore_service.load_document(file_path)
     await vectorstore.aadd_documents(docs)
     await publish_update(cache, 'PROCESS_RELEASE', 'Vectors were created', {})
+    print('FIM DO CREATE VECTORS')
     return {'release_id': release_id}
 
 
