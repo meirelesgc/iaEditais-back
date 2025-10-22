@@ -21,13 +21,17 @@ if config.config_file_name is not None:
 
 target_metadata = table_registry.metadata
 
-
+def include_object(object, name, type_, reflected, compare_to):
+    if type_ == "table" and name in ("langchain_pg_collection", "langchain_pg_embedding"):
+        return False
+    return True
 
 def run_migrations_offline() -> None:
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
         target_metadata=target_metadata,
+        include_object=include_object,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
     )
