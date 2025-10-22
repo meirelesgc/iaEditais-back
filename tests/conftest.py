@@ -296,7 +296,7 @@ def create_release(session):
         file_content = b'Este eh um arquivo de teste.'
         file = {'file': ('test_release.txt', io.BytesIO(file_content))}
 
-        file_path = f'{uuid4()}.txt'
+        file_path = f'iaEditais/storage/temp/{uuid4()}.txt'
         with open(file_path, 'wb') as buffer:
             shutil.copyfileobj(file['file'][1], buffer)
 
