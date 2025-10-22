@@ -40,6 +40,13 @@ class Unit:
         foreign_keys='User.unit_id',
         lazy='selectin',
     )
+    documents: Mapped[List['Document']] = relationship(
+        back_populates='unit',
+        default_factory=list,
+        init=False,
+        foreign_keys='Document.unit_id',
+        lazy='selectin',
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
@@ -499,6 +506,15 @@ class Document:
     name: Mapped[str] = mapped_column(nullable=False)
     identifier: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str]
+
+    unit_id: Mapped[UUID] = mapped_column(
+        ForeignKey('units.id'), nullable=False
+    )
+    unit: Mapped['Unit'] = relationship(
+        back_populates='documents',
+        lazy='selectin',
+        init=False,
+    )
 
     history: Mapped[List['DocumentHistory']] = relationship(
         back_populates='document',

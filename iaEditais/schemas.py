@@ -259,6 +259,10 @@ class DocumentList(BaseModel):
     documents: list[DocumentPublic]
 
 
+class DocumentFilter(UserFilter):
+    unit_id: Optional[UUID] = None
+
+
 class DocumentReleaseFeedback(BaseModel):
     feedback: str = Field(
         description=(

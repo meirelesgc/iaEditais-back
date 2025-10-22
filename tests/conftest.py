@@ -259,9 +259,10 @@ def create_branch(session):
 
 
 @pytest_asyncio.fixture
-def create_doc(session):
+def create_doc(session, create_unit):
     async def _create_doc(typification_ids: list[int] | None = None, **kwargs):
-        doc = DocFactory.build(**kwargs)
+        unit = await create_unit()
+        doc = DocFactory.build(**kwargs, unit_id=unit.id)
         session.add(doc)
         await session.flush()
 

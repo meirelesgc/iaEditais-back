@@ -16,10 +16,10 @@ from iaEditais.models import (
 )
 from iaEditais.schemas import (
     DocumentCreate,
+    DocumentFilter,
     DocumentList,
     DocumentPublic,
     DocumentUpdate,
-    FilterPage,
 )
 
 router = APIRouter(prefix='/doc', tags=['verificação dos documentos, editais'])
@@ -52,6 +52,7 @@ async def create_doc(
         name=doc.name,
         description=doc.description,
         identifier=doc.identifier,
+        unit_id=current_user.unit_id,
         created_by=current_user.id,
     )
     session.add(db_doc)
@@ -85,15 +86,17 @@ async def create_doc(
 
 @router.get('/', response_model=DocumentList)
 async def read_docs(
-    session: Session, filters: Annotated[FilterPage, Depends()]
+    session: Session, filters: Annotated[DocumentFilter, Depends()]
 ):
-    query = await session.scalars(
-        select(Document)
-        .where(Document.deleted_at.is_(None))
-        .offset(filters.offset)
-        .limit(filters.limit)
-    )
-    docs = query.all()
+    query = select(Document).where(Document.deleted_at.is_(None))
+    query = query.offset(filters.offset).limit(filters.limit)
+
+    if filters.unit_id:
+        query = query.where(Document.unit_id == filters.unit_id)
+
+    result = await session.scalars(query)
+    docs = result.all()
+
     return {'documents': docs}
 
 
