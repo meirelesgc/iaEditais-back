@@ -1,12 +1,13 @@
+import os
 from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import select
 
-from iaEditais.core.dependencies import CurrentUser, Session
+from iaEditais.core.dependencies import Broker, CurrentUser, Session
 from iaEditais.models import Source
 from iaEditais.schemas import (
     FilterPage,
@@ -15,8 +16,11 @@ from iaEditais.schemas import (
     SourcePublic,
     SourceUpdate,
 )
+from iaEditais.services import storage_service
 
 router = APIRouter(prefix='/source', tags=['árvore de verificação, fontes'])
+
+UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 
 
 @router.post('/', status_code=HTTPStatus.CREATED, response_model=SourcePublic)
@@ -136,3 +140,36 @@ async def delete_source(
     await session.commit()
 
     return {'message': 'Source deleted'}
+
+
+@router.post(
+    '/{source_id}/upload',
+    status_code=HTTPStatus.CREATED,
+    response_model=SourcePublic,
+)
+async def upload_source_document(
+    source_id: UUID,
+    session: Session,
+    broker: Broker,
+    file: UploadFile = File(...),
+):
+    source = await session.get(Source, source_id)
+    if not source or source.deleted_at:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail='Source not found'
+        )
+
+    if source.file_path and os.path.exists(source.file_path):
+        unique_filename = source.file_path.split('/')[-1]
+        file_path = os.path.join(UPLOAD_DIRECTORY, unique_filename)
+        os.remove(file_path)
+
+    file_path = await storage_service.save_file(file, UPLOAD_DIRECTORY)
+
+    source.file_path = file_path
+    source.updated_at = datetime.now()
+    session.add(source)
+    await session.commit()
+
+    await broker.publish(source.id, 'sources_create_vectors')
+    return source

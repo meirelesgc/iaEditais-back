@@ -1,26 +1,17 @@
 import json
-import os
 import re
-import shutil
-import uuid
 from http import HTTPStatus
-from typing import Annotated, Optional
+from typing import Optional
 from uuid import UUID
 
 import json5
-from fastapi import Depends, File, HTTPException, UploadFile
-from langchain.schema.runnable import RunnableLambda
+from fastapi import File, HTTPException, UploadFile
 from langchain_core.exceptions import OutputParserException
-from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
-from langchain_core.vectorstores import VectorStore
-from sqlalchemy.ext.asyncio import AsyncSession
+from langchain_core.runnables.base import RunnableLambda
 
-from iaEditais.core.database import get_session
-from iaEditais.core.llm import get_model
-from iaEditais.core.security import get_current_user
-from iaEditais.core.vectorstore import get_vectorstore
+from iaEditais.core.dependencies import CurrentUser, Model, Session, VStore
 from iaEditais.models import (
     AppliedBranch,
     AppliedSource,
@@ -32,32 +23,12 @@ from iaEditais.models import (
     Source,
     Taxonomy,
     Typification,
-    User,
 )
 from iaEditais.repositories import releases_repository
 from iaEditais.schemas import DocumentReleaseFeedback
-
-Session = Annotated[AsyncSession, Depends(get_session)]
-CurrentUser = Annotated[User, Depends(get_current_user)]
-VStore = Annotated[VectorStore, Depends(get_vectorstore)]
-Model = Annotated[BaseChatModel, Depends(get_model)]
+from iaEditais.services import storage_service
 
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
-
-
-async def save_file(file: UploadFile, upload_directory) -> str:
-    os.makedirs(upload_directory, exist_ok=True)
-
-    file_extension = os.path.splitext(file.filename)[1]
-    unique_filename = f'{uuid.uuid4()}{file_extension}'
-    file_path = os.path.join(upload_directory, unique_filename)
-
-    try:
-        with open(file_path, 'wb') as buffer:
-            shutil.copyfileobj(file.file, buffer)
-    finally:
-        file.file.close()
-    return f'/uploads/{unique_filename}'
 
 
 async def create_release(
@@ -100,7 +71,7 @@ async def create_release(
         )
 
     latest_history = db_doc.history[0]
-    file_path = await save_file(file, UPLOAD_DIRECTORY)
+    file_path = await storage_service.save_file(file, UPLOAD_DIRECTORY)
     db_release = await releases_repository.insert_db_release(
         latest_history, file_path, session, current_user
     )
@@ -166,31 +137,43 @@ async def create_description(
 
 def get_chain(model: Model):
     TEMPLATE = """
-        <Documento>
-        {docs}
-        </Documento>
+<Documento>
+{docs}
+</Documento>
 
-        Você é um analista especializado em avaliação de documentos com base em regras especificas. Sua tarefa é verificar a presença e relevância dos seguintes critérios no documento fornecido:
+Você é um analista especializado em avaliação de documentos segundo regras específicas. Sua tarefa é **verificar se o documento fornecido cumpre os critérios pré-estabelecidos**, fornecendo análises detalhadas para cada item.
 
-        **Critério Principal:**
-        Título: {taxonomy_title}
-        Descrição: {taxonomy_description}
-        Fonte: {taxonomy_source}
+**Fonte dos critérios:**
+{typification_source}
+{typification_source_content}
 
-        **Critério Específico:**
-        Título: {taxonomy_branch_title}
-        Descrição: {taxonomy_branch_description}
+---
 
-        Com base no conteúdo acima, responda às seguintes perguntas:
+**Critério Principal**
+Título: {taxonomy_title}
+Descrição: {taxonomy_description}
+Fonte: {taxonomy_source}
 
-        1. O critério específico foi contemplado? Se sim, em qual seção ou parte?
-        2. Qual é a relevância desse critério no contexto geral?
-        3. Há recomendações para aprimorar a inclusão ou a descrição desse critério?
+**Critério Específico**
+Título: {taxonomy_branch_title}
+Descrição: {taxonomy_branch_description}
 
-        {format_instructions}
+---
 
-        {query}
-        """
+Para cada critério, siga estas instruções rigorosamente:
+
+1. Identifique se o critério principal e o critério específico estão presentes no documento.  
+2. Se o critério específico não estiver contemplado, informe claramente que está ausente.  
+3. Avalie a **relevância do critério no contexto geral do documento** (alta, média, baixa) e explique seu raciocínio.  
+4. Sugira **melhorias ou ajustes** no documento para atender melhor ao critério.  
+5. Cite **a norma, fonte fornecida ou conhecimento implicado** que embasa sua análise.  
+
+Se alguma seção esperada no documento estiver ausente ou não corresponder aos critérios, informe explicitamente.
+
+{format_instructions}
+
+{query}
+    """
 
     parser = JsonOutputParser(pydantic_object=DocumentReleaseFeedback)
     prompt = PromptTemplate(
@@ -198,6 +181,8 @@ def get_chain(model: Model):
         input_variables=[
             'docs',
             'taxonomy_title',
+            'typification_source',
+            'typification_source_content',
             'taxonomy_description',
             'taxonomy_source',
             'taxonomy_branch_title',
@@ -215,7 +200,6 @@ def get_chain(model: Model):
 
 async def get_vars(
     check_tree: list[Typification],
-    session: Session,
     vectorstore: VStore,
     release: DocumentRelease,
 ):
@@ -230,6 +214,30 @@ async def get_vars(
     return input_vars
 
 
+async def fetch_similar_contents_doc(
+    vectorstore: VStore, release: DocumentRelease, query: str, k: int = 3
+):
+    path = release.file_path.split('/')[-1]
+    allowed_source = f'iaEditais/storage/uploads/{path}'
+    results = await vectorstore.asimilarity_search(
+        query, k=k, filter={'source': allowed_source}
+    )
+    retrieved_contents = [d.page_content for d in results]
+    return retrieved_contents
+
+
+async def fetch_similar_contents_source(
+    vectorstore: VStore, release: DocumentRelease, query: str, k: int = 3
+):
+    path = release.file_path.split('/')[-1]
+    allowed_source = f'iaEditais/storage/uploads/{path}'
+    results = await vectorstore.asimilarity_search(
+        query, k=k, filter={'source': allowed_source}
+    )
+    retrieved_contents = [d.page_content for d in results]
+    return retrieved_contents
+
+
 async def process_branch(
     release: DocumentRelease,
     typification: Typification,
@@ -237,26 +245,25 @@ async def process_branch(
     branch: Branch,
     vectorstore: VStore,
 ):
-    sources = [f'{s.name}\n{s.description}' for s in typification.sources]
-    query = f'{branch.title} {branch.description}'
-    c = []
-    path = release.file_path.split('/')[-1]
+    taxonomy_source = [f'{s.name}\n{s.description}' for s in taxonomy.sources]
 
-    allowed_source = f'iaEditais/storage/uploads/{path}'
-
-    results = await vectorstore.asimilarity_search(
-        query, k=3, filter={'source': allowed_source}
+    query = f'{branch.title}: {branch.description}.'
+    retrieved_contents = await fetch_similar_contents_doc(
+        vectorstore, release, query
     )
-    for d in results:
-        c.append(d.page_content)
 
+    taxonomy_source = [
+        f'{s.name}\n{s.description}' for s in typification.sources
+    ]
     return {
-        'docs': c,
+        'docs': retrieved_contents,
         'taxonomy_title': taxonomy.title,
         'taxonomy_description': taxonomy.description,
-        'taxonomy_source': sources,
+        'taxonomy_source': taxonomy_source,
         'taxonomy_branch_title': branch.title,
         'taxonomy_branch_description': branch.description,
+        'typification_source': taxonomy_source,
+        'typification_source_content': ...,
         'query': 'Justifique sua resposta com base no conteúdo do edital.',
     }
 

@@ -190,7 +190,7 @@ class Source:
 
     name: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str]
-
+    file_path: Mapped[str] = mapped_column(nullable=True, init=False)
     typifications: Mapped[List['Typification']] = relationship(
         'Typification',
         lazy='noload',

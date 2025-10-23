@@ -149,3 +149,76 @@ async def test_delete_nonexistent_source(logged_client):
     response = client.delete(f'/source/{uuid.uuid4()}')
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == {'detail': 'Source not found'}
+
+
+@pytest.mark.asyncio
+async def test_upload_document(
+    tmp_path, logged_client, create_source, monkeypatch
+):
+    client, *_ = await logged_client()
+    source = await create_source(
+        name='UploadTest', description='Upload test source'
+    )
+
+    temp_dir = tmp_path / 'uploads'
+    temp_dir.mkdir()
+    monkeypatch.setattr('iaEditais.routers.source.UPLOAD_DIR', str(temp_dir))
+
+    file_content = b'Test content of the file'
+    file_name = 'testfile.txt'
+    response = client.post(
+        f'/source/{source.id}/upload',
+        files={'file': (file_name, io.BytesIO(file_content), 'text/plain')},
+    )
+
+    assert response.status_code == HTTPStatus.CREATED
+    data = response.json()
+    assert data['filename'] == file_name
+
+    saved_file = temp_dir / f'{source.id}_{file_name}'
+    assert saved_file.exists()
+    assert saved_file.read_bytes() == file_content
+
+
+@pytest.mark.asyncio
+async def test_get_document(
+    tmp_path, logged_client, create_source, monkeypatch
+):
+    client, *_ = await logged_client()
+    source = await create_source(
+        name='DownloadTest', description='Download test source'
+    )
+
+    temp_dir = tmp_path / 'uploads'
+    temp_dir.mkdir()
+    monkeypatch.setattr('iaEditais.routers.source.UPLOAD_DIR', str(temp_dir))
+
+    file_name = 'download.txt'
+    file_content = b'File for download test'
+    saved_file = temp_dir / f'{source.id}_{file_name}'
+    saved_file.write_bytes(file_content)
+
+    response = client.get(f'/source/{source.id}/document')
+    assert response.status_code == HTTPStatus.OK
+    assert response.content == file_content
+    assert response.headers['content-disposition'].endswith(
+        f'filename={file_name}'
+    )
+
+
+@pytest.mark.asyncio
+async def test_get_document_nonexistent(
+    tmp_path, logged_client, create_source, monkeypatch
+):
+    client, *_ = await logged_client()
+    source = await create_source(
+        name='NoFileSource', description='Source without file'
+    )
+
+    temp_dir = tmp_path / 'uploads'
+    temp_dir.mkdir()
+    monkeypatch.setattr('iaEditais.routers.source.UPLOAD_DIR', str(temp_dir))
+
+    response = client.get(f'/source/{source.id}/document')
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'Document not found'}

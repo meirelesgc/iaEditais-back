@@ -14,10 +14,10 @@ def mock_upload_directory(monkeypatch):
         'iaEditais.services.releases_service.UPLOAD_DIRECTORY',
         str(temp_upload_dir),
     )
-    # monkeypatch.setattr(
-    #     'iaEditais.workers.docs.releases.UPLOAD_DIRECTORY',
-    #     str(temp_upload_dir),
-    # )
+    monkeypatch.setattr(
+        'iaEditais.workers.docs.releases.UPLOAD_DIRECTORY',
+        str(temp_upload_dir),
+    )
     return str(temp_upload_dir)
 
 

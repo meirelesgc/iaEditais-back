@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, File, HTTPException, UploadFile
 from sqlalchemy import select
 
-from iaEditais.core.dependencies import CurrentUser, Session
+from iaEditais.core.dependencies import Broker, CurrentUser, Session
 from iaEditais.models import (
     DocumentHistory,
     DocumentRelease,
@@ -29,13 +29,13 @@ async def create_release(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
-    # broker: Broker,
+    broker: Broker,
     file: UploadFile = File(...),
 ):
     db_release = await releases_service.create_release(
         doc_id, session, current_user, file
     )
-    # await broker.publish(db_release.id, 'releases_create_vectors')
+    await broker.publish(db_release.id, 'releases_create_vectors')
     return db_release
 
 

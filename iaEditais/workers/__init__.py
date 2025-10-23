@@ -1,3 +1,8 @@
 from faststream.rabbit.fastapi import RabbitRouter
 
-router = RabbitRouter(setup_state=False)
+from iaEditais.workers.docs import releases
+
+router = RabbitRouter()
+
+
+router.include_router(releases.router)

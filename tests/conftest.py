@@ -19,6 +19,7 @@ from testcontainers.redis import AsyncRedisContainer
 
 from iaEditais import workers
 from iaEditais.app import app
+from iaEditais.core.broker import get_broker
 from iaEditais.core.database import get_session
 from iaEditais.core.llm import get_model
 from iaEditais.core.security import (
@@ -76,13 +77,12 @@ async def client(
 
     # def get_cache_override():
     #     yield cache.get_async_client()
-
     async with TestRabbitBroker(workers.router.broker) as broker:
         with TestClient(app) as client:
             app.dependency_overrides[get_session] = get_session_override
             app.dependency_overrides[get_vectorstore] = get_vstore_override
             app.dependency_overrides[get_model] = get_model_override
-            # app.dependency_overrides[get_broker] = get_broker_override
+            app.dependency_overrides[get_broker] = lambda: broker
             # app.dependency_overrides[get_cache] = get_cache_override
             yield client
 

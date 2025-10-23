@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from iaEditais import workers
+from iaEditais.core import broker
 from iaEditais.core.settings import Settings
 from iaEditais.routers import auth, units, users
 from iaEditais.routers.check_tree import (
@@ -60,3 +61,4 @@ app.include_router(branches.router)
 
 # Eventos assincronos
 app.include_router(workers.router)
+app.include_router(broker.router)
