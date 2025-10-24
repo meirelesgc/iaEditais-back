@@ -41,8 +41,8 @@ def split_documents(documents):
         r'\d+\.\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇ\s]+(?=\n)',
     ]
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=3600,
-        chunk_overlap=360,
+        chunk_size=1800,
+        chunk_overlap=180,
         is_separator_regex=True,
         keep_separator='start',
         separators=separators,

@@ -48,7 +48,6 @@ async def create_vectors(
 
 
 @router.subscriber('releases_create_check_tree')
-@router.publisher('releases_update_check_tree')
 async def create_check_tree(
     release_id: UUID,
     session: Session,
