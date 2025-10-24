@@ -145,7 +145,6 @@ Você é um analista especializado em avaliação de documentos segundo regras e
 
 **Fonte dos critérios:**
 {typification_source}
-{typification_source_content}
 
 ---
 
@@ -227,9 +226,9 @@ async def fetch_similar_contents_doc(
 
 
 async def fetch_similar_contents_source(
-    vectorstore: VStore, release: DocumentRelease, query: str, k: int = 3
+    vectorstore: VStore, source: Source, query: str, k: int = 3
 ):
-    path = release.file_path.split('/')[-1]
+    path = source.file_path.split('/')[-1]
     allowed_source = f'iaEditais/storage/uploads/{path}'
     results = await vectorstore.asimilarity_search(
         query, k=k, filter={'source': allowed_source}
@@ -245,25 +244,44 @@ async def process_branch(
     branch: Branch,
     vectorstore: VStore,
 ):
-    taxonomy_source = [f'{s.name}\n{s.description}' for s in taxonomy.sources]
+    query = f'{branch.title}: {branch.description or ""}'.strip()
 
-    query = f'{branch.title}: {branch.description}.'
     retrieved_contents = await fetch_similar_contents_doc(
         vectorstore, release, query
     )
 
-    taxonomy_source = [
-        f'{s.name}\n{s.description}' for s in typification.sources
-    ]
+    typification_sources_text = []
+    for source in getattr(typification, 'sources', []):
+        chunks = []
+        if getattr(source, 'file_path', None):
+            chunks = await fetch_similar_contents_source(
+                vectorstore, source, query
+            )
+
+        source_block = f"""
+        Nome da Fonte: {source.name}
+        Descrição: {source.description or 'sem descrição'}
+        Conteúdo Relevante: {' '.join(chunks) if chunks else 'nenhum conteúdo relevante encontrado'}
+        """
+        typification_sources_text.append(source_block)
+
+    taxonomy_sources_text = []
+    for source in getattr(taxonomy, 'sources', []):
+        taxonomy_sources_text.append(
+            f'{source.name}\n{source.description or "sem descrição"}'
+        )
+
+    typification_source_content = '\n'.join(typification_sources_text)
+    taxonomy_source_content = '\n'.join(taxonomy_sources_text)
+
     return {
         'docs': retrieved_contents,
         'taxonomy_title': taxonomy.title,
         'taxonomy_description': taxonomy.description,
-        'taxonomy_source': taxonomy_source,
+        'taxonomy_source': taxonomy_source_content,
         'taxonomy_branch_title': branch.title,
         'taxonomy_branch_description': branch.description,
-        'typification_source': taxonomy_source,
-        'typification_source_content': ...,
+        'typification_source': typification_source_content,
         'query': 'Justifique sua resposta com base no conteúdo do edital.',
     }
 
