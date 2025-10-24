@@ -28,7 +28,10 @@ class Unit:
     __tablename__ = 'units'
 
     id: Mapped[UUID] = mapped_column(
-        init=False, primary_key=True, default=uuid4
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
     )
     name: Mapped[str] = mapped_column(nullable=False)
     location: Mapped[Optional[str]] = mapped_column(default=None)
@@ -88,7 +91,10 @@ class User:
     __tablename__ = 'users'
 
     id: Mapped[UUID] = mapped_column(
-        init=False, primary_key=True, default=uuid4
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
     )
 
     username: Mapped[str]
@@ -185,7 +191,10 @@ class TypificationSource:
 class Source:
     __tablename__ = 'sources'
     id: Mapped[UUID] = mapped_column(
-        init=False, primary_key=True, default=uuid4
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
     )
 
     name: Mapped[str] = mapped_column(nullable=False)
@@ -246,7 +255,10 @@ class Source:
 class Typification:
     __tablename__ = 'typifications'
     id: Mapped[UUID] = mapped_column(
-        init=False, primary_key=True, default=uuid4
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
     )
     name: Mapped[str] = mapped_column(nullable=False)
 
@@ -335,7 +347,10 @@ class Taxonomy:
     __tablename__ = 'taxonomies'
 
     id: Mapped[UUID] = mapped_column(
-        init=False, primary_key=True, default=uuid4
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
     )
     title: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str] = mapped_column()
@@ -402,7 +417,10 @@ class Taxonomy:
 class Branch:
     __tablename__ = 'branches'
     id: Mapped[UUID] = mapped_column(
-        init=False, primary_key=True, default=uuid4
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
     )
 
     title: Mapped[str] = mapped_column(nullable=False)
@@ -500,7 +518,10 @@ class DocumentEditor:
 class Document:
     __tablename__ = 'documents'
     id: Mapped[UUID] = mapped_column(
-        init=False, primary_key=True, default=uuid4
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
     )
 
     name: Mapped[str] = mapped_column(nullable=False)
@@ -589,7 +610,10 @@ class Document:
 class DocumentHistory:
     __tablename__ = 'document_histories'
     id: Mapped[UUID] = mapped_column(
-        init=False, primary_key=True, default=uuid4
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
     )
     document_id: Mapped[UUID] = mapped_column(
         ForeignKey('documents.id', name='fk_document_histories_document_id'),
@@ -644,7 +668,10 @@ class DocumentHistory:
 class DocumentRelease:
     __tablename__ = 'document_releases'
     id: Mapped[UUID] = mapped_column(
-        init=False, primary_key=True, default=uuid4
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
     )
 
     history_id: Mapped[UUID] = mapped_column(
@@ -702,7 +729,10 @@ class DocumentMessage:
     __tablename__ = 'document_messages'
 
     id: Mapped[UUID] = mapped_column(
-        init=False, primary_key=True, default=uuid4
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
     )
 
     history_id: Mapped[UUID] = mapped_column(
@@ -755,7 +785,10 @@ class AppliedSource:
     __tablename__ = 'applied_sources'
 
     id: Mapped[UUID] = mapped_column(
-        init=False, primary_key=True, default=uuid4
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
     )
 
     name: Mapped[str] = mapped_column(unique=False, nullable=False)
@@ -826,7 +859,10 @@ class AppliedTypification:
     __tablename__ = 'applied_typifications'
 
     id: Mapped[UUID] = mapped_column(
-        init=False, primary_key=True, default=uuid4
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
     )
     name: Mapped[str] = mapped_column(nullable=False)
 
@@ -913,7 +949,10 @@ class AppliedTaxonomy:
     __tablename__ = 'applied_taxonomies'
 
     id: Mapped[UUID] = mapped_column(
-        init=False, primary_key=True, default=uuid4
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
     )
 
     title: Mapped[str] = mapped_column(nullable=False)
@@ -967,7 +1006,10 @@ class AppliedBranch:
     __tablename__ = 'applied_branches'
 
     id: Mapped[UUID] = mapped_column(
-        init=False, primary_key=True, default=uuid4
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
     )
     title: Mapped[str] = mapped_column(nullable=False)
 

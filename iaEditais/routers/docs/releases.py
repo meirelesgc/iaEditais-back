@@ -35,6 +35,7 @@ async def create_release(
     db_release = await releases_service.create_release(
         doc_id, session, current_user, file
     )
+
     await broker.publish(db_release.id, 'releases_create_vectors')
     return db_release
 

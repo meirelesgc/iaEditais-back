@@ -1,5 +1,7 @@
+import io
 import uuid
 from http import HTTPStatus
+from pathlib import Path
 
 import pytest
 
@@ -152,73 +154,42 @@ async def test_delete_nonexistent_source(logged_client):
 
 
 @pytest.mark.asyncio
-async def test_upload_document(
-    tmp_path, logged_client, create_source, monkeypatch
+async def test_upload_source_document_creates_new_file(
+    logged_client, create_source, mock_upload_directory, session
 ):
+    source = await create_source()
     client, *_ = await logged_client()
-    source = await create_source(
-        name='UploadTest', description='Upload test source'
-    )
 
-    temp_dir = tmp_path / 'uploads'
-    temp_dir.mkdir()
-    monkeypatch.setattr('iaEditais.routers.source.UPLOAD_DIR', str(temp_dir))
+    file_content = b'Este eh um novo documento de source.'
+    file = {'file': ('meu_arquivo.txt', io.BytesIO(file_content))}
 
-    file_content = b'Test content of the file'
-    file_name = 'testfile.txt'
-    response = client.post(
-        f'/source/{source.id}/upload',
-        files={'file': (file_name, io.BytesIO(file_content), 'text/plain')},
-    )
+    response = client.post(f'/source/{source.id}/upload', files=file)
 
     assert response.status_code == HTTPStatus.CREATED
     data = response.json()
-    assert data['filename'] == file_name
+    assert data['id'] == str(source.id)
+    assert 'file_path' in data
+    assert data['file_path'].endswith('.txt')
 
-    saved_file = temp_dir / f'{source.id}_{file_name}'
-    assert saved_file.exists()
-    assert saved_file.read_bytes() == file_content
+    relative_path = data['file_path'].replace('/uploads/', '')
+    actual_file_path = Path(mock_upload_directory) / relative_path
 
+    assert actual_file_path.exists()
+    assert actual_file_path.read_bytes() == file_content
 
-@pytest.mark.asyncio
-async def test_get_document(
-    tmp_path, logged_client, create_source, monkeypatch
-):
-    client, *_ = await logged_client()
-    source = await create_source(
-        name='DownloadTest', description='Download test source'
-    )
-
-    temp_dir = tmp_path / 'uploads'
-    temp_dir.mkdir()
-    monkeypatch.setattr('iaEditais.routers.source.UPLOAD_DIR', str(temp_dir))
-
-    file_name = 'download.txt'
-    file_content = b'File for download test'
-    saved_file = temp_dir / f'{source.id}_{file_name}'
-    saved_file.write_bytes(file_content)
-
-    response = client.get(f'/source/{source.id}/document')
-    assert response.status_code == HTTPStatus.OK
-    assert response.content == file_content
-    assert response.headers['content-disposition'].endswith(
-        f'filename={file_name}'
-    )
+    await session.refresh(source)
+    assert source.file_path == data['file_path']
 
 
 @pytest.mark.asyncio
-async def test_get_document_nonexistent(
-    tmp_path, logged_client, create_source, monkeypatch
-):
+async def test_upload_source_document_not_found(logged_client):
     client, *_ = await logged_client()
-    source = await create_source(
-        name='NoFileSource', description='Source without file'
-    )
+    fake_source_id = uuid.uuid4()
 
-    temp_dir = tmp_path / 'uploads'
-    temp_dir.mkdir()
-    monkeypatch.setattr('iaEditais.routers.source.UPLOAD_DIR', str(temp_dir))
+    file_content = b'conteudo irrelevante'
+    file = {'file': ('test.txt', io.BytesIO(file_content))}
 
-    response = client.get(f'/source/{source.id}/document')
+    response = client.post(f'/source/{fake_source_id}/upload', files=file)
+
     assert response.status_code == HTTPStatus.NOT_FOUND
-    assert response.json() == {'detail': 'Document not found'}
+    assert response.json()['detail'] == 'Source not found'

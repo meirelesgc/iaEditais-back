@@ -98,7 +98,7 @@ class SourceUpdate(SourceSchema):
 
 class SourcePublic(SourceSchema):
     id: UUID
-    file_path: Optional[str]
+    file_path: Optional[str] = None
 
     created_at: datetime
     updated_at: Optional[datetime] = None

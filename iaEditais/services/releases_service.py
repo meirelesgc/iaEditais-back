@@ -49,7 +49,6 @@ async def create_release(
             status_code=HTTPStatus.BAD_REQUEST,
             detail='Invalid file type. Only Word and PDF files are allowed.',
         )
-
     db_doc = await releases_repository.get_db_doc(doc_id, session)
 
     if not db_doc:
@@ -69,7 +68,6 @@ async def create_release(
             status_code=HTTPStatus.NOT_FOUND,
             detail='There are no associated typifications',
         )
-
     latest_history = db_doc.history[0]
     file_path = await storage_service.save_file(file, UPLOAD_DIRECTORY)
     db_release = await releases_repository.insert_db_release(

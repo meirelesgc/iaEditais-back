@@ -6,21 +6,6 @@ from pathlib import Path
 import pytest
 
 
-@pytest.fixture(autouse=True)
-def mock_upload_directory(monkeypatch):
-    temp_upload_dir = Path('iaEditais') / 'storage' / 'temp'
-    temp_upload_dir.mkdir(parents=True, exist_ok=True)
-    monkeypatch.setattr(
-        'iaEditais.services.releases_service.UPLOAD_DIRECTORY',
-        str(temp_upload_dir),
-    )
-    monkeypatch.setattr(
-        'iaEditais.workers.docs.releases.UPLOAD_DIRECTORY',
-        str(temp_upload_dir),
-    )
-    return str(temp_upload_dir)
-
-
 @pytest.mark.asyncio
 async def test_create_release(
     logged_client,
