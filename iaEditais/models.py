@@ -1,10 +1,17 @@
+from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 from typing import List, Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import ForeignKey, Index, func
-from sqlalchemy.orm import Mapped, mapped_column, registry, relationship
+from sqlalchemy import ForeignKey, Index, column, func
+from sqlalchemy.orm import (
+    Mapped,
+    declared_attr,
+    mapped_column,
+    registry,
+    relationship,
+)
 
 table_registry = registry()
 
@@ -23,8 +30,59 @@ class DocumentStatus(str, Enum):
     COMPLETED = 'COMPLETED'
 
 
+@dataclass(init=False)
+class AuditMixin:
+    @declared_attr
+    def created_at(cls) -> Mapped[datetime]:
+        return mapped_column(init=False, server_default=func.now())
+
+    @declared_attr
+    def updated_at(cls) -> Mapped[Optional[datetime]]:
+        return mapped_column(init=False, nullable=True, onupdate=func.now())
+
+    @declared_attr
+    def deleted_at(cls) -> Mapped[Optional[datetime]]:
+        return mapped_column(init=False, nullable=True)
+
+    @declared_attr
+    def created_by(cls) -> Mapped[Optional[UUID]]:
+        return mapped_column(
+            ForeignKey(
+                'users.id',
+                name=f'fk_{cls.__tablename__}_created_by',
+                use_alter=True,
+            ),
+            nullable=True,
+            default=None,
+        )
+
+    @declared_attr
+    def updated_by(cls) -> Mapped[Optional[UUID]]:
+        return mapped_column(
+            ForeignKey(
+                'users.id',
+                name=f'fk_{cls.__tablename__}_updated_by',
+                use_alter=True,
+            ),
+            nullable=True,
+            default=None,
+        )
+
+    @declared_attr
+    def deleted_by(cls) -> Mapped[Optional[UUID]]:
+        return mapped_column(
+            ForeignKey(
+                'users.id',
+                name=f'fk_{cls.__tablename__}_deleted_by',
+                use_alter=True,
+            ),
+            nullable=True,
+            default=None,
+        )
+
+
 @table_registry.mapped_as_dataclass
-class Unit:
+class Unit(AuditMixin):
     __tablename__ = 'units'
 
     id: Mapped[UUID] = mapped_column(
@@ -51,43 +109,18 @@ class Unit:
         lazy='selectin',
     )
 
-    created_at: Mapped[datetime] = mapped_column(
-        init=False, server_default=func.now()
-    )
-    updated_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, nullable=True, onupdate=func.now()
-    )
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, nullable=True
-    )
-
-    created_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_unit_created_by', use_alter=True),
-        nullable=True,
-        default=None,
-    )
-    updated_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_unit_updated_by', use_alter=True),
-        nullable=True,
-        default=None,
-    )
-    deleted_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_unit_deleted_by', use_alter=True),
-        nullable=True,
-        default=None,
-    )
     __table_args__ = (
         Index(
             'ix_uq_units_name_active',
             'name',
             unique=True,
-            postgresql_where=(deleted_at.is_(None)),
+            postgresql_where=(column('deleted_at').is_(None)),
         ),
     )
 
 
 @table_registry.mapped_as_dataclass
-class User:
+class User(AuditMixin):
     __tablename__ = 'users'
 
     id: Mapped[UUID] = mapped_column(
@@ -123,43 +156,18 @@ class User:
         init=False,
     )
 
-    created_at: Mapped[datetime] = mapped_column(
-        init=False, server_default=func.now()
-    )
-    updated_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, onupdate=func.now()
-    )
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, nullable=True
-    )
-
-    created_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_user_created_by'),
-        nullable=True,
-        default=None,
-    )
-    updated_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_user_updated_by'),
-        nullable=True,
-        default=None,
-    )
-    deleted_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_user_deleted_by'),
-        nullable=True,
-        default=None,
-    )
     __table_args__ = (
         Index(
             'ix_uq_users_phone_number_active',
             'phone_number',
             unique=True,
-            postgresql_where=(deleted_at.is_(None)),
+            postgresql_where=(column('deleted_at').is_(None)),
         ),
         Index(
             'ix_uq_users_email_active',
             'email',
             unique=True,
-            postgresql_where=(deleted_at.is_(None)),
+            postgresql_where=(column('deleted_at').is_(None)),
         ),
     )
 
@@ -188,7 +196,7 @@ class TypificationSource:
 
 
 @table_registry.mapped_as_dataclass
-class Source:
+class Source(AuditMixin):
     __tablename__ = 'sources'
     id: Mapped[UUID] = mapped_column(
         init=False,
@@ -216,43 +224,19 @@ class Source:
         default_factory=list,
         init=False,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        init=False, server_default=func.now()
-    )
-    updated_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, onupdate=func.now()
-    )
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, nullable=True
-    )
 
-    created_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_source_created_by'),
-        nullable=True,
-        default=None,
-    )
-    updated_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_source_updated_by'),
-        nullable=True,
-        default=None,
-    )
-    deleted_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_source_deleted_by'),
-        nullable=True,
-        default=None,
-    )
     __table_args__ = (
         Index(
             'ix_uq_sources_name_active',
             'name',
             unique=True,
-            postgresql_where=(deleted_at.is_(None)),
+            postgresql_where=(column('deleted_at').is_(None)),
         ),
     )
 
 
 @table_registry.mapped_as_dataclass
-class Typification:
+class Typification(AuditMixin):
     __tablename__ = 'typifications'
     id: Mapped[UUID] = mapped_column(
         init=False,
@@ -284,37 +268,13 @@ class Typification:
         default_factory=list,
         init=False,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        init=False, server_default=func.now()
-    )
-    updated_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, onupdate=func.now()
-    )
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, nullable=True
-    )
 
-    created_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_typification_created_by'),
-        nullable=True,
-        default=None,
-    )
-    updated_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_typification_updated_by'),
-        nullable=True,
-        default=None,
-    )
-    deleted_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_typification_deleted_by'),
-        nullable=True,
-        default=None,
-    )
     __table_args__ = (
         Index(
             'ix_uq_typifications_name_active',
             'name',
             unique=True,
-            postgresql_where=(deleted_at.is_(None)),
+            postgresql_where=(column('deleted_at').is_(None)),
         ),
     )
 
@@ -343,7 +303,7 @@ class TaxonomySource:
 
 
 @table_registry.mapped_as_dataclass
-class Taxonomy:
+class Taxonomy(AuditMixin):
     __tablename__ = 'taxonomies'
 
     id: Mapped[UUID] = mapped_column(
@@ -377,44 +337,19 @@ class Taxonomy:
         default_factory=list,
         init=False,
     )
-    created_at: Mapped[datetime] = mapped_column(
-        init=False, server_default=func.now()
-    )
-    updated_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, onupdate=func.now()
-    )
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, nullable=True
-    )
-
-    created_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_taxonomy_created_by'),
-        nullable=True,
-        default=None,
-    )
-    updated_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_taxonomy_updated_by'),
-        nullable=True,
-        default=None,
-    )
-    deleted_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_taxonomy_deleted_by'),
-        nullable=True,
-        default=None,
-    )
 
     __table_args__ = (
         Index(
             'ix_uq_taxonomies_title_active',
             'title',
             unique=True,
-            postgresql_where=(deleted_at.is_(None)),
+            postgresql_where=(column('deleted_at').is_(None)),
         ),
     )
 
 
 @table_registry.mapped_as_dataclass
-class Branch:
+class Branch(AuditMixin):
     __tablename__ = 'branches'
     id: Mapped[UUID] = mapped_column(
         init=False,
@@ -434,38 +369,12 @@ class Branch:
         back_populates='branches', init=False
     )
 
-    created_at: Mapped[datetime] = mapped_column(
-        init=False, server_default=func.now()
-    )
-    updated_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, onupdate=func.now()
-    )
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, nullable=True
-    )
-
-    created_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_branch_created_by'),
-        nullable=True,
-        default=None,
-    )
-    updated_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_branch_updated_by'),
-        nullable=True,
-        default=None,
-    )
-    deleted_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_branch_deleted_by'),
-        nullable=True,
-        default=None,
-    )
-
     __table_args__ = (
         Index(
             'ix_uq_branch_title_active',
             'title',
             unique=True,
-            postgresql_where=(deleted_at.is_(None)),
+            postgresql_where=(column('deleted_at').is_(None)),
         ),
     )
 
@@ -515,7 +424,7 @@ class DocumentEditor:
 
 
 @table_registry.mapped_as_dataclass
-class Document:
+class Document(AuditMixin):
     __tablename__ = 'documents'
     id: Mapped[UUID] = mapped_column(
         init=False,
@@ -565,49 +474,24 @@ class Document:
         init=False,
     )
 
-    created_at: Mapped[datetime] = mapped_column(
-        init=False, server_default=func.now()
-    )
-    updated_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, onupdate=func.now()
-    )
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, nullable=True
-    )
-
-    created_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_doc_created_by'),
-        nullable=True,
-        default=None,
-    )
-    updated_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_doc_updated_by'),
-        nullable=True,
-        default=None,
-    )
-    deleted_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_doc_deleted_by'),
-        nullable=True,
-        default=None,
-    )
     __table_args__ = (
         Index(
             'ix_uq_documents_name_active',
             'name',
             unique=True,
-            postgresql_where=(deleted_at.is_(None)),
+            postgresql_where=(column('deleted_at').is_(None)),
         ),
         Index(
             'ix_uq_documents_identifier_active',
             'identifier',
             unique=True,
-            postgresql_where=(deleted_at.is_(None)),
+            postgresql_where=(column('deleted_at').is_(None)),
         ),
     )
 
 
 @table_registry.mapped_as_dataclass
-class DocumentHistory:
+class DocumentHistory(AuditMixin):
     __tablename__ = 'document_histories'
     id: Mapped[UUID] = mapped_column(
         init=False,
@@ -631,31 +515,6 @@ class DocumentHistory:
         init=False,
     )
 
-    created_at: Mapped[datetime] = mapped_column(
-        init=False, server_default=func.now()
-    )
-    updated_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, onupdate=func.now()
-    )
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, nullable=True
-    )
-    created_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_document_histories_created_by'),
-        nullable=True,
-        default=None,
-    )
-    updated_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_document_histories_updated_by'),
-        nullable=True,
-        default=None,
-    )
-    deleted_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_document_histories_deleted_by'),
-        nullable=True,
-        default=None,
-    )
-
     releases: Mapped[List['DocumentRelease']] = relationship(
         back_populates='history',
         cascade='all, delete-orphan',
@@ -665,7 +524,7 @@ class DocumentHistory:
 
 
 @table_registry.mapped_as_dataclass
-class DocumentRelease:
+class DocumentRelease(AuditMixin):
     __tablename__ = 'document_releases'
     id: Mapped[UUID] = mapped_column(
         init=False,
@@ -698,34 +557,10 @@ class DocumentRelease:
     description: Mapped[Optional[str]] = mapped_column(
         nullable=True, default=None
     )
-    created_at: Mapped[datetime] = mapped_column(
-        init=False, server_default=func.now()
-    )
-    updated_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, onupdate=func.now()
-    )
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, nullable=True
-    )
-    created_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_document_releases_created_by'),
-        nullable=True,
-        default=None,
-    )
-    updated_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_document_releases_updated_by'),
-        nullable=True,
-        default=None,
-    )
-    deleted_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_document_releases_deleted_by'),
-        nullable=True,
-        default=None,
-    )
 
 
 @table_registry.mapped_as_dataclass
-class DocumentMessage:
+class DocumentMessage(AuditMixin):
     __tablename__ = 'document_messages'
 
     id: Mapped[UUID] = mapped_column(
@@ -752,32 +587,6 @@ class DocumentMessage:
     user: Mapped['User'] = relationship(init=False, foreign_keys=[user_id])
 
     message: Mapped[str] = mapped_column(nullable=False)
-
-    created_at: Mapped[datetime] = mapped_column(
-        init=False, server_default=func.now()
-    )
-    updated_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, onupdate=func.now()
-    )
-    deleted_at: Mapped[Optional[datetime]] = mapped_column(
-        init=False, nullable=True
-    )
-
-    created_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_document_messages_created_by'),
-        nullable=True,
-        default=None,
-    )
-    updated_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_document_messages_updated_by'),
-        nullable=True,
-        default=None,
-    )
-    deleted_by: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('users.id', name='fk_document_messages_deleted_by'),
-        nullable=True,
-        default=None,
-    )
 
 
 @table_registry.mapped_as_dataclass
