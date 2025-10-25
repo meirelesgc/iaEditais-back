@@ -80,6 +80,18 @@ class AuditMixin:
             default=None,
         )
 
+    def set_creation_audit(self, user_id: UUID):
+        self.created_at = func.now()
+        self.created_by = user_id
+
+    def set_update_audit(self, user_id: UUID):
+        self.updated_at = func.now()
+        self.updated_by = user_id
+
+    def set_deletion_audit(self, user_id: UUID):
+        self.deleted_at = func.now()
+        self.deleted_by = user_id
+
 
 @table_registry.mapped_as_dataclass
 class Unit(AuditMixin):
