@@ -55,6 +55,7 @@ async def read_units(
     query = await session.scalars(
         select(Unit)
         .where(Unit.deleted_at.is_(None))
+        .order_by(Unit.created_at.desc())
         .offset(filter_units.offset)
         .limit(filter_units.limit)
     )

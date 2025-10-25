@@ -88,7 +88,11 @@ async def create_doc(
 async def read_docs(
     session: Session, filters: Annotated[DocumentFilter, Depends()]
 ):
-    query = select(Document).where(Document.deleted_at.is_(None))
+    query = (
+        select(Document)
+        .where(Document.deleted_at.is_(None))
+        .order_by(Document.created_at.desc())
+    )
     query = query.offset(filters.offset).limit(filters.limit)
 
     if filters.unit_id:

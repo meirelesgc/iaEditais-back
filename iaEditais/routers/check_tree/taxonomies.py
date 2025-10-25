@@ -96,6 +96,7 @@ async def read_taxonomies(
     query = await session.scalars(
         select(Taxonomy)
         .where(Taxonomy.deleted_at.is_(None))
+        .order_by(Taxonomy.created_at.desc())
         .offset(filters.offset)
         .limit(filters.limit)
     )

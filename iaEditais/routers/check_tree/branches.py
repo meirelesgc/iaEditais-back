@@ -70,7 +70,11 @@ async def create_branch(
 async def read_branches(
     session: Session, filters: Annotated[BranchFilter, Depends()]
 ):
-    query = select(Branch).where(Branch.deleted_at.is_(None))
+    query = (
+        select(Branch)
+        .where(Branch.deleted_at.is_(None))
+        .order_by(Branch.created_at.desc())
+    )
 
     if filters.taxonomy_id:
         query = query.where(Branch.taxonomy_id == filters.taxonomy_id)

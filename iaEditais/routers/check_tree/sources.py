@@ -61,6 +61,7 @@ async def read_sources(
     query = await session.scalars(
         select(Source)
         .where(Source.deleted_at.is_(None))
+        .order_by(Source.created_at.desc())
         .offset(filters.offset)
         .limit(filters.limit)
     )

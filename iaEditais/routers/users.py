@@ -61,7 +61,11 @@ async def create_user(user: UserCreate, session: Session):
 async def read_users(
     session: Session, filters: Annotated[UserFilter, Depends()]
 ):
-    query = select(User).where(User.deleted_at.is_(None))
+    query = (
+        select(User)
+        .where(User.deleted_at.is_(None))
+        .order_by(User.created_at.desc())
+    )
 
     if filters.unit_id:
         query = query.where(User.unit_id == filters.unit_id)

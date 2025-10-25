@@ -88,6 +88,7 @@ async def read_typifications(
     query = await session.scalars(
         select(Typification)
         .where(Typification.deleted_at.is_(None))
+        .order_by(Typification.created_at.desc())
         .offset(filters.offset)
         .limit(filters.limit)
     )
