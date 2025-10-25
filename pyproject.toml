@@ -44,6 +44,7 @@ pythonpath = "."
 asyncio_default_fixture_loop_scope = 'function'
 filterwarnings = [
     "ignore:.*Specifying 'lifespan_context' manually is no longer necessary.*:RuntimeWarning",
+    "ignore::DeprecationWarning:testcontainers.*",
 ]
 
 [tool.coverage.run]
