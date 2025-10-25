@@ -1,17 +1,20 @@
 [project]
 name = "iaEditais"
-version = "0.1.0"
-description = ""
-authors = [
-    {name = "gmcosta",email = "geu_costa@outlook.com"}
-]
+version = "3.4.0"
+description = "This API was developed to assist in the preparation and analysis of public procurement notices, employing Artificial Intelligence (AI) techniques. The goal is to increase accuracy, compliance, and efficiency in the creation and review of notices, reducing errors and inconsistencies."
+authors = [{name = "gmcosta",email = "geu_costa@outlook.com"}]
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
+license = "MIT"
 dependencies = ["fastapi[standard] (>=0.119.1,<0.120.0)", "pydantic-settings (>=2.11.0,<3.0.0)", "sqlalchemy (>=2.0.44,<3.0.0)", "alembic (>=1.17.0,<2.0.0)", "psycopg[binary] (>=3.2.11,<4.0.0)", "pyjwt (>=2.10.1,<3.0.0)", "pwdlib[argon2] (>=0.2.1,<0.3.0)", "langchain (>=1.0.2,<2.0.0)", "langchain-openai (>=1.0.1,<2.0.0)", "langchain-postgres (>=0.0.16,<0.0.17)", "langchain-community (>=0.4,<0.5)", "faststream[rabbit] (>=0.6.2,<0.7.0)", "pymupdf (>=1.26.5,<2.0.0)", "redis (>=7.0.0,<8.0.0)", "pika (>=1.3.2,<2.0.0)", "langchain-text-splitters (>=1.0.0,<2.0.0)"]
 
 [tool.poetry]
 packages = [{include = "iaEditais"}]
 
+[tool.poetry.urls]
+Homepage = "http://52.5.144.13:3000/"
+Documentation = "https://meirelesgc.github.io/iaEditais-back"
+Repository = "https://github.com/meirelesgc/iaEditais-back.git"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^8.4.1"

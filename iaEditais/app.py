@@ -1,5 +1,7 @@
 import os
+from pathlib import Path
 
+import tomli
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -15,6 +17,8 @@ from iaEditais.routers.check_tree import (
     typifications,
 )
 from iaEditais.routers.docs import docs, kanban, messages, releases
+
+PROJECT_FILE = Path(__file__).parent.parent / 'pyproject.toml'
 
 # Diretórios
 BASE_DIR = os.path.dirname(__file__)
@@ -62,3 +66,21 @@ app.include_router(branches.router)
 # Eventos assincronos
 app.include_router(workers.router)
 app.include_router(broker.router)
+
+
+@app.get('/info')
+async def info():
+    with PROJECT_FILE.open('rb') as f:
+        data = tomli.load(f)
+    project = data.get('project', {})
+    urls = data.get('tool', {}).get('poetry', {}).get('urls', {})
+    authors = project.get('authors', [])
+    authors_str = [f'{a.get("name")} <{a.get("email")}>' for a in authors]
+    return {
+        'name': project.get('name'),
+        'version': project.get('version'),
+        'description': project.get('description'),
+        'authors': authors_str,
+        'license': project.get('license'),
+        'urls': urls,
+    }
