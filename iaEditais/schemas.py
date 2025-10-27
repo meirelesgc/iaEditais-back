@@ -318,3 +318,179 @@ class DocumentReleasePublic(BaseModel):
 
 class DocumentReleaseList(BaseModel):
     releases: list[DocumentReleasePublic]
+
+
+# ===========================
+# Evaluation Schemas
+# ===========================
+
+class TestSchema(BaseModel):
+    name: str
+    description: Optional[str] = None
+
+
+class TestCreate(TestSchema):
+    pass
+
+
+class TestPublic(TestSchema):
+    id: UUID
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TestList(BaseModel):
+    tests: list[TestPublic]
+
+
+class AIModelSchema(BaseModel):
+    name: str
+    code_name: str
+
+
+class AIModelCreate(AIModelSchema):
+    pass
+
+
+class AIModelPublic(AIModelSchema):
+    id: UUID
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class AIModelList(BaseModel):
+    ai_models: list[AIModelPublic]
+
+
+class MetricSchema(BaseModel):
+    name: str
+    model_id: Optional[UUID] = None
+    criteria: Optional[str] = None
+    evaluation_steps: Optional[str] = None
+    threshold: Optional[float] = 0.5
+
+
+class MetricCreate(MetricSchema):
+    pass
+
+
+class MetricPublic(MetricSchema):
+    id: UUID
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MetricList(BaseModel):
+    metrics: list[MetricPublic]
+
+
+class TestCaseSchema(BaseModel):
+    name: str
+    test_id: UUID
+    branch_id: Optional[UUID] = None
+    branch_name: Optional[str] = None
+    doc_id: UUID
+    input: Optional[str] = None
+    expected_feedback: Optional[str] = None
+    expected_fulfilled: bool = False
+
+
+class TestCaseCreate(TestCaseSchema):
+    pass
+
+
+class TestCasePublic(TestCaseSchema):
+    id: UUID
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TestCaseList(BaseModel):
+    test_cases: list[TestCasePublic]
+
+
+class TestCaseMetricSchema(BaseModel):
+    test_case_id: UUID
+    metric_id: UUID
+
+
+class TestCaseMetricCreate(TestCaseMetricSchema):
+    pass
+
+
+class TestCaseMetricPublic(TestCaseMetricSchema):
+    id: UUID
+    test_id: UUID
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TestCaseMetricList(BaseModel):
+    test_case_metrics: list[TestCaseMetricPublic]
+
+
+class TestRunSchema(BaseModel):
+    test_id: UUID
+    created_by: Optional[UUID] = None
+
+
+class TestRunCreate(TestRunSchema):
+    pass
+
+
+class TestRunExecute(BaseModel):
+    test_id: UUID
+    case_metric_ids: list[UUID]
+
+
+class TestRunExecutionResult(BaseModel):
+    """Resultado da execução de um test run"""
+    test_run_id: str
+    test_id: str
+    case_count: int
+    results: list[dict]
+    
+    model_config = ConfigDict(from_attributes=False)
+
+
+class TestRunPublic(TestRunSchema):
+    id: UUID
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TestRunList(BaseModel):
+    test_runs: list[TestRunPublic]
+
+
+class TestResultPublic(BaseModel):
+    id: UUID
+    test_run_case_id: UUID
+    model_id: Optional[UUID] = None
+    threshold_used: Optional[float] = None
+    reason_feedback: Optional[str] = None
+    score_feedback: Optional[float] = None
+    passed_feedback: Optional[bool] = None
+    actual_feedback: Optional[str] = None
+    actual_fulfilled: Optional[bool] = None
+    passed_fulfilled: Optional[bool] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TestResultList(BaseModel):
+    test_results: list[TestResultPublic]

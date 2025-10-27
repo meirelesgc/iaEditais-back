@@ -127,7 +127,7 @@ async def create_description(
         if not branch.fulfilled:
             errors.append(branch)
 
-    description = str()
+    description = ""
     prompt = """
         Gostaria que você elaborasse um resumo geral e sucinto dos pontos
         avaliados, destacando os melhores e os piores. Sintetize tudo em três
@@ -138,8 +138,8 @@ async def create_description(
             f'- {branch.title}: {branch.description or "sem descrição"}\n'
         )
 
-    description = model.invoke(prompt)
-    description += description.content + '\n\n'
+    response = model.invoke(prompt)
+    description += response.content + '\n\n'
 
     if errors:
         prompt = (
@@ -157,8 +157,8 @@ async def create_description(
             prompt += (
                 f'- {branch.title}: {branch.description or "sem descrição"}\n'
             )
-    description = model.invoke(prompt)
-    description += description.content
+    response = model.invoke(prompt)
+    description += response.content
     return await releases_repository.save_description(
         session, release, description
     )

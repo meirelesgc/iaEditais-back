@@ -26,6 +26,7 @@ dependencies = [
     "pymupdf (>=1.26.4,<2.0.0)",
     "json5 (>=0.12.1,<0.13.0)",
     "redis (>=6.4.0,<7.0.0)",
+    "deepeval (>=3.6.7,<4.0.0)",
 ]
 
 [tool.poetry]

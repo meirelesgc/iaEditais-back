@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     ALGORITHM: str = 'HS256'
     OPENAI_API_KEY: str = '...'
 
+    DEEPEVAL_API_KEY: str = ''
+    DEEPEVAL_CONFIDENT_API_KEY: str = ''
+
     ALLOWED_ORIGINS: List[str] = [
         'http://localhost:8000',
         'http://localhost:3000',
