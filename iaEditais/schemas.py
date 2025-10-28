@@ -262,7 +262,7 @@ class DocumentList(BaseModel):
 
 
 class DocumentFilter(UserFilter):
-    unit_id: Optional[UUID] = None
+    unit_id: Optional[str] = None
 
 
 class DocumentReleaseFeedback(BaseModel):

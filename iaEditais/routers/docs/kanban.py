@@ -11,7 +11,9 @@ from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import Document, DocumentHistory, DocumentStatus, User
 from iaEditais.schemas import DocumentPublic
 
-URL = 'http://localhost:8080/message/sendText/Gleidson'
+URL = 'http://evolution_api:8080/message/sendText/Gleidson'
+# URL = 'http://localhost:8080/message/sendText/Gleidson'
+
 HEADERS = {'Content-Type': 'application/json', 'apikey': 'secret'}
 
 router = APIRouter(

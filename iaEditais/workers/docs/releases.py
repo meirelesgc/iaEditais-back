@@ -1,6 +1,9 @@
 import os
+import re
+from http import HTTPStatus
 from uuid import UUID
 
+import httpx
 from faststream.rabbit import RabbitRouter
 
 from iaEditais.core.dependencies import Model, Session, VStore
@@ -60,12 +63,53 @@ async def create_check_tree(
     input_vars = await releases_service.get_vars(
         check_tree, vectorstore, db_release
     )
-    evaluation = await releases_service.apply_check_tree(
-        chain, db_release, input_vars
-    )
-    applied_branch = await releases_service.save_evaluation(
-        session, db_release, check_tree, evaluation
-    )
-    await releases_service.create_description(
-        db_release, applied_branch, model, session
-    )
+    if False:
+        evaluation = await releases_service.apply_check_tree(
+            chain, db_release, input_vars
+        )
+        applied_branch = await releases_service.save_evaluation(
+            session, db_release, check_tree, evaluation
+        )
+        await releases_service.create_description(
+            db_release, applied_branch, model, session
+        )
+
+        URL = 'http://evolution_api:8080/message/sendText/Gleidson'
+        # URL = 'http://localhost:8080/message/sendText/Gleidson'
+        HEADERS = {'Content-Type': 'application/json', 'apikey': 'secret'}
+
+        db_history = db_release.history
+        db_doc = db_history.document
+
+        texto = (
+            f"Olá! O processo de verificação do documento '{db_doc.name}' "
+            f'foi concluído com sucesso.'
+        )
+
+        # 3️⃣ Enviar a mensagem para todos os editores do documento
+        async with httpx.AsyncClient() as client:
+            for editor in db_doc.editors:
+                if not editor.phone_number:
+                    continue
+
+                numero = (
+                    editor.phone_number.strip()
+                    .replace(' ', '')
+                    .replace('-', '')
+                )
+
+                if not re.fullmatch(r'55\d{10,11}', numero):
+                    print(
+                        f'[ERRO] Número inválido para {editor.username}: {numero}'
+                    )
+                    continue
+
+                payload = {'number': numero, 'text': texto}
+                response = await client.post(
+                    URL, headers=HEADERS, json=payload
+                )
+
+                if response.status_code != HTTPStatus.CREATED:
+                    print(
+                        f'[ERRO] Falha ao enviar mensagem para {editor.username}: {response.text}'
+                    )
