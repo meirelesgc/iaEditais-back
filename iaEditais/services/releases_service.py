@@ -117,47 +117,9 @@ async def create_description(
 
 
 def get_chain(model: Model):
-    TEMPLATE = """
-<Documento>
-{docs}
-</Documento>
-
-Você é um analista especializado em avaliação de documentos segundo regras específicas. Sua tarefa é **verificar se o documento fornecido cumpre os critérios pré-estabelecidos**, fornecendo análises detalhadas para cada item.
-
-**Fonte dos critérios:**
-{typification_source}
-
----
-
-**Critério Principal**
-Título: {taxonomy_title}
-Descrição: {taxonomy_description}
-Fonte: {taxonomy_source}
-
-**Critério Específico**
-Título: {taxonomy_branch_title}
-Descrição: {taxonomy_branch_description}
-
----
-
-Para cada critério, siga estas instruções rigorosamente:
-
-1. Identifique se o critério principal e o critério específico estão presentes no documento.  
-2. Se o critério específico não estiver contemplado, informe claramente que está ausente.  
-3. Avalie a **relevância do critério no contexto geral do documento** (alta, média, baixa) e explique seu raciocínio.  
-4. Sugira **melhorias ou ajustes** no documento para atender melhor ao critério.  
-5. Cite **a norma, fonte fornecida ou conhecimento implicado** que embasa sua análise.  
-
-Se alguma seção esperada no documento estiver ausente ou não corresponder aos critérios, informe explicitamente.
-
-{format_instructions}
-
-{query}
-    """
-
     parser = JsonOutputParser(pydantic_object=DocumentReleaseFeedback)
     prompt = PromptTemplate(
-        template=TEMPLATE,
+        template=PROMPTS.DOCUMENT_ANALYSIS_PROMPT,
         input_variables=[
             'docs',
             'taxonomy_title',
@@ -174,7 +136,6 @@ Se alguma seção esperada no documento estiver ausente ou não corresponder aos
             'format_instructions': parser.get_format_instructions()
         },
     )
-
     return prompt | model | parser
 
 
