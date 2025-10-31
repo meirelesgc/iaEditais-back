@@ -7,6 +7,8 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_DB: iaeditais
       POSTGRES_PASSWORD: postgres
+      TZ: America/Sao_Paulo
+      POSTGRES_INITDB_ARGS: "--timezone=America/Sao_Paulo"
     healthcheck:
       test: [ "CMD", "pg_isready", "-U", "postgres" ]
       interval: 10s
@@ -26,6 +28,7 @@ services:
       DATABASE_URL: postgresql+psycopg://postgres:postgres@iaeditais_db:5432/iaeditais
       BROKER_URL: amqp://guest:guest@iaeditais_rabbitmq:5672/
       CACHE_URL: redis://iaeditais_redis:6379/0
+      TZ: America/Sao_Paulo
     env_file: ".env"
     healthcheck:
       test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]

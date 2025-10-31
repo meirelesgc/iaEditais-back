@@ -136,7 +136,14 @@ def get_chain(model: Model):
             'format_instructions': parser.get_format_instructions()
         },
     )
-    return prompt | model | parser
+
+    def log_prompt_to_model(prompt_value):
+        print('--- PROMPT ENVIADO PARA O MODELO (get_chain) ---')
+        print(prompt_value.to_string())
+        print('--------------------------------------------------')
+        return prompt_value
+
+    return prompt | RunnableLambda(log_prompt_to_model) | model | parser
 
 
 async def get_vars(
@@ -292,7 +299,7 @@ def safe_wrapper(chain):
     return RunnableLambda(_safe_invoke)
 
 
-async def apply_check_tree(chain: Model, release: DocumentRelease, input_vars):
+async def apply_check_tree(chain: Model, input_vars):
     safe_chain = safe_wrapper(chain)
     result = await safe_chain.abatch(input_vars)
     return result

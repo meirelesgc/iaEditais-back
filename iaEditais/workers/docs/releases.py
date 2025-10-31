@@ -123,9 +123,7 @@ async def create_check_tree(
     input_vars = await releases_service.get_vars(
         check_tree, vectorstore, db_release
     )
-    evaluation = await releases_service.apply_check_tree(
-        chain, db_release, input_vars
-    )
+    evaluation = await releases_service.apply_check_tree(chain, input_vars)
     applied_branch = await releases_service.save_evaluation(
         session, db_release, check_tree, evaluation
     )
