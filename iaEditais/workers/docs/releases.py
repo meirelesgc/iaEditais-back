@@ -1,18 +1,56 @@
 import os
 import re
-from http import HTTPStatus
 from uuid import UUID
 
 import httpx
 from faststream.rabbit import RabbitRouter
+from sqlalchemy import select
 
 from iaEditais.core.dependencies import Model, Session, VStore
-from iaEditais.models import DocumentRelease, Source
+from iaEditais.core.settings import Settings
+from iaEditais.models import DocumentRelease, Source, User
 from iaEditais.services import releases_service, vstore_service
+
+SETTINGS = Settings()
 
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 
 router = RabbitRouter()
+
+
+@router.subscriber('notifications_send_message')
+async def notifications_send_message(payload: dict, session: Session):
+    user_ids = payload.get('user_ids', [])
+    message_text = payload.get('message_text')
+
+    if not user_ids or not message_text:
+        return {'error': 'Invalid payload'}
+
+    statement = select(User).where(User.id.in_(user_ids))
+
+    query = await session.scalars(statement)
+    users_to_notify = query.all()
+
+    if not users_to_notify:
+        return {'status': 'No users found'}
+
+    URL = SETTINGS.EVOLUTION_URL
+    HEADERS = {
+        'Content-Type': 'application/json',
+        'apikey': SETTINGS.EVOLUTION_KEY,
+    }
+
+    async with httpx.AsyncClient() as client:
+        for user in users_to_notify:
+            if not user.phone_number:
+                continue
+            phone_number = user.phone_number.strip()
+            phone_number = phone_number.replace(' ', '').replace('-', '')
+            if not re.fullmatch(r'55\d{10,11}', phone_number):
+                continue
+            payload = {'number': phone_number, 'text': message_text}
+            await client.post(URL, headers=HEADERS, json=payload)
+    return {'status': 'success'}
 
 
 @router.subscriber('sources_create_vectors')
@@ -21,13 +59,19 @@ async def create_source_vectors(
 ):
     db_source = await session.get(Source, source_id)
     if not db_source:
+        print(f'[ERRO] Source not found: {source_id}')
         return {'error': 'Source not found'}
+
+    if not db_source.file_path:
+        print(f'[ERRO] file_path is empty for Source: {source_id}')
+        return {'error': 'Document file_path is empty'}
 
     unique_filename = db_source.file_path.split('/')[-1]
     file_path = os.path.join(UPLOAD_DIRECTORY, unique_filename)
 
-    if not file_path:
-        return {'error': 'Document for source not found'}
+    if not os.path.exists(file_path):
+        print(f'[ERRO] File not found at path: {file_path}')
+        return {'error': 'Document file not found'}
 
     documents = await vstore_service.load_document(file_path)
     chunks = vstore_service.split_documents(documents)
@@ -42,15 +86,31 @@ async def create_vectors(
     release_id: UUID, session: Session, vectorstore: VStore
 ):
     db_release = await session.get(DocumentRelease, release_id)
+
+    if not db_release:
+        print(f'[ERRO] DocumentRelease not found: {release_id}')
+        return {'error': 'DocumentRelease not found'}
+
+    if not db_release.file_path:
+        print(f'[ERRO] file_path is empty for DocumentRelease: {release_id}')
+        return {'error': 'Document file_path is empty'}
+
     unique_filename = db_release.file_path.split('/')[-1]
     file_path = os.path.join(UPLOAD_DIRECTORY, unique_filename)
+
+    if not os.path.exists(file_path):
+        print(f'[ERRO] File not found at path: {file_path}')
+        return {'error': 'Document file not found'}
+
     documents = await vstore_service.load_document(file_path)
     chunks = vstore_service.split_documents(documents)
     await vectorstore.aadd_documents(chunks)
+
     return {'release_id': release_id}
 
 
 @router.subscriber('releases_create_check_tree')
+@router.publisher('notifications_send_message')
 async def create_check_tree(
     release_id: UUID,
     session: Session,
@@ -58,58 +118,29 @@ async def create_check_tree(
     model: Model,
 ):
     db_release = await session.get(DocumentRelease, release_id)
+    if not db_release:
+        print(f'[ERRO] DocumentRelease not found for check_tree: {release_id}')
+        return {'error': 'DocumentRelease not found'}
+
     check_tree = await releases_service.get_check_tree(session, db_release)
     chain = releases_service.get_chain(model)
     input_vars = await releases_service.get_vars(
         check_tree, vectorstore, db_release
     )
-    if False:
-        evaluation = await releases_service.apply_check_tree(
-            chain, db_release, input_vars
-        )
-        applied_branch = await releases_service.save_evaluation(
-            session, db_release, check_tree, evaluation
-        )
-        await releases_service.create_description(
-            db_release, applied_branch, model, session
-        )
-
-        URL = 'http://evolution_api:8080/message/sendText/Gleidson'
-        # URL = 'http://localhost:8080/message/sendText/Gleidson'
-        HEADERS = {'Content-Type': 'application/json', 'apikey': 'secret'}
-
-        db_history = db_release.history
-        db_doc = db_history.document
-
-        texto = (
-            f"Olá! O processo de verificação do documento '{db_doc.name}' "
-            f'foi concluído com sucesso.'
-        )
-
-        # 3️⃣ Enviar a mensagem para todos os editores do documento
-        async with httpx.AsyncClient() as client:
-            for editor in db_doc.editors:
-                if not editor.phone_number:
-                    continue
-
-                numero = (
-                    editor.phone_number.strip()
-                    .replace(' ', '')
-                    .replace('-', '')
-                )
-
-                if not re.fullmatch(r'55\d{10,11}', numero):
-                    print(
-                        f'[ERRO] Número inválido para {editor.username}: {numero}'
-                    )
-                    continue
-
-                payload = {'number': numero, 'text': texto}
-                response = await client.post(
-                    URL, headers=HEADERS, json=payload
-                )
-
-                if response.status_code != HTTPStatus.CREATED:
-                    print(
-                        f'[ERRO] Falha ao enviar mensagem para {editor.username}: {response.text}'
-                    )
+    evaluation = await releases_service.apply_check_tree(
+        chain, db_release, input_vars
+    )
+    applied_branch = await releases_service.save_evaluation(
+        session, db_release, check_tree, evaluation
+    )
+    await releases_service.create_description(
+        db_release, applied_branch, model, session
+    )
+    db_history = db_release.history
+    db_doc = db_history.document
+    message_text = (
+        f"Olá! O processo de verificação do documento '{db_doc.name}' "
+        f'foi concluído com sucesso.'
+    )
+    user_ids = [editor.id for editor in db_doc.editors if editor.id]
+    return {'user_ids': user_ids, 'message_text': message_text}

@@ -48,7 +48,4 @@ def split_documents(documents):
         separators=separators,
     )
     chunks = text_splitter.split_documents(documents)
-    print('\n\n\n' * 99999)
-    for c in chunks:
-        print(c, '\n\n---\n\n')
     return chunks

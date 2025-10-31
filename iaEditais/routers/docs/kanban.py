@@ -1,20 +1,15 @@
-import re
 from datetime import datetime, timezone
 from enum import Enum
 from http import HTTPStatus
 from uuid import UUID
 
-import httpx
 from fastapi import APIRouter, HTTPException
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 
-from iaEditais.core.dependencies import CurrentUser, Session
+from iaEditais.core.dependencies import Broker, CurrentUser, Session
 from iaEditais.models import Document, DocumentHistory, DocumentStatus, User
 from iaEditais.schemas import DocumentPublic
-
-URL = 'http://evolution_api:8080/message/sendText/Gleidson'
-# URL = 'http://localhost:8080/message/sendText/Gleidson'
-
-HEADERS = {'Content-Type': 'application/json', 'apikey': 'secret'}
 
 router = APIRouter(
     prefix='/doc/{doc_id}/status', tags=['verificação dos documentos, kanban']
@@ -49,11 +44,16 @@ NOTIFICATION_RULES: dict[
 
 
 async def get_doc_or_404(doc_id: UUID, session: Session) -> Document:
-    doc = await session.get(Document, doc_id)
+    result = await session.execute(
+        select(Document)
+        .options(selectinload(Document.editors))
+        .where(Document.id == doc_id)
+    )
+    doc = result.scalar_one_or_none()
+
     if not doc or doc.deleted_at:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Doc not found',
+            status_code=HTTPStatus.NOT_FOUND, detail='Doc not found'
         )
     return doc
 
@@ -74,8 +74,11 @@ async def _set_status(
     return doc
 
 
-async def _notify_users(
-    doc: Document, status: DocumentStatus, session: Session
+async def _queue_notification_if_needed(
+    doc: Document,
+    status: DocumentStatus,
+    session: Session,
+    broker: Broker,
 ):
     status_para_portugues = {
         DocumentStatus.PENDING: 'Pendente',
@@ -83,13 +86,12 @@ async def _notify_users(
         DocumentStatus.WAITING_FOR_REVIEW: 'Aguardando revisão',
         DocumentStatus.COMPLETED: 'Concluído',
     }
-
     rules = NOTIFICATION_RULES.get(status, {'enabled': False})
     if not rules['enabled']:
         return
 
-    targets = []
-    for target in rules['targets']:
+    targets: list[User] = []
+    for _, target in enumerate(rules['targets']):
         if target == NotifyTarget.EDITORS:
             targets.extend(doc.editors)
         elif target == NotifyTarget.CREATOR and doc.created_by:
@@ -97,53 +99,48 @@ async def _notify_users(
             if creator:
                 targets.append(creator)
 
-    async with httpx.AsyncClient() as client:
-        for user in targets:
-            if not user.phone_number:
-                continue
+    unique_targets = {user.id: user for user in targets}.values()
+    user_ids = [user.id for user in unique_targets if user.id]
 
-            numero = (
-                user.phone_number.strip().replace(' ', '').replace('-', '')
-            )
-            if not re.fullmatch(r'55\d{10,11}', numero):
-                print(
-                    f'[ERRO] Número de telefone inválido para {user.username}: {numero}'
-                )
-                continue
+    if not user_ids:
+        return
 
-            status_traduzido = status_para_portugues.get(status, status.value)
+    status_traduzido = status_para_portugues.get(status, status.value)
+    message_text = (
+        f"Olá! O status do documento '{doc.name}' "
+        f'foi atualizado para: {status_traduzido}'
+    )
 
-            payload = {
-                'number': numero,
-                'text': (
-                    f"Olá {user.username}, o documento '{doc.name}' "
-                    f'foi atualizado para o status: {status_traduzido}'
-                ),
-            }
-
-            response = await client.post(URL, headers=HEADERS, json=payload)
-            if response.status_code != HTTPStatus.CREATED:
-                print(
-                    f'[ERRO] Falha ao enviar mensagem para {user.username}: {response.text}'
-                )
+    payload = {'user_ids': user_ids, 'message_text': message_text}
+    await broker.publish(payload, 'notifications_send_message')
 
 
 @router.put('/pending', response_model=DocumentPublic)
 async def set_status_pending(
-    doc_id: UUID, session: Session, current_user: CurrentUser
+    doc_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+    broker: Broker,
 ):
     doc = await get_doc_or_404(doc_id, session)
-    await _notify_users(doc, DocumentStatus.PENDING, session)
+    await _queue_notification_if_needed(
+        doc, DocumentStatus.PENDING, session, broker
+    )
     await _set_status(doc, DocumentStatus.PENDING, current_user, session)
     return doc
 
 
 @router.put('/under-construction', response_model=DocumentPublic)
 async def set_status_under_construction(
-    doc_id: UUID, session: Session, current_user: CurrentUser
+    doc_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+    broker: Broker,
 ):
     doc = await get_doc_or_404(doc_id, session)
-    await _notify_users(doc, DocumentStatus.UNDER_CONSTRUCTION, session)
+    await _queue_notification_if_needed(
+        doc, DocumentStatus.UNDER_CONSTRUCTION, session, broker
+    )
     return await _set_status(
         doc, DocumentStatus.UNDER_CONSTRUCTION, current_user, session
     )
@@ -151,10 +148,15 @@ async def set_status_under_construction(
 
 @router.put('/waiting-review', response_model=DocumentPublic)
 async def set_status_waiting_review(
-    doc_id: UUID, session: Session, current_user: CurrentUser
+    doc_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+    broker: Broker,
 ):
     doc = await get_doc_or_404(doc_id, session)
-    await _notify_users(doc, DocumentStatus.WAITING_FOR_REVIEW, session)
+    await _queue_notification_if_needed(
+        doc, DocumentStatus.WAITING_FOR_REVIEW, session, broker
+    )
     return await _set_status(
         doc, DocumentStatus.WAITING_FOR_REVIEW, current_user, session
     )
@@ -162,10 +164,15 @@ async def set_status_waiting_review(
 
 @router.put('/completed', response_model=DocumentPublic)
 async def set_status_completed(
-    doc_id: UUID, session: Session, current_user: CurrentUser
+    doc_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+    broker: Broker,
 ):
     doc = await get_doc_or_404(doc_id, session)
-    await _notify_users(doc, DocumentStatus.COMPLETED, session)
+    await _queue_notification_if_needed(
+        doc, DocumentStatus.COMPLETED, session, broker
+    )
     return await _set_status(
         doc, DocumentStatus.COMPLETED, current_user, session
     )

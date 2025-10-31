@@ -271,19 +271,6 @@ async def process_branch(
 
     typification_source_content = '\n'.join(typification_sources_text)
     taxonomy_source_content = '\n'.join(taxonomy_sources_text)
-    from pprint import pprint
-
-    pprint({
-        'docs': retrieved_contents,
-        'taxonomy_title': taxonomy.title,
-        'taxonomy_description': taxonomy.description,
-        'taxonomy_source': taxonomy_source_content,
-        'taxonomy_branch_title': branch.title,
-        'taxonomy_branch_description': branch.description,
-        'typification_source': typification_source_content,
-        'query': 'Justifique sua resposta com base no conteúdo do edital.',
-    })
-    print('\n\n\n')
     return {
         'docs': retrieved_contents,
         'taxonomy_title': taxonomy.title,

@@ -22,6 +22,9 @@ class Settings(BaseSettings):
     BROKER_URL: str = 'amqp://guest:guest@localhost:5672/'
     CACHE_URL: str = 'redis://localhost:6379/0'
 
+    EVOLUTION_URL: str = 'http://localhost:8080/message/sendText/IaEditais'
+    EVOLUTION_KEY: str = 'secret'
+
     ACCESS_TOKEN_COOKIE_NAME: str = 'access_token'
     COOKIE_SECURE: bool = True
     COOKIE_SAMESITE: str = 'lax'
