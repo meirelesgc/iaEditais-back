@@ -1,7 +1,7 @@
 import json
 import re
 from http import HTTPStatus
-from typing import Optional
+from typing import List, Optional
 from uuid import UUID
 
 import json5
@@ -11,6 +11,7 @@ from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables.base import RunnableLambda
 
+from iaEditais import prompts as PROMPTS
 from iaEditais.core.dependencies import CurrentUser, Model, Session, VStore
 from iaEditais.models import (
     AppliedBranch,
@@ -82,54 +83,36 @@ async def get_check_tree(session: Session, db_release: DocumentRelease):
 
 async def create_description(
     release: DocumentRelease,
-    applied_branch: list[AppliedBranch],
+    applied_branches: List[AppliedBranch],
     model: Model,
     session: Session,
 ):
-    hits = []
-    errors = []
+    hits = [b for b in applied_branches if b.fulfilled]
+    errors = [b for b in applied_branches if not b.fulfilled]
 
-    for branch in applied_branch:
-        if branch.fulfilled:
-            hits.append(branch)
-        if not branch.fulfilled:
-            errors.append(branch)
+    def _format_branch_line(branch: AppliedBranch) -> str:
+        return f'- {branch.title}: {branch.description or "no description"}\n'
 
-    description = str()
-    prompt = """
-        Gostaria que você elaborasse um resumo geral e sucinto dos pontos
-        avaliados, destacando os melhores e os piores. Sintetize tudo em três
-        ou quatro frases.
-        """
-    for branch in errors:
-        prompt += (
-            f'- {branch.title}: {branch.description or "sem descrição"}\n'
-        )
+    description_parts: List[str] = []
 
-    _ = model.invoke(prompt)
-    description += _.content
-    description += '\n\n'
+    summary_prompt = PROMPTS.DESCRIPTION
+    summary_response = model.invoke(summary_prompt)
+    description_parts.append(summary_response.content.strip())
 
     if errors:
-        prompt = (
-            'Elabore um resumo dos pontos que apresentaram problemas. '
-            'Liste de forma clara e objetiva os seguintes itens:\n\n'
-        )
-        for branch in errors:
-            prompt += (
-                f'- {branch.title}: {branch.description or "sem descrição"}\n'
-            )
+        prompt = PROMPTS.ERROR_SUMMARY
+        prompt += ''.join(_format_branch_line(b) for b in errors)
     else:
-        melhores = sorted(hits, key=lambda b: b.score or 0, reverse=True)[:3]
-        prompt = 'Tudo está conforme. Crie um resumo positivo destacando os seguintes pontos:\n\n'
-        for branch in melhores:
-            prompt += (
-                f'- {branch.title}: {branch.description or "sem descrição"}\n'
-            )
-    _ = model.invoke(prompt)
-    description += _.content
+        top_hits = sorted(hits, key=lambda b: (b.score or 0), reverse=True)[:3]
+        prompt = PROMPTS.SUCCESS_SUMMARY
+        prompt += ''.join(_format_branch_line(b) for b in top_hits)
+
+    response = model.invoke(prompt)
+    description_parts.append(response.content.strip())
+
+    final_description = '\n\n'.join(description_parts)
     return await releases_repository.save_description(
-        session, release, description
+        session, release, final_description
     )
 
 

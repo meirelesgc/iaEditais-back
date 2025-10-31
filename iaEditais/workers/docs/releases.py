@@ -88,18 +88,15 @@ async def create_vectors(
     db_release = await session.get(DocumentRelease, release_id)
 
     if not db_release:
-        print(f'[ERRO] DocumentRelease not found: {release_id}')
         return {'error': 'DocumentRelease not found'}
 
     if not db_release.file_path:
-        print(f'[ERRO] file_path is empty for DocumentRelease: {release_id}')
         return {'error': 'Document file_path is empty'}
 
     unique_filename = db_release.file_path.split('/')[-1]
     file_path = os.path.join(UPLOAD_DIRECTORY, unique_filename)
 
     if not os.path.exists(file_path):
-        print(f'[ERRO] File not found at path: {file_path}')
         return {'error': 'Document file not found'}
 
     documents = await vstore_service.load_document(file_path)
@@ -119,7 +116,6 @@ async def create_check_tree(
 ):
     db_release = await session.get(DocumentRelease, release_id)
     if not db_release:
-        print(f'[ERRO] DocumentRelease not found for check_tree: {release_id}')
         return {'error': 'DocumentRelease not found'}
 
     check_tree = await releases_service.get_check_tree(session, db_release)
