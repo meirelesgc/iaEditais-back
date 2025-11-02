@@ -13,6 +13,8 @@ from iaEditais.core.database import get_session
 from iaEditais.core.llm import get_model
 from iaEditais.core.security import get_current_user
 from iaEditais.models import (
+    AppliedTaxonomy,
+    AppliedTypification,
     DocumentRelease,
     TestCase,
     TestCaseMetric,
@@ -167,7 +169,7 @@ async def process_test_case(
             'test_case_id': str(test_case_id),
             'error': f"Metric not found: {str(e)}"
         }
-    
+
     # Executa avaliação com DeepEval
     evaluation_result = await evaluate_with_metrics(
         test_case_name=test_case_name,
@@ -178,11 +180,14 @@ async def process_test_case(
         metric_threshold=metric_threshold,
         branch_evaluation=branch_evaluation
     )
-    
+
     # Calcula comparação dos booleanos
     actual_fulfilled = branch_evaluation.get('fulfilled', False)
     expected_fulfilled = test_case_expected_fulfilled
     passed_fulfilled = actual_fulfilled == expected_fulfilled
+
+    # Extrai o ID do usuário no contexto async correto
+    # current_user_id = current_user.id
     
     # Salva resultado
     test_result_data = {
@@ -195,13 +200,19 @@ async def process_test_case(
         'actual_feedback': branch_evaluation.get('feedback'),
         'actual_fulfilled': actual_fulfilled,
         'passed_fulfilled': passed_fulfilled,
+        # 'created_by': current_user_id,
     }
-    
-    result_id = await evaluation_repository.create_test_result(session, test_result_data, current_user)
+
+    print("Debug 4")
+    result_id = await evaluation_repository.create_test_result(session, test_result_data)
+    print("Debug 4.1")
     result_id_str = str(result_id)
+    print("Debug 4.2")
     test_case_id_str = str(test_case_id)
+    print("Debug 4.3")
     metric_id_str = str(test_case_metric_metric_id)
-    
+    print("Debug 4.4")
+
     return {
         'test_case_id': test_case_id_str,
         'metric_id': metric_id_str,
@@ -225,9 +236,13 @@ async def wait_for_release_processing(session: Session, release_id: UUID, max_at
         # Expira o cache da sessão para buscar dados atualizados
         session.expire_all()
         
-        # Busca o release atualizado com eager loading
+        # Busca o release atualizado com eager loading completo de todos os relacionamentos aninhados
         query = select(DocumentRelease).options(
-            selectinload(DocumentRelease.check_tree)
+            selectinload(DocumentRelease.check_tree).selectinload(
+                AppliedTypification.taxonomies
+            ).selectinload(
+                AppliedTaxonomy.branches
+            )
         ).where(
             DocumentRelease.id == release_id,
             DocumentRelease.deleted_at.is_(None)

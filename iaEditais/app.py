@@ -21,6 +21,7 @@ from iaEditais.routers.evaluation import (
     metrics,
     test_case_metrics,
     test_cases,
+    test_results,
     test_runs,
     tests,
 )
@@ -61,6 +62,7 @@ app.include_router(metrics.router)
 app.include_router(test_cases.router)
 app.include_router(test_case_metrics.router)
 app.include_router(test_runs.router)
+app.include_router(test_results.router)
 
 # Routers de eventos
 app.include_router(events.router)

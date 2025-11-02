@@ -220,7 +220,6 @@ async def create_test_case_metric(session: Session, test_case_metric_data: dict,
 
 
 async def get_test_case_metric(session: Session, test_case_metric_id: UUID):
-    print(test_case_metric_id)
     """Busca uma associação caso-métrica por ID."""
     return await session.get(TestCaseMetric, test_case_metric_id)
 
@@ -297,7 +296,7 @@ async def get_test_run_cases(session: Session, test_run_id: UUID):
 # TestResult Repository
 # ===========================
 
-async def create_test_result(session: Session, test_result_data: dict, current_user: CurrentUser):
+async def create_test_result(session: Session, test_result_data: dict):
     """Cria um novo resultado de teste."""
     db_test_result = TestResult(
         test_run_case_id=test_result_data['test_run_case_id'],
@@ -308,7 +307,8 @@ async def create_test_result(session: Session, test_result_data: dict, current_u
         passed_feedback=test_result_data.get('passed_feedback'),
         actual_feedback=test_result_data.get('actual_feedback'),
         actual_fulfilled=test_result_data.get('actual_fulfilled'),
-        created_by=current_user.id,
+        passed_fulfilled=test_result_data.get('passed_fulfilled'),
+        created_by=test_result_data.get('created_by'),
     )
     session.add(db_test_result)
     await session.flush()  # Gera o ID sem fazer commit completo
@@ -316,6 +316,11 @@ async def create_test_result(session: Session, test_result_data: dict, current_u
     await session.commit()
     
     return result_id  # Retorna apenas o UUID
+
+
+async def get_test_result(session: Session, test_result_id: UUID):
+    """Busca um resultado de teste por ID."""
+    return await session.get(TestResult, test_result_id)
 
 
 async def get_test_results(session: Session, test_run_id: Optional[UUID] = None, offset: int = 0, limit: int = 100):
