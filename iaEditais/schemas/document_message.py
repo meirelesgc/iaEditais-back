@@ -73,3 +73,5 @@ class MessageFilter(FilterPage):
     release_id: Optional[UUID] = None
     start_date: Optional[datetime] = None
     end_date: Optional[datetime] = None
+    mention_id: Optional[UUID] = None
+    mention_type: Optional[MessageEntityType] = None

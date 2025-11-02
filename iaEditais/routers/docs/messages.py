@@ -117,6 +117,16 @@ async def list_document_messages(
                 DocumentMessage.created_at <= filters.end_date,
             )
         )
+    if filters.mention_id or filters.mention_type:
+        query = query.join(DocumentMessage.mentions)
+        if filters.mention_id:
+            query = query.where(
+                DocumentMessageMention.entity_id == filters.mention_id
+            )
+        if filters.mention_type:
+            query = query.where(
+                DocumentMessageMention.entity_type == filters.mention_type
+            )
 
     query = query.offset(filters.offset).limit(filters.limit)
 
