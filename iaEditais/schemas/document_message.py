@@ -3,7 +3,7 @@ from enum import Enum
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from iaEditais.schemas.common import FilterPage
 from iaEditais.schemas.user import UserPublic
@@ -20,12 +20,11 @@ class MessageEntityType(str, Enum):
 
 
 class MessageMention(BaseModel):
-    id: UUID
-    type: MessageEntityType
-
-    # texto exibido no frontend (@nome, #taxonomia, etc.)
+    id: UUID = Field(validation_alias=AliasChoices('id', 'entity_id'))
+    type: MessageEntityType = Field(
+        validation_alias=AliasChoices('type', 'entity_type')
+    )
     label: Optional[str] = None
-
     model_config = ConfigDict(from_attributes=True)
 
 

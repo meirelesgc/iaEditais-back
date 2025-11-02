@@ -30,7 +30,7 @@ for directory in [STORAGE_DIR, UPLOADS_DIR, TEMP_DIR]:
     os.makedirs(directory, exist_ok=True)
 
 
-settings = Settings()
+SETTINGS = Settings()
 
 # Aplicação
 app = FastAPI(docs_url='/swagger')
@@ -39,7 +39,7 @@ app.mount('/uploads', StaticFiles(directory=UPLOADS_DIR), name='uploads')
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.ALLOWED_ORIGINS,
+    allow_origins=SETTINGS.ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],

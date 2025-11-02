@@ -917,7 +917,6 @@ class DocumentMessage(AuditMixin):
 @table_registry.mapped_as_dataclass
 class DocumentMessageMention:
     __tablename__ = 'document_message_mentions'
-
     message_id: Mapped[UUID] = mapped_column(
         ForeignKey(
             'document_messages.id', name='fk_doc_msg_mention_message_id'
