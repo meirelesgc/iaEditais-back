@@ -1,124 +1,259 @@
 import uuid
+from datetime import datetime, timedelta, timezone
 from http import HTTPStatus
 
 import pytest
 
-from iaEditais.models import DocumentStatus
-
 
 @pytest.mark.asyncio
-async def test_create_document_message_success(logged_client, create_doc):
-    client, token, auth_headers, user = await logged_client()
-    doc = await create_doc(name='Doc With Message', identifier='MSG-001')
-
-    response = client.post(
-        f'/doc/{doc.id}/message',
-        json={'message': 'Esta é uma mensagem de teste.'},
-    )
-
-    assert response.status_code == HTTPStatus.CREATED
-    data = response.json()
-    assert data['message'] == 'Esta é uma mensagem de teste.'
-    assert 'id' in data
-    assert 'created_at' in data
-    assert data['user']['id'] == str(user.id)
-    assert data['user']['username'] == user.username
-
-
-@pytest.mark.asyncio
-async def test_create_message_for_nonexistent_doc(logged_client):
-    client, *_ = await logged_client()
-    non_existent_uuid = uuid.uuid4()
-
-    response = client.post(
-        f'/doc/{non_existent_uuid}/message',
-        json={'message': 'Mensagem para um documento fantasma.'},
-    )
-
-    assert response.status_code == HTTPStatus.NOT_FOUND
-    assert response.json() == {'detail': 'Documento não encontrado.'}
-
-
-@pytest.mark.asyncio
-async def test_create_message_with_invalid_payload(logged_client, create_doc):
-    client, *_ = await logged_client()
-    doc = await create_doc(name='Doc Invalid Payload', identifier='INV-001')
-
-    response = client.post(
-        f'/doc/{doc.id}/message',
-        json={'texto_errado': 'Isso não deveria funcionar'},
-    )
-
-    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
-
-
-@pytest.mark.asyncio
-async def test_create_message_unauthenticated(client, create_doc):
-    doc = await create_doc(name='Doc Unauthenticated', identifier='AUTH-001')
-
-    response = client.post(
-        f'/doc/{doc.id}/message',
-        json={'message': 'Tentativa sem login.'},
-    )
-
-    assert response.status_code == HTTPStatus.UNAUTHORIZED
-
-
-@pytest.mark.asyncio
-async def test_message_appears_in_document_history(logged_client, create_doc):
-    client, token, auth_headers, user = await logged_client()
-    doc = await create_doc(name='Doc To Receive Message', identifier='MSG-100')
-    message_content = 'Esta é a primeira mensagem.'
-
-    post_response = client.post(
-        f'/doc/{doc.id}/message',
-        json={'message': message_content},
-    )
-    assert post_response.status_code == HTTPStatus.CREATED
-
-    get_response = client.get(f'/doc/{doc.id}')
-    assert get_response.status_code == HTTPStatus.OK
-
-    data = get_response.json()
-    assert len(data['history']) == 1
-    latest_history = data['history'][0]
-
-    assert len(latest_history['messages']) == 1
-    message_in_history = latest_history['messages'][0]
-
-    assert message_in_history['message'] == message_content
-    assert message_in_history['user']['id'] == str(user.id)
-
-
-@pytest.mark.asyncio
-async def test_message_stays_with_old_history_after_status_change(
-    logged_client, create_doc
+async def test_create_message_success(
+    logged_client, create_doc, create_release, create_typification
 ):
-    client, token, auth_headers, user = await logged_client()
+    client, *_ = await logged_client()
+
+    typ1 = await create_typification(name='Typ 1')
     doc = await create_doc(
-        name='Doc With History Change', identifier='HIS-200'
+        name='Doc with Message',
+        identifier='MSG-001',
+        typification_ids=[str(typ1.id)],
     )
-    original_message = 'Mensagem no histórico PENDENTE.'
+    await create_release(doc)
 
-    client.post(f'/doc/{doc.id}/message', json={'message': original_message})
+    payload = {'content': 'This is a message content.'}
 
-    update_status_response = client.put(
-        f'/doc/{doc.id}/status/under-construction'
+    response = client.post(f'/doc/{doc.id}/message', json=payload)
+    assert response.status_code == HTTPStatus.CREATED
+
+    data = response.json()
+    assert 'id' in data
+    assert data['content'] == 'This is a message content.'
+    assert data['document_id'] == str(doc.id)
+
+
+@pytest.mark.asyncio
+async def test_create_message_document_not_found(logged_client):
+    client, *_ = await logged_client()
+    fake_doc_id = uuid.uuid4()
+
+    response = client.post(
+        f'/doc/{fake_doc_id}/message',
+        json={'content': 'Message for non-existent document'},
     )
-    assert update_status_response.status_code == HTTPStatus.OK
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'Document not found.'}
 
-    get_response = client.get(f'/doc/{doc.id}')
-    assert get_response.status_code == HTTPStatus.OK
-    data = get_response.json()
 
-    assert len(data['history']) == 2
+@pytest.mark.asyncio
+async def test_list_messages_empty(
+    logged_client, create_doc, create_typification
+):
+    client, *_ = await logged_client()
+    typ1 = await create_typification(name='Typ 1')
+    doc = await create_doc(
+        name='Empty Msg Doc',
+        identifier='MSG-002',
+        typification_ids=[str(typ1.id)],
+    )
+    response = client.get(f'/doc/{doc.id}/messages')
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == {'messages': []}
 
-    newest_history = data['history'][0]
-    old_history = data['history'][1]
 
-    assert newest_history['status'] == DocumentStatus.UNDER_CONSTRUCTION.value
-    assert len(newest_history['messages']) == 0
+@pytest.mark.asyncio
+async def test_list_messages_with_results(
+    logged_client,
+    create_doc,
+    create_release,
+    create_message,
+    create_typification,
+    create_user,
+):
+    client, *_ = await logged_client()
+    author = await create_user()
 
-    assert old_history['status'] == DocumentStatus.PENDING.value
-    assert len(old_history['messages']) == 1
-    assert old_history['messages'][0]['message'] == original_message
+    typ1 = await create_typification(name='Typ 1')
+    doc = await create_doc(
+        name='List Msg Doc',
+        identifier='MSG-003',
+        typification_ids=[str(typ1.id)],
+    )
+    await create_release(doc)
+
+    msg1 = await create_message(
+        doc, content='First message', author_id=author.id
+    )
+    msg2 = await create_message(
+        doc, content='Second message', author_id=author.id
+    )
+
+    response = client.get(f'/doc/{doc.id}/messages')
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+
+    assert len(data['messages']) == 2
+    contents = [m['content'] for m in data['messages']]
+    assert 'First message' in contents
+    assert 'Second message' in contents
+
+
+@pytest.mark.asyncio
+async def test_list_messages_with_filters(
+    logged_client,
+    create_doc,
+    create_release,
+    create_message,
+    create_typification,
+    create_user,
+):
+    client, *_ = await logged_client()
+    author = await create_user()
+
+    typ1 = await create_typification(name='Typ 1')
+    doc = await create_doc(
+        name='Filter Msg Doc',
+        identifier='MSG-004',
+        typification_ids=[str(typ1.id)],
+    )
+    await create_release(doc)
+    msg = await create_message(doc, content='Filter me', author_id=author.id)
+
+    start = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    end = (datetime.now(timezone.utc) + timedelta(days=1)).isoformat()
+
+    response = client.get(
+        f'/doc/{doc.id}/messages',
+        params={
+            'author_id': msg.author_id,
+            'start_date': start,
+            'end_date': end,
+        },
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+    assert len(data['messages']) == 1
+    assert data['messages'][0]['id'] == str(msg.id)
+
+
+@pytest.mark.asyncio
+async def test_read_message_success(
+    logged_client,
+    create_doc,
+    create_release,
+    create_message,
+    create_typification,
+    create_user,
+):
+    client, *_ = await logged_client()
+    author = await create_user()
+
+    typ1 = await create_typification(name='Typ 1')
+    doc = await create_doc(
+        name='Doc Read Msg',
+        identifier='MSG-005',
+        typification_ids=[str(typ1.id)],
+    )
+    await create_release(doc)
+    msg = await create_message(
+        doc, content='Reading this message', author_id=author.id
+    )
+
+    response = client.get(f'/doc/message/{msg.id}')
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+    assert data['id'] == str(msg.id)
+    assert data['content'] == 'Reading this message'
+
+
+@pytest.mark.asyncio
+async def test_read_message_not_found(logged_client):
+    client, *_ = await logged_client()
+    fake_id = uuid.uuid4()
+
+    response = client.get(f'/doc/message/{fake_id}')
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'Message not found.'}
+
+
+@pytest.mark.asyncio
+async def test_update_message_success(
+    logged_client,
+    create_doc,
+    create_release,
+    create_message,
+    create_typification,
+    create_user,
+):
+    client, *_ = await logged_client()
+    author = await create_user()
+
+    typ1 = await create_typification(name='Typ 1')
+    doc = await create_doc(
+        name='Doc Update Msg',
+        identifier='MSG-006',
+        typification_ids=[str(typ1.id)],
+    )
+    await create_release(doc)
+    msg = await create_message(
+        doc, content='Original content', author_id=author.id
+    )
+
+    payload = {'id': str(msg.id), 'content': 'Updated content'}
+    response = client.put('/doc/message', json=payload)
+
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+    assert data['content'] == 'Updated content'
+    assert data['updated_at'] is not None
+
+
+@pytest.mark.asyncio
+async def test_update_message_not_found(logged_client):
+    client, *_ = await logged_client()
+    fake_id = uuid.uuid4()
+    payload = {'id': str(fake_id), 'content': 'No message here'}
+
+    response = client.put('/doc/message', json=payload)
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'Message not found.'}
+
+
+@pytest.mark.asyncio
+async def test_delete_message_success(
+    logged_client,
+    create_doc,
+    create_release,
+    create_message,
+    create_typification,
+    create_user,
+):
+    client, *_ = await logged_client()
+    author = await create_user()
+
+    typ1 = await create_typification(name='Typ 1')
+    doc = await create_doc(
+        name='Doc Delete Msg',
+        identifier='MSG-007',
+        typification_ids=[str(typ1.id)],
+    )
+    await create_release(doc)
+    msg = await create_message(
+        doc, content='To be deleted', author_id=author.id
+    )
+
+    response = client.delete(f'/doc/message/{msg.id}')
+    assert response.status_code == HTTPStatus.NO_CONTENT
+
+    list_response = client.get(f'/doc/{doc.id}/messages')
+    assert list_response.status_code == HTTPStatus.OK
+    assert list_response.json() == {'messages': []}
+
+
+@pytest.mark.asyncio
+async def test_delete_message_not_found(logged_client):
+    client, *_ = await logged_client()
+    fake_id = uuid.uuid4()
+
+    response = client.delete(f'/doc/message/{fake_id}')
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'Message not found.'}

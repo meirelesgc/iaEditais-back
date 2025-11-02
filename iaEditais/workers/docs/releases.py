@@ -59,18 +59,15 @@ async def create_source_vectors(
 ):
     db_source = await session.get(Source, source_id)
     if not db_source:
-        print(f'[ERRO] Source not found: {source_id}')
         return {'error': 'Source not found'}
 
     if not db_source.file_path:
-        print(f'[ERRO] file_path is empty for Source: {source_id}')
         return {'error': 'Document file_path is empty'}
 
     unique_filename = db_source.file_path.split('/')[-1]
     file_path = os.path.join(UPLOAD_DIRECTORY, unique_filename)
 
     if not os.path.exists(file_path):
-        print(f'[ERRO] File not found at path: {file_path}')
         return {'error': 'Document file not found'}
 
     documents = await vstore_service.load_document(file_path)

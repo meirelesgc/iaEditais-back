@@ -1,7 +1,6 @@
 import factory
 
 from iaEditais.models import (
-    AccessType,
     Branch,
     Document,
     Source,
@@ -10,6 +9,7 @@ from iaEditais.models import (
     Unit,
     User,
 )
+from iaEditais.schemas import AccessType
 
 
 class UnitFactory(factory.Factory):

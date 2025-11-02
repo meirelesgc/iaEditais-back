@@ -32,13 +32,15 @@ from iaEditais.core.vectorstore import get_vectorstore
 from iaEditais.models import (
     Document,
     DocumentHistory,
+    DocumentMessage,
+    DocumentMessageMention,
     DocumentRelease,
-    DocumentStatus,
     Source,
     Taxonomy,
     Typification,
     table_registry,
 )
+from iaEditais.schemas import DocumentStatus, MessageEntityType
 from tests.factories import (
     BranchFactory,
     DocFactory,
@@ -329,3 +331,51 @@ def mock_upload_directory(monkeypatch):
         str(temp_upload_dir),
     )
     return str(temp_upload_dir)
+
+
+@pytest_asyncio.fixture
+def create_message(session):
+    async def _create_message(
+        doc,
+        content: str = 'Test message',
+        author_id: str | None = None,
+        mentions: list[dict] | None = None,
+        quoted_message=None,
+    ):
+        latest_release = await session.scalar(
+            select(DocumentRelease)
+            .where(DocumentRelease.history.has(document_id=doc.id))
+            .order_by(DocumentRelease.created_at.desc())
+        )
+
+        db_msg = DocumentMessage(
+            content=content,
+            document_id=doc.id,
+            release_id=latest_release.id if latest_release else None,
+            author_id=author_id,
+            created_by=author_id,
+            quoted_message_id=quoted_message.id if quoted_message else None,
+        )
+
+        session.add(db_msg)
+        await session.flush()
+
+        if mentions:
+            mention_objs = [
+                DocumentMessageMention(
+                    message_id=db_msg.id,
+                    entity_id=mention['id'],
+                    entity_type=mention['type'].value
+                    if isinstance(mention['type'], MessageEntityType)
+                    else mention['type'],
+                    label=mention.get('label'),
+                )
+                for mention in mentions
+            ]
+            session.add_all(mention_objs)
+
+        await session.commit()
+        await session.refresh(db_msg)
+        return db_msg
+
+    return _create_message

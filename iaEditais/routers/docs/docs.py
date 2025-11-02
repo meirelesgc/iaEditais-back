@@ -11,7 +11,6 @@ from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import (
     Document,
     DocumentHistory,
-    DocumentStatus,
     Typification,
     User,
 )
@@ -20,6 +19,7 @@ from iaEditais.schemas import (
     DocumentFilter,
     DocumentList,
     DocumentPublic,
+    DocumentStatus,
     DocumentUpdate,
 )
 
@@ -94,7 +94,6 @@ async def read_docs(
         .where(Document.deleted_at.is_(None))
         .order_by(Document.created_at.desc())
     )
-    query = query.offset(filters.offset).limit(filters.limit)
 
     if filters.unit_id:
         try:
@@ -104,6 +103,8 @@ async def read_docs(
 
     if filters.unit_id:
         query = query.where(Document.unit_id == filters.unit_id)
+
+    query = query.offset(filters.offset).limit(filters.limit)
 
     result = await session.scalars(query)
     docs = result.all()

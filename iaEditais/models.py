@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
 from typing import List, Optional
 from uuid import UUID, uuid4
 
@@ -13,21 +12,9 @@ from sqlalchemy.orm import (
     relationship,
 )
 
+from iaEditais.schemas import AccessType
+
 table_registry = registry()
-
-
-class AccessType(str, Enum):
-    DEFAULT = 'DEFAULT'
-    ADMIN = 'ADMIN'
-    ANALYST = 'ANALYST'
-    AUDITOR = 'AUDITOR'
-
-
-class DocumentStatus(str, Enum):
-    PENDING = 'PENDING'
-    UNDER_CONSTRUCTION = 'UNDER_CONSTRUCTION'
-    WAITING_FOR_REVIEW = 'WAITING_FOR_REVIEW'
-    COMPLETED = 'COMPLETED'
 
 
 @dataclass(init=False)
@@ -485,6 +472,14 @@ class Document(AuditMixin):
         default_factory=list,
         init=False,
     )
+    messages: Mapped[List['DocumentMessage']] = relationship(
+        'DocumentMessage',
+        back_populates='document',
+        lazy='selectin',
+        default_factory=list,
+        init=False,
+        cascade='all, delete-orphan',
+    )
 
     __table_args__ = (
         Index(
@@ -519,13 +514,6 @@ class DocumentHistory(AuditMixin):
         back_populates='history', init=False
     )
     status: Mapped[str] = mapped_column(nullable=False)
-
-    messages: Mapped[List['DocumentMessage']] = relationship(
-        back_populates='history',
-        lazy='selectin',
-        default_factory=list,
-        init=False,
-    )
 
     releases: Mapped[List['DocumentRelease']] = relationship(
         back_populates='history',
@@ -570,35 +558,14 @@ class DocumentRelease(AuditMixin):
         nullable=True, default=None
     )
 
-
-@table_registry.mapped_as_dataclass
-class DocumentMessage(AuditMixin):
-    __tablename__ = 'document_messages'
-
-    id: Mapped[UUID] = mapped_column(
+    messages: Mapped[List['DocumentMessage']] = relationship(
+        'DocumentMessage',
+        back_populates='release',
+        lazy='selectin',
+        default_factory=list,
         init=False,
-        primary_key=True,
-        insert_default=uuid4,
-        default_factory=uuid4,
+        cascade='all, delete-orphan',
     )
-
-    history_id: Mapped[UUID] = mapped_column(
-        ForeignKey(
-            'document_histories.id', name='fk_document_messages_history_id'
-        ),
-        nullable=False,
-    )
-    history: Mapped['DocumentHistory'] = relationship(
-        back_populates='messages', init=False
-    )
-
-    user_id: Mapped[UUID] = mapped_column(
-        ForeignKey('users.id', name='fk_document_messages_user_id'),
-        nullable=False,
-    )
-    user: Mapped['User'] = relationship(init=False, foreign_keys=[user_id])
-
-    message: Mapped[str] = mapped_column(nullable=False)
 
 
 @table_registry.mapped_as_dataclass
@@ -879,3 +846,92 @@ class AppliedBranch:
             'fulfilled': self.fulfilled,
             'score': self.score,
         }
+
+
+@table_registry.mapped_as_dataclass
+class DocumentMessage(AuditMixin):
+    __tablename__ = 'document_messages'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
+    )
+
+    content: Mapped[str] = mapped_column(nullable=False)
+
+    document_id: Mapped[UUID] = mapped_column(
+        ForeignKey('documents.id', name='fk_doc_msg_document_id'),
+        nullable=False,
+    )
+    document: Mapped['Document'] = relationship(
+        back_populates='messages', init=False
+    )
+
+    release_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('document_releases.id', name='fk_doc_msg_release_id'),
+        nullable=True,
+    )
+    release: Mapped[Optional['DocumentRelease']] = relationship(
+        back_populates='messages', init=False
+    )
+
+    author_id: Mapped[UUID] = mapped_column(
+        ForeignKey('users.id', name='fk_doc_msg_author_id'),
+        nullable=False,
+    )
+    author: Mapped['User'] = relationship(
+        init=False,
+        lazy='selectin',
+        foreign_keys=[author_id],
+    )
+    quoted_message_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey(
+            'document_messages.id', name='fk_doc_msg_quoted_message_id'
+        ),
+        nullable=True,
+        default=None,
+    )
+    quoted_message: Mapped[Optional['DocumentMessage']] = relationship(
+        remote_side='DocumentMessage.id', init=False, lazy='selectin'
+    )
+
+    mentions: Mapped[List['DocumentMessageMention']] = relationship(
+        back_populates='message',
+        lazy='selectin',
+        cascade='all, delete-orphan',
+        init=False,
+        default_factory=list,
+    )
+
+    __table_args__ = (
+        Index(
+            'ix_doc_msg_document_id_created_at',
+            'document_id',
+            'created_at',
+        ),
+    )
+
+
+@table_registry.mapped_as_dataclass
+class DocumentMessageMention:
+    __tablename__ = 'document_message_mentions'
+
+    message_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            'document_messages.id', name='fk_doc_msg_mention_message_id'
+        ),
+        primary_key=True,
+    )
+    entity_id: Mapped[UUID] = mapped_column(primary_key=True)
+    entity_type: Mapped[str] = mapped_column(nullable=False)
+    label: Mapped[Optional[str]] = mapped_column(default=None, nullable=True)
+
+    message: Mapped['DocumentMessage'] = relationship(
+        back_populates='mentions', init=False
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )

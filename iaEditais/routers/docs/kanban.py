@@ -8,8 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from iaEditais.core.dependencies import Broker, CurrentUser, Session
-from iaEditais.models import Document, DocumentHistory, DocumentStatus, User
-from iaEditais.schemas import DocumentPublic
+from iaEditais.models import Document, DocumentHistory, User
+from iaEditais.schemas import DocumentPublic, DocumentStatus
 
 router = APIRouter(
     prefix='/doc/{doc_id}/status', tags=['verificação dos documentos, kanban']
