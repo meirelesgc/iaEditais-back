@@ -1,4 +1,3 @@
-import uuid
 from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Annotated
@@ -94,12 +93,6 @@ async def read_docs(
         .where(Document.deleted_at.is_(None))
         .order_by(Document.created_at.desc())
     )
-
-    if filters.unit_id:
-        try:
-            uuid.UUID(str(filters.unit_id))
-        except ValueError:
-            filters.unit_id = None
 
     if filters.unit_id:
         query = query.where(Document.unit_id == filters.unit_id)

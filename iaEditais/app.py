@@ -9,7 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from iaEditais import workers
 from iaEditais.core import broker
 from iaEditais.core.settings import Settings
-from iaEditais.routers import auth, units, users
+from iaEditais.routers import auth, stats, units, users
 from iaEditais.routers.check_tree import (
     branches,
     sources,
@@ -50,6 +50,7 @@ app.add_middleware(
 app.include_router(units.router)
 app.include_router(users.router)
 app.include_router(auth.router)
+app.include_router(stats.router)
 
 # Routers de documentação
 app.include_router(docs.router)

@@ -40,6 +40,5 @@ class DocumentList(BaseModel):
     documents: list[DocumentPublic]
 
 
-# Filtro de Documento herda de UserFilter
 class DocumentFilter(UserFilter):
-    unit_id: Optional[str] = None  # Note: aqui você sobrescreve unit_id
+    unit_id: Optional[UUID] = None
