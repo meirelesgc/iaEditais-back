@@ -35,17 +35,46 @@ def clean_text(text):
     return text.strip()
 
 
+def parse_with_session(chunks):
+    final_chunks = []
+    for chunk in chunks:
+        text = chunk.page_content.strip()
+
+        session_match = re.search(r'^\s*(\d+\.\s+[A-ZÀ-Ú][A-ZÀ-Ú\s\.]*)', text)
+        session_name = (
+            session_match.group(1).strip()
+            if session_match
+            else 'SESSÃO NÃO ENCONTRADA'
+        )
+
+        splitter = RecursiveCharacterTextSplitter(
+            chunk_size=2000,
+            chunk_overlap=0,
+            separators=['\n', ' '],
+        )
+        subchunks = splitter.split_text(text)
+
+        for subchunk in subchunks:
+            formatted_text = (
+                f'---\nSESSÃO: {session_name}\n---\n{subchunk.strip()}\n'
+            )
+
+            new_chunk = chunk.copy()
+            new_chunk.page_content = formatted_text
+            new_chunk.metadata = {**chunk.metadata, 'session': session_name}
+            final_chunks.append(new_chunk)
+    return final_chunks
+
+
 def split_documents(documents):
-    separators = [
-        r'(?:^|\n)\s*(\d+)\.\s+(?!\d+\.)([^a-záéíóúâêôãõç\n\r]+)',
-        r'\d+\.\s+[A-ZÁÉÍÓÚÂÊÔÃÕÇ][A-ZÁÉÍÓÚÂÊÔÃÕÇ\s]+(?=\n)',
-    ]
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1800,
-        chunk_overlap=180,
+    separators = [r'(?:(?<=^)|(?<=\n))\s*(?=\d+\.\s+[A-ZÀ-Ú])']
+    session_splitter = RecursiveCharacterTextSplitter(
+        chunk_overlap=0,
         is_separator_regex=True,
         keep_separator='start',
         separators=separators,
     )
-    chunks = text_splitter.split_documents(documents)
+    raw_chunks = session_splitter.split_documents(documents)
+    chunks = parse_with_session(raw_chunks)
+
     return chunks

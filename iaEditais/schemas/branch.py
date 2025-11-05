@@ -27,6 +27,7 @@ class BranchUpdate(BranchSchema):
 
 class BranchPublic(BranchSchema):
     id: UUID
+    taxonomy_id: UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
 

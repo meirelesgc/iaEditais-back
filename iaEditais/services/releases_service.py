@@ -30,6 +30,8 @@ from iaEditais.schemas import DocumentReleaseFeedback
 from iaEditais.services import storage_service
 
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
+SIMILARITY_THRESHOLD = 0.5
+MAX_CHUNKS = 5
 
 
 async def create_release(
@@ -91,11 +93,34 @@ async def create_description(
     errors = [b for b in applied_branches if not b.fulfilled]
 
     def _format_branch_line(branch: AppliedBranch) -> str:
-        return f'- {branch.title}: {branch.description or "no description"}\n'
+        description = branch.description or 'sem descrição'
+        evaluation = branch.evaluation
+        feedback = evaluation.get('feedback') or 'Sem feedback'
+        fulfilled = evaluation.get('fulfilled')
+        score = evaluation.get('score')
+
+        status = (
+            'Contemplado'
+            if fulfilled
+            else 'Não contemplado'
+            if fulfilled is not None
+            else 'Problema na análise'
+        )
+
+        return f'- {branch.title}: {description} | {status} | Nota: {score or "N/A"} | Feedback: {feedback}\n'
 
     description_parts: List[str] = []
 
-    summary_prompt = PROMPTS.DESCRIPTION
+    hits_text = ''.join(_format_branch_line(b) for b in hits[:3])
+    errors_text = ''.join(_format_branch_line(b) for b in errors[:3])
+    summary_prompt = (
+        PROMPTS.DESCRIPTION
+        + '\n\nAplicadas (contempladas):\n'
+        + (hits_text or 'Nenhuma ramificação bem-sucedida.\n')
+        + '\nErros:\n'
+        + (errors_text or 'Nenhuma ramificação com erro.\n')
+    )
+
     summary_response = model.invoke(summary_prompt)
     description_parts.append(summary_response.content.strip())
 
@@ -108,6 +133,7 @@ async def create_description(
         prompt += ''.join(_format_branch_line(b) for b in top_hits)
 
     response = model.invoke(prompt)
+
     description_parts.append(response.content.strip())
 
     final_description = '\n\n'.join(description_parts)
@@ -137,13 +163,7 @@ def get_chain(model: Model):
         },
     )
 
-    def log_prompt_to_model(prompt_value):
-        print('--- PROMPT ENVIADO PARA O MODELO (get_chain) ---')
-        print(prompt_value.to_string())
-        print('--------------------------------------------------')
-        return prompt_value
-
-    return prompt | RunnableLambda(log_prompt_to_model) | model | parser
+    return prompt | model | parser
 
 
 async def get_vars(
@@ -163,27 +183,62 @@ async def get_vars(
 
 
 async def fetch_similar_contents_doc(
-    vectorstore: VStore, release: DocumentRelease, query: str, k: int = 3
+    vectorstore: VStore, release: DocumentRelease, query: str, session: str
+):
+    if not session:
+        return []
+
+    path = release.file_path.split('/')[-1]
+    allowed_source = f'iaEditais/storage/uploads/{path}'
+
+    results = await vectorstore.asimilarity_search_with_score(
+        query,
+        k=MAX_CHUNKS,
+        filter={'source': allowed_source, 'session': session},
+    )
+
+    filtered = [
+        (d.page_content, score)
+        for d, score in results
+        if score < SIMILARITY_THRESHOLD
+    ]
+
+    return filtered
+
+
+async def fetch_similar_contents_source(
+    vectorstore: VStore, source: Source, query: str, session: str
+):
+    if not session:
+        return []
+
+    path = source.file_path.split('/')[-1]
+    allowed_source = f'iaEditais/storage/uploads/{path}'
+
+    results = await vectorstore.asimilarity_search_with_score(
+        query,
+        k=MAX_CHUNKS,
+        filter={'source': allowed_source, 'session': session},
+    )
+    filtered = [
+        (d.page_content, score)
+        for d, score in results
+        if score < SIMILARITY_THRESHOLD
+    ]
+    return filtered
+
+
+async def get_doc_session(
+    vectorstore: VStore, release: DocumentRelease, query: str
 ):
     path = release.file_path.split('/')[-1]
     allowed_source = f'iaEditais/storage/uploads/{path}'
     results = await vectorstore.asimilarity_search(
-        query, k=k, filter={'source': allowed_source}
+        query, k=1, filter={'source': allowed_source}
     )
-    retrieved_contents = [d.page_content for d in results]
-    return retrieved_contents
-
-
-async def fetch_similar_contents_source(
-    vectorstore: VStore, source: Source, query: str, k: int = 3
-):
-    path = source.file_path.split('/')[-1]
-    allowed_source = f'iaEditais/storage/uploads/{path}'
-    results = await vectorstore.asimilarity_search(
-        query, k=k, filter={'source': allowed_source}
-    )
-    retrieved_contents = [d.page_content for d in results]
-    return retrieved_contents
+    if not results:
+        return None
+    return results[0].metadata.get('session')
 
 
 async def process_branch(
@@ -193,44 +248,72 @@ async def process_branch(
     branch: Branch,
     vectorstore: VStore,
 ):
-    query = f'{branch.title}: {branch.description or ""}'.strip()
+    query = f'{taxonomy.title}: {taxonomy.description or ""}'.strip()
+    session = await get_doc_session(vectorstore, release, query)
+    if not session:
+        return {
+            'docs': 'Nenhum conteúdo relacionado encontrado para avaliação.',
+            'taxonomy_title': taxonomy.title.strip(),
+            'taxonomy_description': (taxonomy.description or '').strip(),
+            'taxonomy_source': '',
+            'taxonomy_branch_title': branch.title.strip(),
+            'taxonomy_branch_description': (branch.description or '').strip(),
+            'typification_source': '',
+            'query': 'Justifique sua resposta com base no conteúdo do edital.',
+            'prompt_score': 0,
+        }
 
+    query = f'{branch.title}: {branch.description or ""}'.strip()
     retrieved_contents = await fetch_similar_contents_doc(
-        vectorstore, release, query
+        vectorstore, release, query, session
     )
+
+    docs_text = 'Nenhum conteúdo encontrado.'
+    prompt_score = 0
+    if isinstance(retrieved_contents, list) and retrieved_contents:
+        docs_text = '\n\n'.join([
+            c.strip() for c, _ in retrieved_contents if c.strip()
+        ])
+        prompt_score += sum(score for _, score in retrieved_contents)
 
     typification_sources_text = []
     for source in getattr(typification, 'sources', []):
         chunks = []
         if getattr(source, 'file_path', None):
             chunks = await fetch_similar_contents_source(
-                vectorstore, source, query
+                vectorstore, source, query, session
             )
+        chunk_text = ''
+        if isinstance(chunks, list) and chunks:
+            chunk_text = ' '.join([c.strip() for c, _ in chunks if c.strip()])
 
-        source_block = f"""
-        Nome da Fonte: {source.name}
-        Descrição: {source.description or 'sem descrição'}
-        Conteúdo Relevante: {' '.join(chunks) if chunks else 'nenhum conteúdo relevante encontrado'}
-        """
-        typification_sources_text.append(source_block)
+        source_block = (
+            f'Nome da Fonte: {source.name}\n'
+            f'Descrição: {source.description or "sem descrição"}\n'
+            f'Conteúdo Relevante: {chunk_text or "nenhum conteúdo relevante encontrado"}'
+        )
+        typification_sources_text.append(source_block.strip())
 
     taxonomy_sources_text = []
     for source in getattr(taxonomy, 'sources', []):
-        taxonomy_sources_text.append(
-            f'{source.name}\n{source.description or "sem descrição"}'
-        )
+        source_text = f'{source.name}\n{source.description or "sem descrição"}'
+        taxonomy_sources_text.append(source_text.strip())
 
-    typification_source_content = '\n'.join(typification_sources_text)
-    taxonomy_source_content = '\n'.join(taxonomy_sources_text)
+    typification_source_content = '\n\n---\n\n'.join(
+        typification_sources_text
+    ).strip()
+    taxonomy_source_content = '\n\n'.join(taxonomy_sources_text).strip()
+
     return {
-        'docs': retrieved_contents,
-        'taxonomy_title': taxonomy.title,
-        'taxonomy_description': taxonomy.description,
+        'docs': docs_text,
+        'taxonomy_title': taxonomy.title.strip(),
+        'taxonomy_description': (taxonomy.description or '').strip(),
         'taxonomy_source': taxonomy_source_content,
-        'taxonomy_branch_title': branch.title,
-        'taxonomy_branch_description': branch.description,
+        'taxonomy_branch_title': branch.title.strip(),
+        'taxonomy_branch_description': (branch.description or '').strip(),
         'typification_source': typification_source_content,
         'query': 'Justifique sua resposta com base no conteúdo do edital.',
+        'prompt_score': prompt_score,
     }
 
 
@@ -262,7 +345,7 @@ def try_recover_json(msg: str):
 def normalize_output(data):
     default = {
         'fulfilled': False,
-        'score': 0,
+        'score': -1,
         'feedback': 'Não foi possível gerar feedback para este item.',
     }
 
@@ -280,12 +363,40 @@ def normalize_output(data):
     return {'fulfilled': fulfilled, 'score': score, 'feedback': feedback}
 
 
+def print_process_branch_result(result: dict):
+    print('==== DADOS DO PROCESSO ====')
+    print(f'Taxonomia: {result.get("taxonomy_title", "")}')
+    print(
+        f'Descrição da Taxonomia: {result.get("taxonomy_description", "")}\n'
+    )
+
+    print('Fontes da Taxonomia:')
+    print(result.get('taxonomy_source', 'Nenhuma fonte encontrada'))
+    print('\n---------------------------\n')
+
+    print(f'Ramo da Taxonomia: {result.get("taxonomy_branch_title", "")}')
+    print(
+        f'Descrição do Ramo: {result.get("taxonomy_branch_description", "")}\n'
+    )
+
+    print('Documentos encontrados:')
+    print(result.get('docs', 'Nenhum documento encontrado'))
+    print('\n---------------------------\n')
+
+    print('Fontes da Tipificação:')
+    print(result.get('typification_source', 'Nenhuma fonte encontrada'))
+    print('\n---------------------------\n')
+
+    print(f'Prompt para Justificativa: {result.get("query", "")}')
+    print(f'Pontuação do Prompt: {result.get("prompt_score", 0)}')
+
+
 def safe_wrapper(chain):
     def _safe_invoke(input_item):
         try:
+            print_process_branch_result(input_item)
             result = chain.invoke(input_item)
             return normalize_output(result)
-
         except OutputParserException as e:
             msg = str(e)
             recovered = try_recover_json(msg)
@@ -371,14 +482,15 @@ async def apply_branch(
     branch: 'Branch',
     resp: dict,
 ):
+    CUTTING_LINE = 5
     applied_branch = AppliedBranch(
         title=branch.title,
         description=branch.description,
         applied_taxonomy_id=applied_tax.id,
         original_id=branch.id,
         feedback=resp.get('feedback'),
-        fulfilled=resp.get('fulfilled'),
-        score=resp.get('score'),
+        fulfilled=True if resp.get('score', 0) > CUTTING_LINE else False,
+        score=resp.get('score', 0),
     )
     session.add(applied_branch)
     return applied_branch

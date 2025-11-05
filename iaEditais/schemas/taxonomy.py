@@ -26,6 +26,7 @@ class TaxonomyUpdate(TaxonomySchema):
 
 class TaxonomyPublic(TaxonomySchema):
     id: UUID
+    typification_id: UUID
     branches: list[BranchPublic]
     sources: list[SourcePublic]
 

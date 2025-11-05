@@ -73,7 +73,6 @@ async def create_source_vectors(
     documents = await vstore_service.load_document(file_path)
     chunks = vstore_service.split_documents(documents)
     await vectorstore.aadd_documents(chunks)
-
     return {'source_id': source_id, 'file_path': file_path}
 
 

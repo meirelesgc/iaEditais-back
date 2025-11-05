@@ -4,7 +4,7 @@ from iaEditais.core.settings import Settings
 
 settings = Settings()
 model = ChatOpenAI(
-    model='gpt-5-nano-2025-08-07',
+    model='gpt-5-mini',
     api_key=settings.OPENAI_API_KEY,
     temperature=0.1,
 )

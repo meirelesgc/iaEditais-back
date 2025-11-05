@@ -4,6 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 
 from iaEditais.core.dependencies import CurrentUser, Session
@@ -19,6 +20,7 @@ from iaEditais.schemas import (
     TypificationPublic,
     TypificationUpdate,
 )
+from iaEditais.services.report_service import typification_report
 
 router = APIRouter(
     prefix='/typification',
@@ -175,3 +177,42 @@ async def delete_typification(
     await session.commit()
 
     return {'message': 'Typification deleted'}
+
+
+@router.get('/export/pdf')
+async def exportar_tipificacoes_pdf(
+    session: Session, filters: Annotated[FilterPage, Depends()]
+):
+    query = await session.scalars(
+        select(Typification)
+        .where(Typification.deleted_at.is_(None))
+        .order_by(Typification.created_at.desc())
+        .offset(filters.offset)
+        .limit(filters.limit)
+    )
+    typifications = query.all()
+
+    typifications_list = (
+        [t.as_dict() for t in typifications]
+        if hasattr(typifications[0], 'as_dict')
+        else [
+            {
+                'id': t.id,
+                'name': t.name,
+                'sources': [s.__dict__ for s in t.sources],
+                'taxonomies': [
+                    {
+                        'title': tx.title,
+                        'description': tx.description,
+                        'branches': [b.__dict__ for b in tx.branches],
+                    }
+                    for tx in t.taxonomies
+                ],
+                'created_at': str(t.created_at),
+            }
+            for t in typifications
+        ]
+    )
+
+    relatorio_path = typification_report({'typifications': typifications_list})
+    return FileResponse(relatorio_path, filename=relatorio_path.split('/')[-1])
