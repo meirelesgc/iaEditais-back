@@ -180,39 +180,24 @@ async def delete_typification(
 
 
 @router.get('/export/pdf')
-async def exportar_tipificacoes_pdf(
-    session: Session, filters: Annotated[FilterPage, Depends()]
-):
+async def exportar_tipificacoes_pdf(session: Session):
     query = await session.scalars(
         select(Typification)
         .where(Typification.deleted_at.is_(None))
         .order_by(Typification.created_at.desc())
-        .offset(filters.offset)
-        .limit(filters.limit)
     )
+
     typifications = query.all()
 
-    typifications_list = (
-        [t.as_dict() for t in typifications]
-        if hasattr(typifications[0], 'as_dict')
-        else [
-            {
-                'id': t.id,
-                'name': t.name,
-                'sources': [s.__dict__ for s in t.sources],
-                'taxonomies': [
-                    {
-                        'title': tx.title,
-                        'description': tx.description,
-                        'branches': [b.__dict__ for b in tx.branches],
-                    }
-                    for tx in t.taxonomies
-                ],
-                'created_at': str(t.created_at),
-            }
-            for t in typifications
-        ]
-    )
+    if not typifications:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='No typifications found',
+        )
 
-    relatorio_path = typification_report({'typifications': typifications_list})
-    return FileResponse(relatorio_path, filename=relatorio_path.split('/')[-1])
+    typifications_list = TypificationList(
+        typifications=typifications
+    ).model_dump()
+
+    report_path = typification_report(typifications_list)
+    return FileResponse(report_path, filename=report_path.split('/')[-1])
