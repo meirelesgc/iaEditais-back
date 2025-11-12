@@ -56,7 +56,6 @@ from tests.factories import (
 async def client(
     session,
     engine,
-    # cache,
 ):
     async def get_vstore_override():
         vectorstore = PGVector(
@@ -78,15 +77,12 @@ async def client(
     def get_session_override():
         return session
 
-    # def get_cache_override():
-    #     yield cache.get_async_client()
     async with TestRabbitBroker(workers.router.broker) as broker:
         with TestClient(app) as client:
             app.dependency_overrides[get_session] = get_session_override
             app.dependency_overrides[get_vectorstore] = get_vstore_override
             app.dependency_overrides[get_model] = get_model_override
             app.dependency_overrides[get_broker] = lambda: broker
-            # app.dependency_overrides[get_cache] = get_cache_override
             yield client
 
     app.dependency_overrides.clear()

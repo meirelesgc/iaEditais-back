@@ -8,8 +8,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from iaEditais.core.dependencies import Broker, CurrentUser, Session
+from iaEditais.core.ws import manager
 from iaEditais.models import Document, DocumentHistory, User
-from iaEditais.schemas import DocumentPublic, DocumentStatus
+from iaEditais.schemas import DocumentPublic, DocumentStatus, WSMessage
 
 router = APIRouter(
     prefix='/doc/{doc_id}/status', tags=['verificação dos documentos, kanban']
@@ -71,6 +72,15 @@ async def _set_status(
     doc.updated_at = datetime.now(timezone.utc)
     await session.commit()
     await session.refresh(doc)
+
+    # Envio de atualização via WebSocket
+    doc_public = DocumentPublic.model_validate(doc)
+    payload = doc_public.model_dump(mode='json')
+    ws_message = WSMessage(
+        event='doc.kanban.update', message=status.value, payload=payload
+    )
+    await manager.broadcast(ws_message)
+
     return doc
 
 
@@ -126,8 +136,9 @@ async def set_status_pending(
     await _queue_notification_if_needed(
         doc, DocumentStatus.PENDING, session, broker
     )
-    await _set_status(doc, DocumentStatus.PENDING, current_user, session)
-    return doc
+    return await _set_status(
+        doc, DocumentStatus.PENDING, current_user, session
+    )
 
 
 @router.put('/under-construction', response_model=DocumentPublic)

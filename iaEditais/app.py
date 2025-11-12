@@ -17,6 +17,7 @@ from iaEditais.routers.check_tree import (
     typifications,
 )
 from iaEditais.routers.docs import docs, kanban, messages, releases
+from iaEditais.routers.docs import ws as docs_ws
 
 PROJECT_FILE = Path(__file__).parent.parent / 'pyproject.toml'
 
@@ -57,6 +58,7 @@ app.include_router(docs.router)
 app.include_router(kanban.router)
 app.include_router(releases.router)
 app.include_router(messages.router)
+app.include_router(docs_ws.router)
 
 # Routers de árvore
 app.include_router(sources.router)

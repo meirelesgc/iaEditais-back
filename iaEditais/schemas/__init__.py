@@ -21,7 +21,7 @@ from .branch import (
     BranchSchema,
     BranchUpdate,
 )
-from .common import FilterPage, Message, Token
+from .common import FilterPage, Message, Token, WSMessage
 from .document import (
     DocumentCreate,
     DocumentFilter,
@@ -103,6 +103,7 @@ __all__ = [
     'FilterPage',
     'Message',
     'Token',
+    'WSMessage',
     # Módulo document
     'DocumentCreate',
     'DocumentFilter',
