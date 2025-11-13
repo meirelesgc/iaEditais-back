@@ -5,7 +5,6 @@ from sqlalchemy import select
 
 from iaEditais.core.dependencies import CurrentUser, OAuth2Form, Session
 from iaEditais.core.security import (
-    ACCESS_TOKEN_COOKIE_NAME,
     create_access_token,
     verify_password,
 )
@@ -13,7 +12,7 @@ from iaEditais.core.settings import Settings
 from iaEditais.models import User
 from iaEditais.schemas import Token
 
-settings = Settings()
+SETTINGS = Settings()
 
 router = APIRouter(prefix='/auth', tags=['operações de sistema, autenticação'])
 
@@ -62,17 +61,17 @@ async def sign_in_for_cookie(
         )
     access_token = create_access_token(data={'sub': user.email})
 
-    max_age = settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+    max_age = SETTINGS.ACCESS_TOKEN_EXPIRE_MINUTES * 60
 
     response.set_cookie(
-        key=settings.ACCESS_TOKEN_COOKIE_NAME,
+        key=SETTINGS.ACCESS_TOKEN_COOKIE_NAME,
         value=access_token,
         httponly=True,
         max_age=max_age,
         expires=max_age,
-        path=settings.COOKIE_PATH,
-        secure=settings.COOKIE_SECURE,
-        samesite=settings.COOKIE_SAMESITE,
+        path=SETTINGS.COOKIE_PATH,
+        secure=SETTINGS.COOKIE_SECURE,
+        samesite=SETTINGS.COOKIE_SAMESITE,
     )
 
     return {'access_token': access_token, 'token_type': 'bearer'}
@@ -80,5 +79,5 @@ async def sign_in_for_cookie(
 
 @router.post('/sign-out')
 async def sign_out(response: Response):
-    response.delete_cookie(ACCESS_TOKEN_COOKIE_NAME, path='/')
+    response.delete_cookie(SETTINGS.ACCESS_TOKEN_COOKIE_NAME, path='/')
     return {'detail': 'signed out'}

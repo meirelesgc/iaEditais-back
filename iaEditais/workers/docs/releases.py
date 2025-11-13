@@ -12,6 +12,7 @@ from iaEditais.core.ws import manager
 from iaEditais.models import DocumentRelease, Source, User
 from iaEditais.schemas import DocumentReleasePublic, WSMessage
 from iaEditais.services import releases_service, vstore_service
+from iaEditais.utils.PresidioAnonymizer import PresidioAnonymizer
 
 SETTINGS = Settings()
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
@@ -62,7 +63,11 @@ async def create_source_vectors(
         return {'error': 'Document file not found'}
     documents = await vstore_service.load_document(file_path)
     chunks = vstore_service.split_documents(documents)
-    await vectorstore.aadd_documents(chunks)
+    presidio_anonymizer = PresidioAnonymizer()
+    anonymized_chunks = presidio_anonymizer.anonymize_chunks(
+        chunks, verbose=False
+    )
+    await vectorstore.aadd_documents(anonymized_chunks)
     return {'source_id': source_id, 'file_path': file_path}
 
 
@@ -88,7 +93,11 @@ async def create_vectors(
     await manager.broadcast(ws_message)
     documents = await vstore_service.load_document(file_path)
     chunks = vstore_service.split_documents(documents)
-    await vectorstore.aadd_documents(chunks)
+    presidio_anonymizer = PresidioAnonymizer()
+    anonymized_chunks = presidio_anonymizer.anonymize_chunks(
+        chunks, verbose=False
+    )
+    await vectorstore.aadd_documents(anonymized_chunks)
     return {'release_id': release_id}
 
 
@@ -116,7 +125,7 @@ async def create_check_tree(
     )
     evaluation = await releases_service.apply_check_tree(chain, input_vars)
     applied_branch = await releases_service.save_evaluation(
-        session, db_release, check_tree, evaluation
+        session, db_release, check_tree, evaluation, input_vars
     )
     await releases_service.create_description(
         db_release, applied_branch, model, session

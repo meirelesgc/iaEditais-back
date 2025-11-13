@@ -829,6 +829,10 @@ class AppliedBranch:
     )
     score: Mapped[Optional[int]] = mapped_column(nullable=True, default=None)
 
+    presidio_mapping: Mapped[Optional[str]] = mapped_column(
+        nullable=True, default=None
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )

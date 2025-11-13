@@ -1,4 +1,5 @@
 import json
+import os
 import re
 from http import HTTPStatus
 from typing import List, Optional
@@ -197,10 +198,9 @@ async def fetch_similar_contents_doc(
         filter={'source': allowed_source, 'session': session},
     )
 
+    # Agora retornamos o objeto Document inteiro + score
     filtered = [
-        (d.page_content, score)
-        for d, score in results
-        if score < SIMILARITY_THRESHOLD
+        (d, score) for d, score in results if score < SIMILARITY_THRESHOLD
     ]
 
     return filtered
@@ -220,11 +220,11 @@ async def fetch_similar_contents_source(
         k=MAX_CHUNKS,
         filter={'source': allowed_source, 'session': session},
     )
+
     filtered = [
-        (d.page_content, score)
-        for d, score in results
-        if score < SIMILARITY_THRESHOLD
+        (d, score) for d, score in results if score < SIMILARITY_THRESHOLD
     ]
+
     return filtered
 
 
@@ -252,6 +252,7 @@ async def process_branch(
     session = await get_doc_session(vectorstore, release, query)
     if not session:
         return {
+            'presidio_mapping': {},
             'docs': 'Nenhum conteúdo relacionado encontrado para avaliação.',
             'taxonomy_title': taxonomy.title.strip(),
             'taxonomy_description': (taxonomy.description or '').strip(),
@@ -270,10 +271,25 @@ async def process_branch(
 
     docs_text = 'Nenhum conteúdo encontrado.'
     prompt_score = 0
+    presidio_mapping = {}
+
     if isinstance(retrieved_contents, list) and retrieved_contents:
         docs_text = '\n\n'.join([
-            c.strip() for c, _ in retrieved_contents if c.strip()
+            d.page_content.strip()
+            for d, _ in retrieved_contents
+            if d.page_content.strip()
         ])
+        os.system('clear')
+        print(retrieved_contents)
+
+        presidio_mapping = {
+            k: v
+            for d, _ in retrieved_contents
+            if d.metadata and 'presidio_mapping' in d.metadata
+            for k, v in d.metadata['presidio_mapping'].items()
+        }
+        print(presidio_mapping)
+
         prompt_score += sum(score for _, score in retrieved_contents)
 
     typification_sources_text = []
@@ -283,9 +299,14 @@ async def process_branch(
             chunks = await fetch_similar_contents_source(
                 vectorstore, source, query, session
             )
+
         chunk_text = ''
         if isinstance(chunks, list) and chunks:
-            chunk_text = ' '.join([c.strip() for c, _ in chunks if c.strip()])
+            chunk_text = ' '.join([
+                d.page_content.strip()
+                for d, _ in chunks
+                if d.page_content.strip()
+            ])
 
         source_block = (
             f'Nome da Fonte: {source.name}\n'
@@ -305,6 +326,7 @@ async def process_branch(
     taxonomy_source_content = '\n\n'.join(taxonomy_sources_text).strip()
 
     return {
+        'presidio_mapping': presidio_mapping,
         'docs': docs_text,
         'taxonomy_title': taxonomy.title.strip(),
         'taxonomy_description': (taxonomy.description or '').strip(),
@@ -491,6 +513,7 @@ async def apply_branch(
         feedback=resp.get('feedback'),
         fulfilled=True if resp.get('score', 0) > CUTTING_LINE else False,
         score=resp.get('score', 0),
+        presidio_mapping=str(resp.get('presidio_mapping')),
     )
     session.add(applied_branch)
     return applied_branch
@@ -501,6 +524,7 @@ async def save_evaluation(
     db_release: DocumentRelease,
     check_tree: list[Typification],
     response: list,
+    real_input_vars: list,
 ):
     input_vars = []
     response_index = 0
@@ -523,9 +547,19 @@ async def save_evaluation(
                     if response_index < len(response)
                     else {}
                 )
-                applied_branch = await apply_branch(
-                    session, applied_tax, branch, resp or {}
+                presidio_vars = (
+                    real_input_vars[response_index]
+                    if response_index < len(real_input_vars)
+                    else {}
                 )
+                presidio_mapping = presidio_vars.get('presidio_mapping', {})
+
+                resp = {**(resp or {}), 'presidio_mapping': presidio_mapping}
+
+                applied_branch = await apply_branch(
+                    session, applied_tax, branch, resp
+                )
+
                 input_vars.append(applied_branch)
                 response_index += 1
 
