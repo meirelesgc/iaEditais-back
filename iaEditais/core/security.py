@@ -14,10 +14,9 @@ from iaEditais.core.database import get_session
 from iaEditais.core.settings import Settings
 from iaEditais.models import User
 
-settings = Settings()
+SETTINGS = Settings()
 pwd_context = PasswordHash.recommended()
 
-ACCESS_TOKEN_COOKIE_NAME = 'access_token'
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl='/auth/sign-in', auto_error=False
@@ -27,10 +26,10 @@ oauth2_scheme = OAuth2PasswordBearer(
 def create_access_token(data: dict):
     to_encode = data.copy()
     now = datetime.now(tz=ZoneInfo('UTC'))
-    expire = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = now + timedelta(minutes=SETTINGS.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({'exp': expire, 'iat': now, 'jti': str(uuid4())})
     encoded_jwt = encode(
-        to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM
+        to_encode, SETTINGS.SECRET_KEY, algorithm=SETTINGS.ALGORITHM
     )
     return encoded_jwt
 
@@ -54,14 +53,14 @@ async def get_current_user(
         headers={'WWW-Authenticate': 'Bearer'},
     )
 
-    token = token or request.cookies.get(ACCESS_TOKEN_COOKIE_NAME)
+    token = token or request.cookies.get(SETTINGS.ACCESS_TOKEN_COOKIE_NAME)
 
     if not token:
         raise credentials_exception
 
     try:
         payload = decode(
-            token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            token, SETTINGS.SECRET_KEY, algorithms=[SETTINGS.ALGORITHM]
         )
         subject_email = payload.get('sub')
         if not subject_email:
