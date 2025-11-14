@@ -4,7 +4,8 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import or_, select
+from sqlalchemy import or_, select, true
+from sqlalchemy.orm import aliased
 
 from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import (
@@ -88,10 +89,21 @@ async def create_doc(
 async def read_docs(
     session: Session, filters: Annotated[DocumentFilter, Depends()]
 ):
+    last_history_subq = (
+        select(DocumentHistory)
+        .where(DocumentHistory.document_id == Document.id)
+        .order_by(DocumentHistory.created_at.desc())
+        .limit(1)
+        .lateral()
+    )
+
+    last_history = aliased(DocumentHistory, last_history_subq)
+
     query = (
         select(Document)
+        .join(last_history, true())
         .where(Document.deleted_at.is_(None))
-        .order_by(Document.created_at.desc())
+        .order_by(last_history.status.asc(), last_history.created_at.asc())
     )
 
     if filters.unit_id:
