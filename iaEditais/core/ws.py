@@ -41,6 +41,7 @@ class ConnectionManager:
 
     async def broadcast(self, message: WSMessage):
         data = message.model_dump_json()
+        print(data)
         await self.redis.publish(self.channel, data)
 
     async def _listen_to_broadcasts(self):
