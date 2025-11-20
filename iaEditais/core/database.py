@@ -35,6 +35,6 @@ def _add_filtering_criteria(execute_state: ORMExecuteState):
         )
 
 
-async def get_session():
+async def get_session():  # pragma: no cover
     async with async_session() as session:
         yield session

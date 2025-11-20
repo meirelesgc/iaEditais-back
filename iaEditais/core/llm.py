@@ -10,5 +10,5 @@ model = ChatOpenAI(
 )
 
 
-async def get_model():
+async def get_model():  # pragma: no cover
     return model

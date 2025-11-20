@@ -3,6 +3,9 @@ from http import HTTPStatus
 import pytest
 
 from iaEditais.core.security import create_access_token
+from iaEditais.core.settings import Settings
+
+SETTINGS = Settings()
 
 
 @pytest.mark.asyncio
@@ -80,3 +83,67 @@ async def test_endpoint_requiring_login(logged_client):
     client, token, headers, user = await logged_client(
         email='alice@test.com', password='mypass'
     )
+
+
+@pytest.mark.asyncio
+async def test_sign_in_cookie_success(client, create_user, create_unit):
+    unit = await create_unit()
+    password = 'secret_cookie_pass'
+    email = 'cookie_user@auth.com'
+
+    await create_user(email=email, password=password, unit_id=str(unit.id))
+
+    response = client.post(
+        '/auth/sign-in', data={'username': email, 'password': password}
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+
+    assert 'access_token' in data
+    assert data['token_type'] == 'bearer'
+
+    cookie_name = SETTINGS.ACCESS_TOKEN_COOKIE_NAME
+    assert cookie_name in response.cookies
+    assert response.cookies[cookie_name] == data['access_token']
+
+
+@pytest.mark.asyncio
+async def test_sign_in_incorrect_email(client):
+    response = client.post(
+        '/auth/sign-in',
+        data={'username': 'wrong@email.com', 'password': 'any'},
+    )
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+    assert response.json()['detail'] == 'Incorrect email or password'
+
+
+@pytest.mark.asyncio
+async def test_sign_in_incorrect_password(client, create_user, create_unit):
+    unit = await create_unit()
+    await create_user(
+        email='valid@auth.com', password='correct_pass', unit_id=str(unit.id)
+    )
+
+    response = client.post(
+        '/auth/sign-in',
+        data={'username': 'valid@auth.com', 'password': 'wrong_pass'},
+    )
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+    assert response.json()['detail'] == 'Incorrect email or password'
+
+
+@pytest.mark.asyncio
+async def test_sign_out_clears_cookie(client):
+    response = client.post('/auth/sign-out')
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()['detail'] == 'signed out'
+
+    cookie_name = SETTINGS.ACCESS_TOKEN_COOKIE_NAME
+    set_cookie_header = response.headers.get('set-cookie', '')
+
+    assert cookie_name in set_cookie_header
+    assert 'Max-Age=0' in set_cookie_header or 'Expires=' in set_cookie_header

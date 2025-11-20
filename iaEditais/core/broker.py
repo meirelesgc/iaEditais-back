@@ -7,5 +7,5 @@ settings = Settings()
 router = RabbitRouter(settings.BROKER_URL)
 
 
-def get_broker():
+def get_broker():  # pragma: no cover
     return router.broker

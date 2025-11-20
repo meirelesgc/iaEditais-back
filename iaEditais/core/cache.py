@@ -53,6 +53,6 @@ class ConnectionManager:
                 continue
 
 
-def get_cache():
+def get_cache():  # pragma: no cover
     redis = Redis.from_url(SETTINGS.CACHE_URL)
     return ConnectionManager(redis=redis)
