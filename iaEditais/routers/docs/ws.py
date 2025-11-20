@@ -2,42 +2,45 @@ import asyncio
 from uuid import UUID
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from iaEditais.core.ws import manager
+
+from iaEditais.core.dependencies import CacheManager
 from iaEditais.schemas import WSMessage
 
-router = APIRouter(prefix="/ws", tags=["websockets"])
+router = APIRouter(prefix='/ws', tags=['websockets'])
 
 
-@router.websocket("/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, client_id: UUID):
-    await manager.connect(client_id, websocket)
+@router.websocket('/{client_id}')
+async def websocket_endpoint(
+    websocket: WebSocket, client_id: UUID, manager: CacheManager
+):
+    manager.connect(client_id, websocket)
     try:
         while True:
             raw_data = await websocket.receive_text()
             try:
                 message = WSMessage.model_validate_json(raw_data)
             except Exception:
-                message = "Invalid message format"
-                ws_message = WSMessage(event="error", message=message)
-                await manager.send_personal_message(client_id, ws_message)
+                message = 'Invalid message format'
+                ws_message = WSMessage(event='error', message=message)
+                manager.send_personal_message(client_id, ws_message)
                 continue
-            if message.event == "ping":
-                ws_message = WSMessage(event="pong", message="ok")
-                await manager.send_personal_message(client_id, ws_message)
-            elif message.event == "broadcast":
+            if message.event == 'ping':
+                ws_message = WSMessage(event='pong', message='ok')
+                manager.send_personal_message(client_id, ws_message)
+            elif message.event == 'broadcast':
                 ws_message = WSMessage(
-                    event="broadcast",
+                    event='broadcast',
                     message=message.message,
                     payload=message.payload,
                 )
-                await manager.broadcast(ws_message)
+                manager.broadcast(ws_message)
             else:
                 ws_message = WSMessage(
-                    event="echo",
+                    event='echo',
                     message=message.message,
                     payload=message.payload,
                 )
-                await manager.send_personal_message(client_id, ws_message)
+                manager.send_personal_message(client_id, ws_message)
             await asyncio.sleep(0.03)
     except WebSocketDisconnect:
         manager.disconnect(client_id)

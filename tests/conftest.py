@@ -16,18 +16,19 @@ from langchain_postgres import PGVector
 from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from testcontainers.postgres import PostgresContainer
-from testcontainers.redis import AsyncRedisContainer
+from testcontainers.redis import RedisContainer
 
 from iaEditais import workers
 from iaEditais.app import app
 from iaEditais.core.broker import get_broker
+from iaEditais.core.cache import ConnectionManager, get_cache
 from iaEditais.core.database import get_session
 from iaEditais.core.llm import get_model
 from iaEditais.core.security import (
-    ACCESS_TOKEN_COOKIE_NAME,
     create_access_token,
     get_password_hash,
 )
+from iaEditais.core.settings import Settings
 from iaEditais.core.vectorstore import get_vectorstore
 from iaEditais.models import (
     Document,
@@ -51,12 +52,11 @@ from tests.factories import (
     UserFactory,
 )
 
+SETTINGS = Settings()
+
 
 @pytest_asyncio.fixture
-async def client(
-    session,
-    engine,
-):
+async def client(session, engine, cache):
     async def get_vstore_override():
         vectorstore = PGVector(
             embeddings=FakeEmbeddings(size=256),
@@ -77,12 +77,16 @@ async def client(
     def get_session_override():
         return session
 
+    def get_cache_override():
+        return ConnectionManager(redis=cache)
+
     async with TestRabbitBroker(workers.router.broker) as broker:
         with TestClient(app) as client:
             app.dependency_overrides[get_session] = get_session_override
             app.dependency_overrides[get_vectorstore] = get_vstore_override
             app.dependency_overrides[get_model] = get_model_override
             app.dependency_overrides[get_broker] = lambda: broker
+            app.dependency_overrides[get_cache] = get_cache_override
             yield client
 
     app.dependency_overrides.clear()
@@ -97,8 +101,11 @@ def engine():
 
 @pytest.fixture(scope='session')
 def cache():
-    with AsyncRedisContainer('redis:latest') as redis:
-        return redis
+    container = RedisContainer('redis:latest')
+    container.start()
+    client = container.get_client()
+    yield client
+    container.stop()
 
 
 @pytest_asyncio.fixture
@@ -183,7 +190,7 @@ def logged_client(client, create_user, create_unit):
             email=email, password=password, unit_id=str(unit.id), **user_kwargs
         )
         token = create_access_token({'sub': user.email})
-        client.cookies.set(ACCESS_TOKEN_COOKIE_NAME, token, path='/')
+        client.cookies.set(SETTINGS.ACCESS_TOKEN_COOKIE_NAME, token, path='/')
         auth_headers = {'Authorization': f'Bearer {token}'}
         return client, token, auth_headers, user
 

@@ -6,9 +6,8 @@ import httpx
 from faststream.rabbit import RabbitRouter
 from sqlalchemy import select
 
-from iaEditais.core.dependencies import Model, Session, VStore
+from iaEditais.core.dependencies import CacheManager, Model, Session, VStore
 from iaEditais.core.settings import Settings
-from iaEditais.core.ws import manager
 from iaEditais.models import DocumentRelease, Source, User
 from iaEditais.schemas import DocumentReleasePublic, WSMessage
 from iaEditais.services import releases_service, vstore_service
@@ -74,7 +73,10 @@ async def create_source_vectors(
 @router.subscriber('releases_create_vectors')
 @router.publisher('releases_create_check_tree')
 async def create_vectors(
-    release_id: UUID, session: Session, vectorstore: VStore
+    release_id: UUID,
+    session: Session,
+    vectorstore: VStore,
+    manager: CacheManager,
 ):
     db_release = await session.get(DocumentRelease, release_id)
     if not db_release:
@@ -90,7 +92,7 @@ async def create_vectors(
     ws_message = WSMessage(
         event='doc.release.update', message='creating_vectors', payload=payload
     )
-    await manager.broadcast(ws_message)
+    manager.broadcast(ws_message)
     documents = await vstore_service.load_document(file_path)
     chunks = vstore_service.split_documents(documents)
     presidio_anonymizer = PresidioAnonymizer()
@@ -108,6 +110,7 @@ async def create_check_tree(
     session: Session,
     vectorstore: VStore,
     model: Model,
+    manager: CacheManager,
 ):
     db_release = await session.get(DocumentRelease, release_id)
     if not db_release:
@@ -117,7 +120,7 @@ async def create_check_tree(
     ws_message = WSMessage(
         event='doc.release.update', message='evaluating', payload=payload
     )
-    await manager.broadcast(ws_message)
+    manager.broadcast(ws_message)
     check_tree = await releases_service.get_check_tree(session, db_release)
     chain = releases_service.get_chain(model)
     input_vars = await releases_service.get_vars(
@@ -135,7 +138,7 @@ async def create_check_tree(
     ws_message = WSMessage(
         event='doc.release.update', message='complete', payload=payload
     )
-    await manager.broadcast(ws_message)
+    manager.broadcast(ws_message)
     db_history = db_release.history
     db_doc = db_history.document
     message_text = (

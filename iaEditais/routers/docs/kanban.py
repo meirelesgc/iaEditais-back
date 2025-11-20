@@ -7,8 +7,12 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
-from iaEditais.core.dependencies import Broker, CurrentUser, Session
-from iaEditais.core.ws import manager
+from iaEditais.core.dependencies import (
+    Broker,
+    CacheManager,
+    CurrentUser,
+    Session,
+)
 from iaEditais.models import Document, DocumentHistory, User
 from iaEditais.schemas import DocumentPublic, DocumentStatus, WSMessage
 
@@ -60,7 +64,11 @@ async def get_doc_or_404(doc_id: UUID, session: Session) -> Document:
 
 
 async def _set_status(
-    doc: Document, status: DocumentStatus, user: User, session: Session
+    doc: Document,
+    status: DocumentStatus,
+    user: User,
+    session: Session,
+    manager: CacheManager,
 ) -> Document:
     history = DocumentHistory(
         document_id=doc.id,
@@ -73,13 +81,12 @@ async def _set_status(
     await session.commit()
     await session.refresh(doc)
 
-    # Envio de atualização via WebSocket
     doc_public = DocumentPublic.model_validate(doc)
     payload = doc_public.model_dump(mode='json')
     ws_message = WSMessage(
         event='doc.kanban.update', message=status.value, payload=payload
     )
-    await manager.broadcast(ws_message)
+    manager.broadcast(ws_message)
 
     return doc
 
@@ -131,13 +138,14 @@ async def set_status_pending(
     session: Session,
     current_user: CurrentUser,
     broker: Broker,
+    manager: CacheManager,
 ):
     doc = await get_doc_or_404(doc_id, session)
     await _queue_notification_if_needed(
         doc, DocumentStatus.PENDING, session, broker
     )
     return await _set_status(
-        doc, DocumentStatus.PENDING, current_user, session
+        doc, DocumentStatus.PENDING, current_user, session, manager
     )
 
 
@@ -147,13 +155,14 @@ async def set_status_under_construction(
     session: Session,
     current_user: CurrentUser,
     broker: Broker,
+    manager: CacheManager,
 ):
     doc = await get_doc_or_404(doc_id, session)
     await _queue_notification_if_needed(
         doc, DocumentStatus.UNDER_CONSTRUCTION, session, broker
     )
     return await _set_status(
-        doc, DocumentStatus.UNDER_CONSTRUCTION, current_user, session
+        doc, DocumentStatus.UNDER_CONSTRUCTION, current_user, session, manager
     )
 
 
@@ -163,13 +172,14 @@ async def set_status_waiting_review(
     session: Session,
     current_user: CurrentUser,
     broker: Broker,
+    manager: CacheManager,
 ):
     doc = await get_doc_or_404(doc_id, session)
     await _queue_notification_if_needed(
         doc, DocumentStatus.WAITING_FOR_REVIEW, session, broker
     )
     return await _set_status(
-        doc, DocumentStatus.WAITING_FOR_REVIEW, current_user, session
+        doc, DocumentStatus.WAITING_FOR_REVIEW, current_user, session, manager
     )
 
 
@@ -179,11 +189,12 @@ async def set_status_completed(
     session: Session,
     current_user: CurrentUser,
     broker: Broker,
+    manager: CacheManager,
 ):
     doc = await get_doc_or_404(doc_id, session)
     await _queue_notification_if_needed(
         doc, DocumentStatus.COMPLETED, session, broker
     )
     return await _set_status(
-        doc, DocumentStatus.COMPLETED, current_user, session
+        doc, DocumentStatus.COMPLETED, current_user, session, manager
     )
