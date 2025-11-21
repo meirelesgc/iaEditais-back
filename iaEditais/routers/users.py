@@ -68,6 +68,11 @@ async def add_icon(
     current_user: CurrentUser,
     file: UploadFile = File(...),
 ):
+    """
+    Faz upload do ícone e vincula ao usuário através do campo icon_id.
+    Se já existir um ícone, ele é substituído (deletado do storage e do banco).
+    """
+    # 1. Validações de Usuário
     user_db = await session.get(User, user_id)
     if not user_db:
         raise HTTPException(
@@ -78,26 +83,39 @@ async def add_icon(
     if user_db.id != current_user.id:
         raise HTTPException(
             status_code=HTTPStatus.FORBIDDEN,
-            detail='Access denieds',
+            detail='Access denied',
         )
 
+    # 2. Validação do Arquivo
     if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
         raise HTTPException(
-            status_code=400,
+            status_code=HTTPStatus.BAD_REQUEST,
             detail='Invalid file format. Use PNG or JPG',
         )
 
+    # 3. Limpeza de Ícone Antigo (Evita arquivos orfãos)
+    if user_db.icon_id:
+        old_icon = await session.get(UserImage, user_db.icon_id)
+        if old_icon:
+            await storage_service.delete_file(old_icon.file_path)
+            await session.delete(old_icon)
+
+    # 4. Upload e Criação do Novo Registro
     file_path = await storage_service.save_file(file, UPLOAD_DIRECTORY)
+
     user_image = UserImage(
         user_id=current_user.id,
         type='ICON',
         file_path=file_path,
     )
     session.add(user_image)
-    await session.commit()
-    await session.refresh(user_image)
+    await session.flush()
 
-    return Message(message='Success')
+    user_db.icon_id = user_image.id
+
+    await session.commit()
+
+    return Message(message='Icon updated successfully')
 
 
 @router.get('/', response_model=UserList)
@@ -148,21 +166,25 @@ async def update_user(
             status_code=HTTPStatus.NOT_FOUND, detail='User not found'
         )
 
-    conflict_user = await session.scalar(
-        select(User).where(
-            User.deleted_at.is_(None),
-            User.id != user_update.id,
-            or_(
-                User.email == user_update.email,
-                User.phone_number == user_update.phone_number,
-            ),
+    # Verifica conflito APENAS se email ou telefone mudaram
+    if (user_update.email != db_user.email) or (
+        user_update.phone_number != db_user.phone_number
+    ):
+        conflict_user = await session.scalar(
+            select(User).where(
+                User.deleted_at.is_(None),
+                User.id != user_update.id,
+                or_(
+                    User.email == user_update.email,
+                    User.phone_number == user_update.phone_number,
+                ),
+            )
         )
-    )
-    if conflict_user:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Email or phone number already registered',
-        )
+        if conflict_user:
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail='Email or phone number already registered',
+            )
 
     db_user.username = user_update.username
     db_user.email = user_update.email
@@ -199,7 +221,8 @@ async def delete_user(
     db_user.deleted_by = current_user.id
     await session.commit()
 
-    return {'message': 'User deleted'}
+    # Nota: Retornar algo em 204 No Content é ignorado pelo cliente HTTP padrão,
+    # mas o FastAPI permite omitir o return ou retornar None.
 
 
 @router.delete('/{user_id}/icon', response_model=Message)
@@ -208,6 +231,9 @@ async def delete_icon(
     session: Session,
     current_user: CurrentUser,
 ):
+    """
+    Remove o ícone atual do usuário, apaga o arquivo e limpa o campo icon_id.
+    """
     user_db = await session.get(User, user_id)
     if not user_db:
         raise HTTPException(
@@ -221,23 +247,19 @@ async def delete_icon(
             detail='Access denied',
         )
 
-    user_image = await session.execute(
-        select(UserImage).where(
-            UserImage.user_id == current_user.id,
-            UserImage.type == 'ICON',
-        )
-    )
-    user_image = user_image.scalar_one_or_none()
-
-    if not user_image:
+    if not user_db.icon_id:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Icon not found',
+            status_code=HTTPStatus.NOT_FOUND, detail='Icon not found'
         )
 
-    await storage_service.delete_file(user_image.file_path)
+    user_image = await session.get(UserImage, user_db.icon_id)
 
-    await session.delete(user_image)
+    if user_image:
+        await storage_service.delete_file(user_image.file_path)
+        await session.delete(user_image)
+
+    user_db.icon_id = None
+
     await session.commit()
 
     return Message(message='Icon successfully deleted!')

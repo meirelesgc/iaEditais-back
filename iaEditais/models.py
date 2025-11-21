@@ -140,6 +140,14 @@ class User(AuditMixin):
         default=None,
         nullable=True,
     )
+    icon_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('user_images.id', name='fk_users_icon_id'),
+        default=None,
+        nullable=True,
+    )
+    icon: Mapped[Optional['UserImage']] = relationship(
+        foreign_keys=[icon_id], init=False, lazy='selectin'
+    )
     unit: Mapped[Optional['Unit']] = relationship(
         back_populates='users', init=False, foreign_keys=[unit_id]
     )

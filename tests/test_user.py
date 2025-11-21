@@ -214,7 +214,7 @@ async def test_add_icon_success(logged_client):
 
     assert response.status_code == HTTPStatus.OK
     data = response.json()
-    assert data['message'] == 'Success'
+    assert data['message'] == 'Icon updated successfully'
 
 
 @pytest.mark.asyncio
