@@ -32,9 +32,13 @@ class DocumentReleaseFeedback(BaseModel):
     )
 
 
+class DocumentReleaseFeedbackPublic(DocumentReleaseFeedback):
+    score: int = Field(...)
+
+
 class AppliedBranchPublic(BranchSchema):
     id: UUID
-    evaluation: DocumentReleaseFeedback
+    evaluation: DocumentReleaseFeedbackPublic
 
     model_config = ConfigDict(from_attributes=True)
 
