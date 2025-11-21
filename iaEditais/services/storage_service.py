@@ -20,3 +20,18 @@ async def save_file(file: UploadFile, upload_directory) -> str:
     finally:
         file.file.close()
     return f'/uploads/{unique_filename}'
+
+
+async def delete_file(file_path: str) -> bool:
+    filename = os.path.basename(file_path)
+
+    absolute_path = os.path.join(UPLOAD_DIRECTORY, filename)
+
+    if os.path.exists(absolute_path):
+        try:
+            os.remove(absolute_path)
+            return True
+        except Exception as e:
+            print(f'Erro ao deletar arquivo: {e}')
+            return False
+    return False

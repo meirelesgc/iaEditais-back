@@ -1,3 +1,4 @@
+import io
 from http import HTTPStatus
 from uuid import uuid4
 
@@ -197,3 +198,77 @@ async def test_delete_user_not_found(logged_client):
     response = client.delete(f'/user/{uuid4()}')
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json()['detail'] == 'User not found'
+
+
+@pytest.mark.asyncio
+async def test_add_icon_success(logged_client):
+    client, token, headers, user = await logged_client()
+
+    # Simulate a PNG file upload
+    file_content = io.BytesIO(b'fake image content')
+    response = client.post(
+        f'/user/{user.id}/icon',
+        files={'file': ('test.png', file_content, 'image/png')},
+        headers=headers,
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+    assert data['message'] == 'Success'
+
+
+@pytest.mark.asyncio
+async def test_add_icon_invalid_format(logged_client):
+    client, token, headers, user = await logged_client()
+
+    file_content = io.BytesIO(b'fake content')
+    response = client.post(
+        f'/user/{user.id}/icon',
+        files={'file': ('test.txt', file_content, 'text/plain')},
+        headers=headers,
+    )
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.json()['detail'] == 'Invalid file format. Use PNG or JPG'
+
+
+@pytest.mark.asyncio
+async def test_add_icon_user_not_found(logged_client):
+    client, token, headers, _ = await logged_client()
+
+    file_content = io.BytesIO(b'fake image content')
+    response = client.post(
+        f'/user/{uuid4()}/icon',
+        files={'file': ('test.png', file_content, 'image/png')},
+        headers=headers,
+    )
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json()['detail'] == 'User not found'
+
+
+@pytest.mark.asyncio
+async def test_delete_icon_success(logged_client):
+    client, token, headers, user = await logged_client()
+
+    # First upload an icon
+    file_content = io.BytesIO(b'fake image content')
+    client.post(
+        f'/user/{user.id}/icon',
+        files={'file': ('test.png', file_content, 'image/png')},
+        headers=headers,
+    )
+
+    # Now delete it
+    response = client.delete(f'/user/{user.id}/icon', headers=headers)
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()['message'] == 'Icon successfully deleted!'
+
+
+@pytest.mark.asyncio
+async def test_delete_icon_not_found(logged_client):
+    client, token, headers, user = await logged_client()
+
+    response = client.delete(f'/user/{user.id}/icon', headers=headers)
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json()['detail'] == 'Icon not found'

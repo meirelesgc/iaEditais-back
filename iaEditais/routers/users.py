@@ -4,12 +4,12 @@ from secrets import token_hex
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import or_, select
 
 from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.core.security import get_password_hash
-from iaEditais.models import User
+from iaEditais.models import User, UserImage
 from iaEditais.schemas import (
     UserCreate,
     UserFilter,
@@ -17,6 +17,10 @@ from iaEditais.schemas import (
     UserPublic,
     UserUpdate,
 )
+from iaEditais.schemas.common import Message
+from iaEditais.services import storage_service
+
+UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 
 router = APIRouter(prefix='/user', tags=['operações de sistema, usuário'])
 
@@ -55,6 +59,45 @@ async def create_user(user: UserCreate, session: Session):
     await session.refresh(db_user)
 
     return db_user
+
+
+@router.post('/{user_id}/icon', response_model=Message)
+async def add_icon(
+    user_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+    file: UploadFile = File(...),
+):
+    user_db = await session.get(User, user_id)
+    if not user_db:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='User not found',
+        )
+
+    if user_db.id != current_user.id:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail='Access denieds',
+        )
+
+    if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+        raise HTTPException(
+            status_code=400,
+            detail='Invalid file format. Use PNG or JPG',
+        )
+
+    file_path = await storage_service.save_file(file, UPLOAD_DIRECTORY)
+    user_image = UserImage(
+        user_id=current_user.id,
+        type='ICON',
+        file_path=file_path,
+    )
+    session.add(user_image)
+    await session.commit()
+    await session.refresh(user_image)
+
+    return Message(message='Success')
 
 
 @router.get('/', response_model=UserList)
@@ -157,3 +200,44 @@ async def delete_user(
     await session.commit()
 
     return {'message': 'User deleted'}
+
+
+@router.delete('/{user_id}/icon', response_model=Message)
+async def delete_icon(
+    user_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+):
+    user_db = await session.get(User, user_id)
+    if not user_db:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='User not found',
+        )
+
+    if user_db.id != current_user.id:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail='Access denied',
+        )
+
+    user_image = await session.execute(
+        select(UserImage).where(
+            UserImage.user_id == current_user.id,
+            UserImage.type == 'ICON',
+        )
+    )
+    user_image = user_image.scalar_one_or_none()
+
+    if not user_image:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Icon not found',
+        )
+
+    await storage_service.delete_file(user_image.file_path)
+
+    await session.delete(user_image)
+    await session.commit()
+
+    return Message(message='Icon successfully deleted!')
