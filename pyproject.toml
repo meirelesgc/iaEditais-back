@@ -1,6 +1,6 @@
 [project]
 name = "iaEditais"
-version = "3.4.0"
+version = "2.0.0"
 description = "This API was developed to assist in the preparation and analysis of public procurement notices, employing Artificial Intelligence (AI) techniques. The goal is to increase accuracy, compliance, and efficiency in the creation and review of notices, reducing errors and inconsistencies."
 authors = [{name = "gmcosta",email = "geu_costa@outlook.com"}]
 readme = "README.md"

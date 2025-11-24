@@ -1,16 +1,19 @@
 import os
-import re
+from http import HTTPStatus
 from uuid import UUID
 
 import httpx
 from faststream.rabbit import RabbitRouter
-from sqlalchemy import select
 
 from iaEditais.core.dependencies import CacheManager, Model, Session, VStore
 from iaEditais.core.settings import Settings
-from iaEditais.models import DocumentRelease, Source, User
+from iaEditais.models import DocumentRelease, Source
 from iaEditais.schemas import DocumentReleasePublic, WSMessage
-from iaEditais.services import releases_service, vstore_service
+from iaEditais.services import (
+    notification_service,
+    releases_service,
+    vstore_service,
+)
 from iaEditais.utils.PresidioAnonymizer import PresidioAnonymizer
 
 SETTINGS = Settings()
@@ -22,29 +25,58 @@ router = RabbitRouter()
 async def notifications_send_message(payload: dict, session: Session):
     user_ids = payload.get('user_ids', [])
     message_text = payload.get('message_text')
+
     if not user_ids or not message_text:
         return {'error': 'Invalid payload'}
-    statement = select(User).where(User.id.in_(user_ids))
-    query = await session.scalars(statement)
-    users_to_notify = query.all()
+
+    users_to_notify = await notification_service.get_users_to_notify(
+        session, user_ids
+    )
+
     if not users_to_notify:
         return {'status': 'No users found'}
+
     URL = SETTINGS.EVOLUTION_URL
     HEADERS = {
         'Content-Type': 'application/json',
         'apikey': SETTINGS.EVOLUTION_KEY,
     }
+
+    results = []
+
     async with httpx.AsyncClient() as client:
         for user in users_to_notify:
-            if not user.phone_number:
+            phone_number = notification_service.prepare_phone_number(user)
+
+            if not phone_number:
+                results.append({
+                    'status': 'skipped',
+                    'user_id': str(user.id),
+                    'reason': 'Invalid or missing phone number',
+                })
                 continue
-            phone_number = user.phone_number.strip()
-            phone_number = phone_number.replace(' ', '').replace('-', '')
-            if not re.fullmatch(r'55\d{10,11}', phone_number):
-                continue
+
             payload = {'number': phone_number, 'text': message_text}
-            await client.post(URL, headers=HEADERS, json=payload)
-    return {'status': 'success'}
+            try:
+                response = await client.post(
+                    URL, headers=HEADERS, json=payload
+                )
+
+                results.append({
+                    'status': 'success'
+                    if response.status_code == HTTPStatus.OK
+                    else 'failed',
+                    'user_id': str(user.id),
+                    'status_code': response.status_code,
+                    'response': response.text,
+                })
+            except Exception as e:
+                results.append({
+                    'status': 'error',
+                    'user_id': str(user.id),
+                    'error': str(e),
+                })
+    return {'status': 'completed', 'results': results}
 
 
 @router.subscriber('sources_create_vectors')
@@ -139,11 +171,7 @@ async def create_check_tree(
         event='doc.release.update', message='complete', payload=payload
     )
     manager.broadcast(ws_message)
-    db_history = db_release.history
-    db_doc = db_history.document
-    message_text = (
-        f"Olá! O processo de verificação do documento '{db_doc.name}' "
-        f'foi concluído com sucesso.'
-    )
+    message_text = notification_service.format_release_message(db_release)
+    db_doc = db_release.history.document
     user_ids = [editor.id for editor in db_doc.editors if editor.id]
     return {'user_ids': user_ids, 'message_text': message_text}

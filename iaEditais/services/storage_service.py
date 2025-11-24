@@ -31,7 +31,6 @@ async def delete_file(file_path: str) -> bool:
         try:
             os.remove(absolute_path)
             return True
-        except Exception as e:
-            print(f'Erro ao deletar arquivo: {e}')
+        except Exception:
             return False
     return False

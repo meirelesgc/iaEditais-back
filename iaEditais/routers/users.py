@@ -68,11 +68,6 @@ async def add_icon(
     current_user: CurrentUser,
     file: UploadFile = File(...),
 ):
-    """
-    Faz upload do ícone e vincula ao usuário através do campo icon_id.
-    Se já existir um ícone, ele é substituído (deletado do storage e do banco).
-    """
-    # 1. Validações de Usuário
     user_db = await session.get(User, user_id)
     if not user_db:
         raise HTTPException(

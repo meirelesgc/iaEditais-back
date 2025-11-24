@@ -280,16 +280,12 @@ async def process_branch(
             if d.page_content.strip()
         ])
         os.system('clear')
-        print(retrieved_contents)
-
         presidio_mapping = {
             k: v
             for d, _ in retrieved_contents
             if d.metadata and 'presidio_mapping' in d.metadata
             for k, v in d.metadata['presidio_mapping'].items()
         }
-        print(presidio_mapping)
-
         prompt_score += sum(score for _, score in retrieved_contents)
 
     typification_sources_text = []
@@ -385,38 +381,9 @@ def normalize_output(data):
     return {'fulfilled': fulfilled, 'score': score, 'feedback': feedback}
 
 
-def print_process_branch_result(result: dict):
-    print('==== DADOS DO PROCESSO ====')
-    print(f'Taxonomia: {result.get("taxonomy_title", "")}')
-    print(
-        f'Descrição da Taxonomia: {result.get("taxonomy_description", "")}\n'
-    )
-
-    print('Fontes da Taxonomia:')
-    print(result.get('taxonomy_source', 'Nenhuma fonte encontrada'))
-    print('\n---------------------------\n')
-
-    print(f'Ramo da Taxonomia: {result.get("taxonomy_branch_title", "")}')
-    print(
-        f'Descrição do Ramo: {result.get("taxonomy_branch_description", "")}\n'
-    )
-
-    print('Documentos encontrados:')
-    print(result.get('docs', 'Nenhum documento encontrado'))
-    print('\n---------------------------\n')
-
-    print('Fontes da Tipificação:')
-    print(result.get('typification_source', 'Nenhuma fonte encontrada'))
-    print('\n---------------------------\n')
-
-    print(f'Prompt para Justificativa: {result.get("query", "")}')
-    print(f'Pontuação do Prompt: {result.get("prompt_score", 0)}')
-
-
 def safe_wrapper(chain):
     def _safe_invoke(input_item):
         try:
-            print_process_branch_result(input_item)
             result = chain.invoke(input_item)
             return normalize_output(result)
         except OutputParserException as e:
