@@ -7,7 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy import or_, select
 
-from iaEditais.core.dependencies import CurrentUser, Session
+from iaEditais.core.dependencies import Broker, CurrentUser, Session
 from iaEditais.core.security import get_password_hash
 from iaEditais.models import User, UserImage
 from iaEditais.schemas import (
@@ -18,7 +18,7 @@ from iaEditais.schemas import (
     UserUpdate,
 )
 from iaEditais.schemas.common import Message
-from iaEditais.services import storage_service
+from iaEditais.services import notification_service, storage_service
 
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 
@@ -26,7 +26,7 @@ router = APIRouter(prefix='/user', tags=['operações de sistema, usuário'])
 
 
 @router.post('/', status_code=HTTPStatus.CREATED, response_model=UserPublic)
-async def create_user(user: UserCreate, session: Session):
+async def create_user(user: UserCreate, session: Session, broker: Broker):
     db_user = await session.scalar(
         select(User).where(
             User.deleted_at.is_(None),
@@ -41,9 +41,14 @@ async def create_user(user: UserCreate, session: Session):
             status_code=HTTPStatus.CONFLICT,
             detail='Email or phone number already registered',
         )
+    password_was_generated = False
+    temp_password = user.password
+
     if not user.password:
-        user.password = token_hex(256)
-    hashed_password = get_password_hash(user.password)
+        temp_password = token_hex(12)
+        password_was_generated = True
+
+    hashed_password = get_password_hash(temp_password)
 
     db_user = User(
         username=user.username,
@@ -57,6 +62,11 @@ async def create_user(user: UserCreate, session: Session):
     session.add(db_user)
     await session.commit()
     await session.refresh(db_user)
+
+    if password_was_generated:
+        await notification_service.publish_user_welcome_notification(
+            db_user, temp_password, broker
+        )
 
     return db_user
 

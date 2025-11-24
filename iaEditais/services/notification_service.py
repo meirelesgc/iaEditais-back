@@ -3,7 +3,32 @@ import re
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from iaEditais.core.dependencies import Broker
 from iaEditais.models import DocumentRelease, User
+
+
+def format_user_welcome_message(username: str, temp_password: str) -> str:
+    return (
+        f'🚀 Olá, {username}! Seu cadastro em nosso sistema foi concluído com sucesso.'
+        f'\n\nSua senha temporária para acesso é: *{temp_password}*'
+        f'\n\nPor favor, acesse a plataforma e altere sua senha imediatamente.'
+        f'\n\nAtenciosamente, A Equipe.'
+    )
+
+
+async def publish_user_welcome_notification(
+    user: User, temp_password: str, broker: Broker
+):
+    if not user.phone_number:
+        return {'status': 'skipped', 'reason': 'No phone number'}
+
+    message_text = format_user_welcome_message(user.username, temp_password)
+
+    payload = {'user_ids': [user.id], 'message_text': message_text}
+
+    await broker.publish(payload, 'notifications_send_message')
+
+    return {'status': 'published'}
 
 
 async def get_users_to_notify(session: AsyncSession, user_ids: list):
