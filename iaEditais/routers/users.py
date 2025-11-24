@@ -18,6 +18,7 @@ from iaEditais.schemas import (
     UserUpdate,
 )
 from iaEditais.schemas.common import Message
+from iaEditais.schemas.user import AccessType
 from iaEditais.services import notification_service, storage_service
 
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
@@ -166,37 +167,51 @@ async def update_user(
     current_user: CurrentUser,
 ):
     db_user = await session.get(User, user_update.id)
+
     if not db_user or db_user.deleted_at:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail='User not found'
         )
 
-    # Verifica conflito APENAS se email ou telefone mudaram
-    if (user_update.email != db_user.email) or (
-        user_update.phone_number != db_user.phone_number
-    ):
-        conflict_user = await session.scalar(
-            select(User).where(
-                User.deleted_at.is_(None),
-                User.id != user_update.id,
-                or_(
-                    User.email == user_update.email,
-                    User.phone_number == user_update.phone_number,
-                ),
-            )
+    is_owner = db_user.id == current_user.id
+    is_admin = current_user.access_level == AccessType.ADMIN
+
+    if not is_owner and not is_admin:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail='You are not authorized to update this user',
         )
-        if conflict_user:
-            raise HTTPException(
-                status_code=HTTPStatus.CONFLICT,
-                detail='Email or phone number already registered',
-            )
+
+    conflict_user = await session.scalar(
+        select(User).where(
+            User.deleted_at.is_(None),
+            User.id != user_update.id,
+            or_(
+                User.email == user_update.email,
+                User.phone_number == user_update.phone_number,
+            ),
+        )
+    )
+
+    if conflict_user:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Email or phone number already registered',
+        )
 
     db_user.username = user_update.username
     db_user.email = user_update.email
     db_user.phone_number = user_update.phone_number
-    db_user.access_level = user_update.access_level
-    db_user.unit_id = user_update.unit_id
     db_user.updated_by = current_user.id
+
+    if is_admin:
+        db_user.access_level = user_update.access_level
+        db_user.unit_id = user_update.unit_id
+    elif not is_admin and (
+        db_user.access_level != user_update.access_level
+        or db_user.unit_id != user_update.unit_id
+    ):
+        pass
 
     if user_update.password:
         db_user.password = get_password_hash(user_update.password)
@@ -226,9 +241,6 @@ async def delete_user(
     db_user.deleted_by = current_user.id
     await session.commit()
 
-    # Nota: Retornar algo em 204 No Content é ignorado pelo cliente HTTP padrão,
-    # mas o FastAPI permite omitir o return ou retornar None.
-
 
 @router.delete('/{user_id}/icon', response_model=Message)
 async def delete_icon(
@@ -236,9 +248,6 @@ async def delete_icon(
     session: Session,
     current_user: CurrentUser,
 ):
-    """
-    Remove o ícone atual do usuário, apaga o arquivo e limpa o campo icon_id.
-    """
     user_db = await session.get(User, user_id)
     if not user_db:
         raise HTTPException(
