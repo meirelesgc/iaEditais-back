@@ -40,7 +40,7 @@ def typification_report(
                 tabela_fontes.append([
                     s['name'],
                     s['description'],
-                    s['created_at'].split('T')[0],
+                    str(s['created_at']).split('T')[0],
                 ])
             tabela = Table(tabela_fontes)
             tabela.setStyle(
