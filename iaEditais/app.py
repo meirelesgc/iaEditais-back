@@ -19,11 +19,10 @@ from iaEditais.routers.check_tree import (
 from iaEditais.routers.docs import docs, kanban, messages, releases
 from iaEditais.routers.evaluation import (
     metrics,
-    test_case_metrics,
     test_cases,
     test_results,
     test_runs,
-    tests,
+    test_collections,
 )
 
 # Diretórios
@@ -57,10 +56,9 @@ app.include_router(taxonomies.router)
 app.include_router(branches.router)
 
 # Routers de avaliação
-app.include_router(tests.router)
+app.include_router(test_collections.router)
 app.include_router(metrics.router)
 app.include_router(test_cases.router)
-app.include_router(test_case_metrics.router)
 app.include_router(test_runs.router)
 app.include_router(test_results.router)
 

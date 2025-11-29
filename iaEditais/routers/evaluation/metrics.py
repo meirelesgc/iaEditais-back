@@ -16,6 +16,7 @@ from iaEditais.schemas import (
     MetricCreate,
     MetricList,
     MetricPublic,
+    MetricUpdate,
 )
 
 router = APIRouter(
@@ -35,29 +36,19 @@ async def create_metric(
     current_user: CurrentUser,
 ):
     """Cria uma nova métrica."""
-    # Verifica se já existe uma métrica com o mesmo nome para o mesmo modelo
+    # Verifica se já existe uma métrica com o mesmo nome
     existing_metric = await session.scalar(
         select(Metric).where(
             Metric.deleted_at.is_(None),
             Metric.name == metric.name,
-            Metric.model_id == metric.model_id,
         )
     )
 
     if existing_metric:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
-            detail='Metric name already exists for this model',
+            detail='Metric name already exists',
         )
-
-    # Valida se o modelo existe (se fornecido)
-    if metric.model_id:
-        model = await evaluation_repository.get_ai_model(session, metric.model_id)
-        if not model or model.deleted_at:
-            raise HTTPException(
-                status_code=HTTPStatus.NOT_FOUND,
-                detail='AI Model not found',
-            )
 
     db_metric = await evaluation_repository.create_metric(
         session, metric.model_dump(), current_user
@@ -90,6 +81,45 @@ async def read_metric(metric_id: UUID, session: Session):
         )
 
     return metric
+
+
+@router.put('/{metric_id}', response_model=MetricPublic)
+async def update_metric(
+    metric_id: UUID,
+    metric_data: MetricUpdate,
+    session: Session,
+    current_user: CurrentUser,
+):
+    """Atualiza uma métrica."""
+    updated_metric = await evaluation_repository.update_metric(
+        session, metric_id, metric_data.model_dump(), current_user
+    )
+
+    if not updated_metric:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Metric not found'
+        )
+
+    return updated_metric
+
+
+@router.delete('/{metric_id}', status_code=HTTPStatus.NO_CONTENT)
+async def delete_metric(
+    metric_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+):
+    """Remove (soft delete) uma métrica."""
+    deleted_metric = await evaluation_repository.delete_metric(
+        session, metric_id, current_user
+    )
+
+    if not deleted_metric:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Metric not found'
+        )
 
 
 # ===========================

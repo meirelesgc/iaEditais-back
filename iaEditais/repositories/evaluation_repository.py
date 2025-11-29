@@ -12,12 +12,10 @@ from iaEditais.models import (
     Branch,
     Document,
     Metric,
-    Test,
+    TestCollection,
     TestCase,
-    TestCaseMetric,
     TestResult,
     TestRun,
-    TestRunCase,
     User,
 )
 
@@ -26,38 +24,66 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 
 
 # ===========================
-# Test Repository
+# Test Collection Repository
 # ===========================
 
-async def create_test(session: Session, test_data: dict, current_user: CurrentUser):
-    """Cria um novo teste."""
-    db_test = Test(
-        name=test_data['name'],
-        description=test_data.get('description'),
+async def create_test_collection(session: Session, test_collection_data: dict, current_user: CurrentUser):
+    """Cria uma nova coleção de testes."""
+    db_test_collection = TestCollection(
+        name=test_collection_data['name'],
+        description=test_collection_data.get('description'),
         created_by=current_user.id,
     )
-    session.add(db_test)
+    session.add(db_test_collection)
     await session.commit()
-    await session.refresh(db_test)
-    return db_test
+    await session.refresh(db_test_collection)
+    return db_test_collection
 
 
-async def get_test(session: Session, test_id: UUID):
-    """Busca um teste por ID."""
-    return await session.get(Test, test_id)
+async def get_test_collection(session: Session, test_collection_id: UUID):
+    """Busca uma coleção de testes por ID."""
+    return await session.get(TestCollection, test_collection_id)
 
 
-async def get_tests(session: Session, offset: int = 0, limit: int = 100):
-    """Lista todos os testes ativos."""
+async def get_test_collections(session: Session, offset: int = 0, limit: int = 100):
+    """Lista todas as coleções de testes ativas."""
     query = (
-        select(Test)
-        .where(Test.deleted_at.is_(None))
+        select(TestCollection)
+        .where(TestCollection.deleted_at.is_(None))
         .offset(offset)
         .limit(limit)
-        .order_by(Test.created_at.desc())
+        .order_by(TestCollection.created_at.desc())
     )
     result = await session.scalars(query)
     return result.all()
+
+
+async def update_test_collection(session: Session, test_collection_id: UUID, test_collection_data: dict, current_user: CurrentUser):
+    """Atualiza uma coleção de testes."""
+    db_test_collection = await session.get(TestCollection, test_collection_id)
+    if not db_test_collection:
+        return None
+    
+    for key, value in test_collection_data.items():
+        setattr(db_test_collection, key, value)
+    
+    db_test_collection.updated_by = current_user.id
+    await session.commit()
+    await session.refresh(db_test_collection)
+    return db_test_collection
+
+
+async def delete_test_collection(session: Session, test_collection_id: UUID, current_user: CurrentUser):
+    """Remove (soft delete) uma coleção de testes."""
+    db_test_collection = await session.get(TestCollection, test_collection_id)
+    if not db_test_collection:
+        return None
+        
+    from datetime import datetime
+    db_test_collection.deleted_at = datetime.now()
+    db_test_collection.deleted_by = current_user.id
+    await session.commit()
+    return db_test_collection
 
 
 # ===========================
@@ -103,7 +129,6 @@ async def create_metric(session: Session, metric_data: dict, current_user: Curre
     """Cria uma nova métrica."""
     db_metric = Metric(
         name=metric_data['name'],
-        model_id=metric_data.get('model_id'),
         criteria=metric_data.get('criteria'),
         evaluation_steps=metric_data.get('evaluation_steps'),
         threshold=metric_data.get('threshold', 0.5),
@@ -134,6 +159,34 @@ async def get_metrics(session: Session, offset: int = 0, limit: int = 100):
     return result.all()
 
 
+async def update_metric(session: Session, metric_id: UUID, metric_data: dict, current_user: CurrentUser):
+    """Atualiza uma métrica."""
+    db_metric = await session.get(Metric, metric_id)
+    if not db_metric:
+        return None
+    
+    for key, value in metric_data.items():
+        setattr(db_metric, key, value)
+    
+    db_metric.updated_by = current_user.id
+    await session.commit()
+    await session.refresh(db_metric)
+    return db_metric
+
+
+async def delete_metric(session: Session, metric_id: UUID, current_user: CurrentUser):
+    """Remove (soft delete) uma métrica."""
+    db_metric = await session.get(Metric, metric_id)
+    if not db_metric:
+        return None
+        
+    from datetime import datetime
+    db_metric.deleted_at = datetime.now()
+    db_metric.deleted_by = current_user.id
+    await session.commit()
+    return db_metric
+
+
 # ===========================
 # TestCase Repository
 # ===========================
@@ -156,17 +209,10 @@ async def get_branch_by_name_or_id(session: Session, branch_id: Optional[UUID] =
 
 async def create_test_case(session: Session, test_case_data: dict, current_user: CurrentUser):
     """Cria um novo caso de teste."""
-    # Resolve branch_id se branch_name foi fornecido
-    branch_id = test_case_data.get('branch_id')
-    if not branch_id and test_case_data.get('branch_name'):
-        branch = await get_branch_by_name_or_id(session, branch_name=test_case_data['branch_name'])
-        if branch:
-            branch_id = branch.id
-    
     db_test_case = TestCase(
         name=test_case_data['name'],
-        test_id=test_case_data['test_id'],
-        branch_id=branch_id,
+        test_collection_id=test_case_data['test_collection_id'],
+        branch_id=test_case_data.get('branch_id'),
         doc_id=test_case_data.get('doc_id'),
         input=test_case_data.get('input'),
         expected_feedback=test_case_data.get('expected_feedback'),
@@ -184,56 +230,45 @@ async def get_test_case(session: Session, test_case_id: UUID):
     return await session.get(TestCase, test_case_id)
 
 
-async def get_test_cases(session: Session, test_id: Optional[UUID] = None, offset: int = 0, limit: int = 100):
+async def get_test_cases(session: Session, test_collection_id: Optional[UUID] = None, offset: int = 0, limit: int = 100):
     """Lista todos os casos de teste ativos."""
     query = select(TestCase).where(TestCase.deleted_at.is_(None))
     
-    if test_id:
-        query = query.where(TestCase.test_id == test_id)
+    if test_collection_id:
+        query = query.where(TestCase.test_collection_id == test_collection_id)
     
     query = query.offset(offset).limit(limit).order_by(TestCase.created_at.desc())
     result = await session.scalars(query)
     return result.all()
 
 
-# ===========================
-# TestCaseMetric Repository
-# ===========================
-
-async def create_test_case_metric(session: Session, test_case_metric_data: dict, current_user: CurrentUser):
-    """Cria uma nova associação entre caso de teste e métrica."""
-    # Busca o test_case para obter o test_id
-    test_case = await get_test_case(session, test_case_metric_data['test_case_id'])
-    if not test_case:
-        raise ValueError("Test case not found")
+async def update_test_case(session: Session, test_case_id: UUID, test_case_data: dict, current_user: CurrentUser):
+    """Atualiza um caso de teste."""
+    db_test_case = await session.get(TestCase, test_case_id)
+    if not db_test_case:
+        return None
     
-    db_test_case_metric = TestCaseMetric(
-        test_case_id=test_case_metric_data['test_case_id'],
-        metric_id=test_case_metric_data['metric_id'],
-        test_id=test_case.test_id,
-        created_by=current_user.id,
-    )
-    session.add(db_test_case_metric)
+    for key, value in test_case_data.items():
+        if value is not None:
+            setattr(db_test_case, key, value)
+    
+    db_test_case.updated_by = current_user.id
     await session.commit()
-    await session.refresh(db_test_case_metric)
-    return db_test_case_metric
+    await session.refresh(db_test_case)
+    return db_test_case
 
 
-async def get_test_case_metric(session: Session, test_case_metric_id: UUID):
-    """Busca uma associação caso-métrica por ID."""
-    return await session.get(TestCaseMetric, test_case_metric_id)
-
-
-async def get_test_case_metrics(session: Session, test_case_id: Optional[UUID] = None, offset: int = 0, limit: int = 100):
-    """Lista todas as associações caso-métrica ativas."""
-    query = select(TestCaseMetric).where(TestCaseMetric.deleted_at.is_(None))
-    
-    if test_case_id:
-        query = query.where(TestCaseMetric.test_case_id == test_case_id)
-    
-    query = query.offset(offset).limit(limit).order_by(TestCaseMetric.created_at.desc())
-    result = await session.scalars(query)
-    return result.all()
+async def delete_test_case(session: Session, test_case_id: UUID, current_user: CurrentUser):
+    """Remove (soft delete) um caso de teste."""
+    db_test_case = await session.get(TestCase, test_case_id)
+    if not db_test_case:
+        return None
+        
+    from datetime import datetime
+    db_test_case.deleted_at = datetime.now()
+    db_test_case.deleted_by = current_user.id
+    await session.commit()
+    return db_test_case
 
 
 # ===========================
@@ -243,7 +278,7 @@ async def get_test_case_metrics(session: Session, test_case_id: Optional[UUID] =
 async def create_test_run(session: Session, test_run_data: dict, current_user: CurrentUser):
     """Cria uma nova execução de teste."""
     db_test_run = TestRun(
-        test_id=test_run_data['test_id'],
+        test_collection_id=test_run_data.get('test_collection_id'),
         created_by=current_user.id,
     )
     session.add(db_test_run)
@@ -258,49 +293,16 @@ async def get_test_run(session: Session, test_run_id: UUID):
 
 
 # ===========================
-# TestRunCase Repository
-# ===========================
-
-async def create_test_run_cases(session: Session, test_run_id: UUID, case_metric_ids: list[UUID], test_id: UUID, current_user: CurrentUser):
-    """Cria registros de casos executados em uma run."""
-    test_run_cases = []
-    
-    for case_metric_id in case_metric_ids:
-        db_test_run_case = TestRunCase(
-            test_run_id=test_run_id,
-            test_case_metric_id=case_metric_id,
-            test_id=test_id,
-            created_by=current_user.id,
-        )
-        session.add(db_test_run_case)
-        test_run_cases.append(db_test_run_case)
-    
-    await session.commit()
-    for trc in test_run_cases:
-        await session.refresh(trc)
-    
-    return test_run_cases
-
-
-async def get_test_run_cases(session: Session, test_run_id: UUID):
-    """Busca todos os casos executados em uma run."""
-    query = select(TestRunCase).where(
-        TestRunCase.test_run_id == test_run_id,
-        TestRunCase.deleted_at.is_(None)
-    )
-    result = await session.scalars(query)
-    return result.all()
-
-
-# ===========================
 # TestResult Repository
 # ===========================
 
 async def create_test_result(session: Session, test_result_data: dict):
     """Cria um novo resultado de teste."""
     db_test_result = TestResult(
-        test_run_case_id=test_result_data['test_run_case_id'],
-        model_id=test_result_data.get('model_id'),
+        test_run_id=test_result_data['test_run_id'],
+        test_case_id=test_result_data['test_case_id'],
+        metric_id=test_result_data['metric_id'],
+        model_id=test_result_data['model_id'],
         threshold_used=test_result_data.get('threshold_used'),
         reason_feedback=test_result_data.get('reason_feedback'),
         score_feedback=test_result_data.get('score_feedback'),
@@ -328,9 +330,7 @@ async def get_test_results(session: Session, test_run_id: Optional[UUID] = None,
     query = select(TestResult).where(TestResult.deleted_at.is_(None))
     
     if test_run_id:
-        # Join com test_run_cases para filtrar por test_run_id
-        query = query.join(TestRunCase, TestResult.test_run_case_id == TestRunCase.id)
-        query = query.where(TestRunCase.test_run_id == test_run_id)
+        query = query.where(TestResult.test_run_id == test_run_id)
     
     query = query.offset(offset).limit(limit).order_by(TestResult.created_at.desc())
     result = await session.scalars(query)

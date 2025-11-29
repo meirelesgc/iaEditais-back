@@ -1,31 +1,153 @@
 import asyncio
-from concurrent.futures import ThreadPoolExecutor
-from typing import Annotated, Any, Dict
+import logging
+from typing import Optional
 from uuid import UUID
 
-from fastapi import Depends, File, UploadFile
-from langchain_core.language_models.chat_models import BaseChatModel
+from deepeval.metrics import GEval
+from deepeval.test_case import LLMTestCase
+from deepeval.test_case import LLMTestCaseParams
+from fastapi import File, UploadFile
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from iaEditais.core.database import get_session
-from iaEditais.core.llm import get_model
-from iaEditais.core.security import get_current_user
+from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import (
+    AIModel,
     AppliedTaxonomy,
     AppliedTypification,
     DocumentRelease,
-    TestCase,
-    TestCaseMetric,
-    User,
+    Metric,
 )
 from iaEditais.repositories import evaluation_repository
 from iaEditais.services import releases_service
 
-Session = Annotated[AsyncSession, Depends(get_session)]
-CurrentUser = Annotated[User, Depends(get_current_user)]
-Model = Annotated[BaseChatModel, Depends(get_model)]
+logger = logging.getLogger(__name__)
+
+
+async def wait_for_release_processing(session: Session, release_id: UUID) -> DocumentRelease:
+    """
+    Aguarda o processamento do release ser concluído.
+    Verifica se o campo 'description' foi preenchido, o que ocorre na etapa final.
+    """
+    max_retries = 60  # 5 minutes (60 * 5s)
+    for _ in range(max_retries):
+        # Refresh release with full tree
+        stmt = (
+            select(DocumentRelease)
+            .where(DocumentRelease.id == release_id)
+            .options(
+                selectinload(DocumentRelease.check_tree)
+                .selectinload(AppliedTypification.taxonomies)
+                .selectinload(AppliedTaxonomy.branches)
+            )
+        )
+        release = await session.scalar(stmt)
+        
+        if release and release.description:
+            return release
+        
+        await asyncio.sleep(5)
+    
+    raise TimeoutError("Timeout waiting for release processing")
+
+
+async def process_test_case(
+    session: Session, 
+    test_case, 
+    metric_id: UUID, 
+    model_id: Optional[UUID], 
+    processed_release: DocumentRelease, 
+    test_run_id: UUID, 
+    current_user: CurrentUser
+):
+    """
+    Executa a avaliação de um caso de teste utilizando DeepEval.
+    Compara o resultado do processamento (AppliedBranch) com o esperado (TestCase).
+    """
+
+    print(f"3. Processing test case: {test_case.id}")
+    # 1. Busca Métrica e Modelo
+    metric_db = await session.get(Metric, metric_id)
+    if not metric_db:
+        raise ValueError(f"Metric {metric_id} not found")
+
+    # 2. Encontra o AppliedBranch correspondente ao TestCase
+    target_branch = None
+    if test_case.branch_id:
+        for typ in processed_release.check_tree:
+            for tax in typ.taxonomies:
+                for branch in tax.branches:
+                    if branch.original_id == test_case.branch_id:
+                        target_branch = branch
+                        break
+                if target_branch:
+                    break
+            if target_branch:
+                break
+    
+    actual_output = "Nenhum resultado gerado para este item."
+    if target_branch and target_branch.feedback:
+        actual_output = target_branch.feedback
+
+    # 3. Prepara LLMTestCase do DeepEval
+    llm_test_case = LLMTestCase(
+        input=test_case.input or test_case.name,
+        actual_output=actual_output,
+        expected_output=test_case.expected_feedback
+    )
+
+    # 4. Configura Métrica GEval
+    # Mapeia steps do banco para lista de strings
+    eval_steps = []
+    if metric_db.evaluation_steps:
+        eval_steps = [step.strip() for step in metric_db.evaluation_steps.split('\n') if step.strip()]
+
+    metric = GEval(
+        name=metric_db.name,
+        criteria=metric_db.criteria,
+        evaluation_steps=eval_steps,
+        evaluation_params=[LLMTestCaseParams.INPUT, LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
+        model='gpt-4o-mini', # Pode ser parametrizável, mas GEval usa um modelo para julgar
+        threshold=metric_db.threshold or 0.5
+    )
+
+    # 5. Executa Avaliação
+    try:
+        metric.measure(llm_test_case)
+        score = metric.score
+        reason = metric.reason
+        passed = metric.is_successful()
+    except Exception as e:
+        logger.error("Error executing DeepEval metric: %s", e)
+        score = 0.0
+        reason = f"Error evaluating: {str(e)}"
+        passed = False
+
+    # 6. Salva Resultado
+    result_data = {
+        'test_run_id': test_run_id,
+        'test_case_id': test_case.id,
+        'metric_id': metric_id,
+        'model_id': model_id,
+        'threshold_used': metric_db.threshold,
+        'reason_feedback': reason,
+        'score_feedback': score,
+        'passed_feedback': passed,
+        'actual_feedback': actual_output,
+        'actual_fulfilled': target_branch.fulfilled if target_branch else False,
+        'passed_fulfilled': (target_branch.fulfilled == test_case.expected_fulfilled) if target_branch else False,
+        'created_by': current_user.id
+    }
+    
+    result_id = await evaluation_repository.create_test_result(session, result_data)
+    
+    return {
+        'test_case_id': str(test_case.id),
+        'metric_id': str(metric_id),
+        'result_id': str(result_id),
+        'passed': passed,
+        'score': score
+    }
 
 
 async def run_evaluation(
@@ -37,338 +159,112 @@ async def run_evaluation(
 ):
     """Orquestra o processo de avaliação de testes."""
     
-    test_id = UUID(test_run_data['test_id'])
-    case_metric_ids = test_run_data['case_metric_ids']
-    
-    # Validações iniciais
-    test = await evaluation_repository.get_test(session, test_id)
-    if not test or test.deleted_at:
-        raise ValueError("Test not found")
-    
-    # Valida todos os test_case_metric_ids e verifica doc_id
-    doc_ids = set()
-    for case_metric_id in case_metric_ids:
-        tcm = await evaluation_repository.get_test_case_metric(session, case_metric_id)
+    test_collection_id = test_run_data.get('test_collection_id')
+    if test_collection_id:
+        test_collection_id = UUID(test_collection_id)
         
-        if not tcm or tcm.deleted_at or tcm.test_id != test_id:
-            raise ValueError(f"Invalid test_case_metric_id: {case_metric_id}")
+    test_case_id = test_run_data.get('test_case_id')
+    if test_case_id:
+        test_case_id = UUID(test_case_id)
         
-        test_case = await evaluation_repository.get_test_case(session, tcm.test_case_id)
-        doc_ids.add(test_case.doc_id)
+    metric_ids = [UUID(m_id) for m_id in test_run_data['metric_ids']]
     
-    # Valida que todos os casos referenciam o mesmo documento
+    model_id = test_run_data.get('model_id')
+    if model_id:
+        model_id = UUID(model_id)
+    
+    test_cases = []
+    doc_id = None
+    
+    if test_case_id:
+        # Execução de um caso de teste específico
+        test_case = await evaluation_repository.get_test_case(session, test_case_id)
+        if not test_case or test_case.deleted_at:
+            raise ValueError("Test case not found")
+        
+        test_cases = [test_case]
+        doc_id = test_case.doc_id
+        
+        # Se não foi passado collection_id, tenta pegar do caso de teste para manter consistência no TestRun
+        if not test_collection_id:
+            test_collection_id = test_case.test_collection_id
+            
+    elif test_collection_id:
+        # Execução de toda a coleção
+        test_collection = await evaluation_repository.get_test_collection(session, test_collection_id)
+        if not test_collection or test_collection.deleted_at:
+            raise ValueError("Test collection not found")
+        
+        test_cases = await evaluation_repository.get_test_cases(session, test_collection_id=test_collection_id)
+        if not test_cases:
+            raise ValueError("No test cases found for this collection")
+    else:
+        raise ValueError("Either test_collection_id or test_case_id must be provided")
+    
+    # Valida que todos os casos referenciam o mesmo documento (caso seja coleção)
+    doc_ids = set(tc.doc_id for tc in test_cases if tc.doc_id)
     if len(doc_ids) > 1:
         raise ValueError("All test cases must reference the same document")
+    
+    if not doc_ids:
+        raise ValueError("Test cases must have a document associated")
     
     doc_id = doc_ids.pop()
     
     # Cria test_run
-    test_run = await evaluation_repository.create_test_run(session, test_run_data, current_user)
+    test_run_data_db = {
+        'test_collection_id': test_collection_id,
+        'created_by': current_user.id
+    }
+    test_run = await evaluation_repository.create_test_run(session, test_run_data_db, current_user)
     test_run_id = test_run.id
     
-    # Cria test_run_cases
-    test_run_cases = await evaluation_repository.create_test_run_cases(
-        session, test_run_id, case_metric_ids, test_id, current_user
-    )
-    
-    # Extrai IDs de test_run_cases antes do polling
-    test_run_cases_data = []
-    for trc in test_run_cases:
-        test_run_cases_data.append({
-            'id': trc.id,
-            'test_case_metric_id': trc.test_case_metric_id
-        })
-    
-    # Processa documento
+    # Processa documento (Flow completo: Upload -> RabbitMQ -> Processamento -> Vetores -> CheckTree)
     db_release = await releases_service.create_release(
         doc_id, session, current_user, file
     )
+
+    print(f"1. Release created: {db_release.id}")
     
-    # Publica evento no RabbitMQ
+    # Publica evento no RabbitMQ para iniciar o processamento
     if broker:
         await broker.publish(db_release.id, 'releases_create_vectors')
     else:
         raise ValueError("Broker not available for publishing release event")
     
-    # Aguarda processamento do release
+    # Aguarda processamento completo do release
     processed_release = await wait_for_release_processing(session, db_release.id)
+
+    print(f"2. Release processed: {processed_release.id}")
 
     # Processa cada caso de teste
     results_summary = []
     
-    for i, trc_data in enumerate(test_run_cases_data):
-        try:
-            tcm = await evaluation_repository.get_test_case_metric(session, trc_data['test_case_metric_id'])
-            test_case = await evaluation_repository.get_test_case(session, tcm.test_case_id)
-            
-            result = await process_test_case(
-                session, test_case, tcm, processed_release, trc_data['id'], current_user
-            )
-            results_summary.append(result)
-            
-        except Exception as e:
-            results_summary.append({
-                'test_case_id': str(trc_data['test_case_metric_id']),
-                'error': str(e)
-            })
-    
-    test_run_id_str = str(test_run_id)
-    test_id_str = str(test_id)
+    for test_case in test_cases:
+        for metric_id in metric_ids:
+            try:
+                result = await process_test_case(
+                    session, 
+                    test_case, 
+                    metric_id, 
+                    model_id, 
+                    processed_release, 
+                    test_run_id, 
+                    current_user
+                )
+                results_summary.append(result)
+            except Exception as e:
+                logger.exception("Error processing test case %s", test_case.id)
+                results_summary.append({
+                    'test_case_id': str(test_case.id),
+                    'metric_id': str(metric_id),
+                    'error': str(e)
+                })
     
     return {
-        'test_run_id': test_run_id_str,
-        'test_id': test_id_str,
-        'case_count': len(case_metric_ids),
+        'test_run_id': str(test_run_id),
+        'test_collection_id': str(test_collection_id) if test_collection_id else None,
+        'case_count': len(test_cases),
+        'metric_count': len(metric_ids),
         'results': results_summary
-    }
-
-
-async def process_test_case(
-    session: Session,
-    test_case: TestCase,
-    test_case_metric: TestCaseMetric,
-    processed_release: DocumentRelease,
-    test_run_case_id: UUID,
-    current_user: CurrentUser,
-):
-    """Processa um caso de teste individual."""
-    
-    # Extrai atributos para evitar lazy load
-    test_case_branch_id = test_case.branch_id
-    test_case_id = test_case.id
-    test_case_expected_fulfilled = test_case.expected_fulfilled
-    test_case_metric_metric_id = test_case_metric.metric_id
-    test_case_name = test_case.name
-    test_case_expected_feedback = test_case.expected_feedback
-    
-    # Busca branch associada
-    branch = await evaluation_repository.get_branch_by_name_or_id(session, test_case_branch_id)
-    if not branch:
-        raise ValueError(f"Branch not found for test_case {test_case_id}")
-    
-    branch_id = branch.id
-    
-    # Extrai evaluation da branch processada
-    branch_evaluation = extract_branch_evaluation(processed_release, branch_id)
-    
-    # Busca a métrica e extrai atributos
-    try:
-        metric = await evaluation_repository.get_metric(session, test_case_metric_metric_id)
-        if not metric:
-            raise ValueError(f"Metric {test_case_metric_metric_id} not found")
-        
-        metric_name = metric.name
-        metric_criteria = metric.criteria
-        metric_evaluation_steps = metric.evaluation_steps
-        metric_threshold = metric.threshold or 0.5
-        metric_model_id = metric.model_id
-    except asyncio.CancelledError:
-        raise
-    except Exception as e:
-        return {
-            'test_case_id': str(test_case_id),
-            'error': f"Metric not found: {str(e)}"
-        }
-
-    # Executa avaliação com DeepEval
-    evaluation_result = await evaluate_with_metrics(
-        test_case_name=test_case_name,
-        test_case_expected_feedback=test_case_expected_feedback,
-        metric_name=metric_name,
-        metric_criteria=metric_criteria,
-        metric_evaluation_steps=metric_evaluation_steps,
-        metric_threshold=metric_threshold,
-        branch_evaluation=branch_evaluation
-    )
-
-    # Calcula comparação dos booleanos
-    actual_fulfilled = branch_evaluation.get('fulfilled', False)
-    expected_fulfilled = test_case_expected_fulfilled
-    passed_fulfilled = actual_fulfilled == expected_fulfilled
-
-    # Extrai o ID do usuário no contexto async correto
-    # current_user_id = current_user.id
-    
-    # Salva resultado
-    test_result_data = {
-        'test_run_case_id': test_run_case_id,
-        'model_id': metric_model_id,
-        'threshold_used': evaluation_result.get('threshold'),
-        'reason_feedback': evaluation_result.get('reasoning'),
-        'score_feedback': evaluation_result.get('score'),
-        'passed_feedback': evaluation_result.get('passed'),
-        'actual_feedback': branch_evaluation.get('feedback'),
-        'actual_fulfilled': actual_fulfilled,
-        'passed_fulfilled': passed_fulfilled,
-        # 'created_by': current_user_id,
-    }
-
-    print("Debug 4")
-    result_id = await evaluation_repository.create_test_result(session, test_result_data)
-    print("Debug 4.1")
-    result_id_str = str(result_id)
-    print("Debug 4.2")
-    test_case_id_str = str(test_case_id)
-    print("Debug 4.3")
-    metric_id_str = str(test_case_metric_metric_id)
-    print("Debug 4.4")
-
-    return {
-        'test_case_id': test_case_id_str,
-        'metric_id': metric_id_str,
-        'result_id': result_id_str,
-        'score': evaluation_result.get('score'),
-        'passed': evaluation_result.get('passed'),
-        'actual_fulfilled': actual_fulfilled,
-        'expected_fulfilled': expected_fulfilled,
-        'passed_fulfilled': passed_fulfilled
-    }
-
-
-async def wait_for_release_processing(session: Session, release_id: UUID, max_attempts: int = 60):
-    """Aguarda o processamento de um release com polling."""
-    
-    attempt = 0
-    
-    while attempt < max_attempts:
-        await asyncio.sleep(5)
-        
-        # Expira o cache da sessão para buscar dados atualizados
-        session.expire_all()
-        
-        # Busca o release atualizado com eager loading completo de todos os relacionamentos aninhados
-        query = select(DocumentRelease).options(
-            selectinload(DocumentRelease.check_tree).selectinload(
-                AppliedTypification.taxonomies
-            ).selectinload(
-                AppliedTaxonomy.branches
-            )
-        ).where(
-            DocumentRelease.id == release_id,
-            DocumentRelease.deleted_at.is_(None)
-        )
-        updated_release = await session.scalar(query)
-        
-        if updated_release and updated_release.check_tree:
-            if len(updated_release.check_tree) > 0:
-                return updated_release
-        
-        attempt += 1
-    
-    raise TimeoutError(f"Release processing timeout after {max_attempts} attempts")
-
-
-def extract_branch_evaluation(release: DocumentRelease, branch_id: UUID) -> Dict:
-    """Extrai a avaliação de uma branch específica do release processado."""
-    
-    # Navega pela estrutura do release para encontrar a branch
-    for typification in release.check_tree:
-        for taxonomy in typification.taxonomies:
-            for branch in taxonomy.branches:
-                if branch.original_id == branch_id:
-                    return {
-                        'feedback': branch.feedback,
-                        'fulfilled': branch.fulfilled,
-                        'score': branch.score,
-                    }
-    
-    # Se não encontrou, retorna valores padrão
-    return {
-        'feedback': 'Branch evaluation not found',
-        'fulfilled': False,
-        'score': 0,
-    }
-
-
-async def evaluate_with_metrics(
-    test_case_name: str,
-    test_case_expected_feedback: str,
-    metric_name: str,
-    metric_criteria: str,
-    metric_evaluation_steps: Any,
-    metric_threshold: float,
-    branch_evaluation: Dict,
-):
-    """Executa avaliação usando deepeval com métricas."""
-    
-    try:
-        from deepeval.test_case import LLMTestCase, LLMTestCaseParams
-        from deepeval.metrics import GEval
-        from deepeval import evaluate
-        
-        llm_test_case = LLMTestCase(
-            input=f"Avaliar critério: {test_case_name}",
-            actual_output=branch_evaluation.get('feedback', ''),
-            expected_output=test_case_expected_feedback or ''
-        )
-        
-        # Cria métrica
-        evaluation_steps = []
-        if metric_evaluation_steps:
-            if isinstance(metric_evaluation_steps, str):
-                evaluation_steps = [step.strip() for step in metric_evaluation_steps.split('\n') if step.strip()]
-            else:
-                evaluation_steps = metric_evaluation_steps
-        
-        precision_metric = GEval(
-            name=metric_name,
-            criteria=metric_criteria,
-            evaluation_params=[LLMTestCaseParams.ACTUAL_OUTPUT, LLMTestCaseParams.EXPECTED_OUTPUT],
-            evaluation_steps=evaluation_steps
-        )
-        
-        # Executa avaliação em thread separada para não bloquear event loop
-        loop = asyncio.get_event_loop()
-        
-        def run_deepeval():
-            """Wrapper síncrono para DeepEval"""
-            return evaluate(
-                test_cases=[llm_test_case], 
-                metrics=[precision_metric]
-            )
-        
-        with ThreadPoolExecutor(max_workers=1) as executor:
-            result = await loop.run_in_executor(executor, run_deepeval)
-        
-        # Extrai dados do resultado
-        test_results_list = result.test_results
-        
-        if test_results_list:
-            test_result = test_results_list[0]
-            metric_data = test_result.metrics_data[0] if test_result.metrics_data else None
-            return {
-                'score': metric_data.score if metric_data else 0.0,
-                'passed': test_result.success,
-                'reasoning': metric_data.reason if metric_data else 'No reasoning provided',
-                'threshold': metric_threshold,
-                'metric_name': metric_name
-            }
-        
-        return {
-            'score': 0.0,
-            'passed': False,
-            'reasoning': 'No evaluation result',
-            'threshold': metric_threshold,
-            'metric_name': metric_name
-        }
-        
-    except Exception as e:
-        return {
-            'score': 0.0,
-            'passed': False,
-            'reasoning': f'Evaluation error: {str(e)}',
-            'threshold': metric_threshold,
-            'metric_name': metric_name
-        }
-
-
-async def create_llm_test_case(test_case: TestCase, branch_evaluation: Dict) -> Dict:
-    """Monta um caso de teste para deepeval."""
-    
-    return {
-        'input': f"Avaliar critério: {test_case.name}",
-        'actual_output': branch_evaluation.get('feedback', ''),
-        'expected_output': test_case.expected_feedback or '',
-        'expected_fulfilled': test_case.expected_fulfilled,
-        'actual_fulfilled': branch_evaluation.get('fulfilled', False)
     }

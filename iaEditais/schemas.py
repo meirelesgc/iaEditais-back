@@ -324,16 +324,20 @@ class DocumentReleaseList(BaseModel):
 # Evaluation Schemas
 # ===========================
 
-class TestSchema(BaseModel):
+class TestCollectionSchema(BaseModel):
     name: str
     description: Optional[str] = None
 
 
-class TestCreate(TestSchema):
+class TestCollectionCreate(TestCollectionSchema):
     pass
 
 
-class TestPublic(TestSchema):
+class TestCollectionUpdate(TestCollectionSchema):
+    pass
+
+
+class TestCollectionPublic(TestCollectionSchema):
     id: UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
@@ -341,8 +345,8 @@ class TestPublic(TestSchema):
     model_config = ConfigDict(from_attributes=True)
 
 
-class TestList(BaseModel):
-    tests: list[TestPublic]
+class TestCollectionList(BaseModel):
+    test_collections: list[TestCollectionPublic]
 
 
 class AIModelSchema(BaseModel):
@@ -368,13 +372,16 @@ class AIModelList(BaseModel):
 
 class MetricSchema(BaseModel):
     name: str
-    model_id: Optional[UUID] = None
     criteria: Optional[str] = None
     evaluation_steps: Optional[str] = None
     threshold: Optional[float] = 0.5
 
 
 class MetricCreate(MetricSchema):
+    pass
+
+
+class MetricUpdate(MetricSchema):
     pass
 
 
@@ -392,9 +399,8 @@ class MetricList(BaseModel):
 
 class TestCaseSchema(BaseModel):
     name: str
-    test_id: UUID
+    test_collection_id: UUID
     branch_id: Optional[UUID] = None
-    branch_name: Optional[str] = None
     doc_id: UUID
     input: Optional[str] = None
     expected_feedback: Optional[str] = None
@@ -403,6 +409,14 @@ class TestCaseSchema(BaseModel):
 
 class TestCaseCreate(TestCaseSchema):
     pass
+
+
+class TestCaseUpdate(BaseModel):
+    name: Optional[str] = None
+    input: Optional[str] = None
+    expected_feedback: Optional[str] = None
+    expected_fulfilled: Optional[bool] = None
+    branch_id: Optional[UUID] = None
 
 
 class TestCasePublic(TestCaseSchema):
@@ -417,30 +431,8 @@ class TestCaseList(BaseModel):
     test_cases: list[TestCasePublic]
 
 
-class TestCaseMetricSchema(BaseModel):
-    test_case_id: UUID
-    metric_id: UUID
-
-
-class TestCaseMetricCreate(TestCaseMetricSchema):
-    pass
-
-
-class TestCaseMetricPublic(TestCaseMetricSchema):
-    id: UUID
-    test_id: UUID
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class TestCaseMetricList(BaseModel):
-    test_case_metrics: list[TestCaseMetricPublic]
-
-
 class TestRunSchema(BaseModel):
-    test_id: UUID
+    test_collection_id: Optional[UUID] = None
     created_by: Optional[UUID] = None
 
 
@@ -449,14 +441,17 @@ class TestRunCreate(TestRunSchema):
 
 
 class TestRunExecute(BaseModel):
-    test_id: UUID
-    case_metric_ids: list[UUID]
+    test_collection_id: Optional[UUID] = None
+    test_case_id: Optional[UUID] = None
+    metric_ids: list[UUID]
+    model_id: Optional[UUID] = None
+    # If test_collection_id is provided, all cases in collection are run
+    # If specific test cases are needed, we could add test_case_ids list
 
 
 class TestRunExecutionResult(BaseModel):
     """Resultado da execução de um test run"""
     test_run_id: str
-    test_id: str
     case_count: int
     results: list[dict]
     
@@ -477,8 +472,10 @@ class TestRunList(BaseModel):
 
 class TestResultPublic(BaseModel):
     id: UUID
-    test_run_case_id: UUID
-    model_id: Optional[UUID] = None
+    test_run_id: UUID
+    test_case_id: UUID
+    metric_id: UUID
+    model_id: UUID
     threshold_used: Optional[float] = None
     reason_feedback: Optional[str] = None
     score_feedback: Optional[float] = None

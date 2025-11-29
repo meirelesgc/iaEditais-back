@@ -2,9 +2,7 @@
 name = "iaEditais"
 version = "0.1.0"
 description = ""
-authors = [
-    {name = "gmcosta",email = "geu_costa@outlook.com"}
-]
+authors = [{ name = "gmcosta", email = "geu_costa@outlook.com" }]
 readme = "README.md"
 requires-python = ">=3.13,<4.0"
 dependencies = [
@@ -30,7 +28,7 @@ dependencies = [
 ]
 
 [tool.poetry]
-packages = [{include = "iaEditais"}]
+packages = [{ include = "iaEditais" }]
 
 
 [tool.poetry.group.dev.dependencies]
@@ -38,7 +36,7 @@ pytest = "^8.4.1"
 pytest-cov = "^6.2.1"
 ruff = "^0.12.11"
 taskipy = "^1.14.1"
-testcontainers = {extras = ["postgres"], version = "^4.13.0"}
+testcontainers = { extras = ["postgres"], version = "^4.13.0" }
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -67,7 +65,7 @@ concurrency = ["thread", "greenlet"]
 
 [tool.taskipy.tasks]
 format = 'ruff check --fix; ruff format'
-run = 'fastapi dev iaEditais/app.py'
+run = 'python run.py'
 test = 'pytest -s -x --cov=iaEditais -vv'
 cov = 'coverage html'
 migrate = """

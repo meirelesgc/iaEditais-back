@@ -4,7 +4,7 @@ from fastapi import File, HTTPException, UploadFile, Form
 from faststream.rabbit.fastapi import RabbitRouter as APIRouter
 
 from iaEditais.core.dependencies import CurrentUser, Session
-from iaEditais.schemas import TestRunExecutionResult
+from iaEditais.schemas import TestRunExecutionResult, TestRunExecute
 from iaEditais.services import evaluation_service
 
 router = APIRouter(
@@ -26,20 +26,31 @@ async def execute_test_run(
 ):
     """
     Executa uma bateria de testes.
+    Payload deve ser um JSON compatível com TestRunExecute.
     """
     try:
         test_run_data_dict = json.loads(payload)
         
-        # Validação
-        if 'test_id' not in test_run_data_dict:
-            raise HTTPException(status_code=400, detail="test_id is required")
-        if 'case_metric_ids' not in test_run_data_dict:
-            raise HTTPException(status_code=400, detail="case_metric_ids is required")
+        # Validação via Pydantic
+        try:
+            test_run_execute = TestRunExecute(**test_run_data_dict)
+        except Exception as e:
+            raise ValueError(f"Invalid payload structure: {e}") from e
+
+        if not test_run_execute.test_collection_id and not test_run_execute.test_case_id:
+            raise ValueError("Either test_collection_id or test_case_id is required")
         
-        test_run_data_dict['created_by'] = current_user.id
+        # Prepara dados para o service (convertendo UUIDs para strings conforme esperado pelo service)
+        data_to_service = {
+            'test_collection_id': str(test_run_execute.test_collection_id) if test_run_execute.test_collection_id else None,
+            'test_case_id': str(test_run_execute.test_case_id) if test_run_execute.test_case_id else None,
+            'metric_ids': [str(m) for m in test_run_execute.metric_ids],
+            'model_id': str(test_run_execute.model_id) if test_run_execute.model_id else None,
+            'created_by': current_user.id
+        }
         
         result = await evaluation_service.run_evaluation(
-            session, test_run_data_dict, current_user, file, router.broker
+            session, data_to_service, current_user, file, router.broker
         )
         
         return result
@@ -48,7 +59,7 @@ async def execute_test_run(
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail=f"Invalid JSON in payload: {str(e)}"
-        )
+        ) from e
     except ValueError as e:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
