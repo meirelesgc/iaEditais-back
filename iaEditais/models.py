@@ -964,3 +964,185 @@ class UserImage:
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )
+
+
+# ===========================
+# Evaluation Models
+# ===========================
+
+
+@table_registry.mapped_as_dataclass
+class TestCollection(AuditMixin):
+    """Agrupador de casos de teste."""
+
+    __tablename__ = 'test_collections'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
+    )
+    name: Mapped[str] = mapped_column(nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(default=None)
+
+    __table_args__ = (
+        Index(
+            'ix_uq_test_collections_name_active',
+            'name',
+            unique=True,
+            postgresql_where=(column('deleted_at').is_(None)),
+        ),
+    )
+
+
+@table_registry.mapped_as_dataclass
+class AIModel(AuditMixin):
+    """Modelos de IA usados nas métricas."""
+
+    __tablename__ = 'ai_models'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
+    )
+    name: Mapped[str] = mapped_column(nullable=False)
+    code_name: Mapped[str] = mapped_column(nullable=False)
+
+    __table_args__ = (
+        Index(
+            'ix_uq_ai_models_code_name_active',
+            'code_name',
+            unique=True,
+            postgresql_where=(column('deleted_at').is_(None)),
+        ),
+    )
+
+
+@table_registry.mapped_as_dataclass
+class Metric(AuditMixin):
+    """Critérios de avaliação."""
+
+    __tablename__ = 'metrics'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
+    )
+    name: Mapped[str] = mapped_column(nullable=False)
+    criteria: Mapped[Optional[str]] = mapped_column(default=None)
+    evaluation_steps: Mapped[Optional[str]] = mapped_column(default=None)
+    threshold: Mapped[Optional[float]] = mapped_column(default=0.5)
+
+
+@table_registry.mapped_as_dataclass
+class TestCase(AuditMixin):
+    """Cenários de teste."""
+
+    __tablename__ = 'test_cases'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
+    )
+    test_collection_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            'test_collections.id', name='fk_test_cases_test_collection_id'
+        ),
+        nullable=False,
+    )
+    name: Mapped[str] = mapped_column(nullable=False)
+    doc_id: Mapped[UUID] = mapped_column(
+        ForeignKey('documents.id', name='fk_test_cases_doc_id'),
+        nullable=False,
+    )
+    branch_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('branches.id', name='fk_test_cases_branch_id'),
+        nullable=True,
+        default=None,
+    )
+    input: Mapped[Optional[str]] = mapped_column(default=None)
+    expected_feedback: Mapped[Optional[str]] = mapped_column(default=None)
+    expected_fulfilled: Mapped[bool] = mapped_column(default=False)
+
+    __table_args__ = (
+        Index(
+            'ix_uq_test_cases_name_collection_doc_active',
+            'name',
+            'test_collection_id',
+            'doc_id',
+            unique=True,
+            postgresql_where=(column('deleted_at').is_(None)),
+        ),
+    )
+
+
+@table_registry.mapped_as_dataclass
+class TestRun(AuditMixin):
+    """Evento de execução de testes."""
+
+    __tablename__ = 'test_runs'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
+    )
+    test_collection_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey(
+            'test_collections.id', name='fk_test_runs_test_collection_id'
+        ),
+        nullable=True,
+        default=None,
+    )
+
+
+@table_registry.mapped_as_dataclass
+class TestResult(AuditMixin):
+    """Resultados detalhados dos testes."""
+
+    __tablename__ = 'test_results'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
+    )
+
+    test_run_id: Mapped[UUID] = mapped_column(
+        ForeignKey('test_runs.id', name='fk_test_results_test_run_id'),
+        nullable=False,
+    )
+    test_case_id: Mapped[UUID] = mapped_column(
+        ForeignKey('test_cases.id', name='fk_test_results_test_case_id'),
+        nullable=False,
+    )
+    metric_id: Mapped[UUID] = mapped_column(
+        ForeignKey('metrics.id', name='fk_test_results_metric_id'),
+        nullable=False,
+    )
+    model_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('ai_models.id', name='fk_test_results_model_id'),
+        nullable=True,
+        default=None,
+    )
+
+    threshold_used: Mapped[Optional[float]] = mapped_column(default=None)
+    reason_feedback: Mapped[Optional[str]] = mapped_column(default=None)
+    score_feedback: Mapped[Optional[float]] = mapped_column(default=None)
+    passed_feedback: Mapped[Optional[bool]] = mapped_column(default=None)
+    actual_feedback: Mapped[Optional[str]] = mapped_column(default=None)
+    actual_fulfilled: Mapped[Optional[bool]] = mapped_column(default=None)
+    passed_fulfilled: Mapped[Optional[bool]] = mapped_column(default=None)
+
+    test_case: Mapped['TestCase'] = relationship(
+        'TestCase', lazy='selectin', init=False
+    )

@@ -18,6 +18,13 @@ from iaEditais.routers.check_tree import (
 )
 from iaEditais.routers.docs import docs, kanban, messages, releases
 from iaEditais.routers.docs import ws as docs_ws
+from iaEditais.routers.evaluation import (
+    metrics,
+    test_cases,
+    test_collections,
+    test_results,
+    test_runs,
+)
 
 PROJECT_FILE = Path(__file__).parent.parent / 'pyproject.toml'
 
@@ -65,6 +72,13 @@ app.include_router(sources.router)
 app.include_router(typifications.router)
 app.include_router(taxonomies.router)
 app.include_router(branches.router)
+
+# Routers de evaluation
+app.include_router(test_collections.router)
+app.include_router(test_cases.router)
+app.include_router(metrics.router)
+app.include_router(test_runs.router)
+app.include_router(test_results.router)
 
 # Eventos assincronos
 app.include_router(workers.router)

@@ -9,7 +9,8 @@ class Settings(BaseSettings):
     )
 
     DATABASE_URL: str
-
+    DEEPEVAL_API_KEY: str
+    DEEPEVAL_CONFIDENT_API_KEY: str
     SECRET_KEY: str = 'SECRET_KEY'
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     ALGORITHM: str = 'HS256'
