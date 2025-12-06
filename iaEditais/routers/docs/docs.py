@@ -109,6 +109,9 @@ async def read_docs(
     if filters.unit_id:
         query = query.where(Document.unit_id == filters.unit_id)
 
+    if filters.archived is not None:
+        query = query.where(Document.is_archived == filters.archived)
+
     query = query.offset(filters.offset).limit(filters.limit)
 
     result = await session.scalars(query)
@@ -179,6 +182,22 @@ async def update_doc(
     await session.commit()
     await session.refresh(db_doc)
     return db_doc
+
+
+@router.put('/{document_id}/toggle-archive', response_model=DocumentPublic)
+async def toggle_archive(document_id: UUID, session: Session):
+    query = select(Document).where(
+        Document.id == document_id, Document.deleted_at.is_(None)
+    )
+    doc = await session.scalar(query)
+    if not doc:
+        raise HTTPException(status_code=404, detail='Documento não encontrado')
+
+    doc.is_archived = not doc.is_archived
+    await session.commit()
+    await session.refresh(doc)
+
+    return doc
 
 
 @router.delete(

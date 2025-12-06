@@ -1,5 +1,6 @@
 import uuid
 from http import HTTPStatus
+from uuid import uuid4
 
 import pytest
 
@@ -211,3 +212,76 @@ async def test_delete_nonexistent_doc(logged_client):
     response = client.delete(f'/doc/{uuid.uuid4()}')
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == {'detail': 'Doc not found'}
+
+
+@pytest.mark.asyncio
+async def test_read_docs_archived_default_false(client, create_doc):
+    doc = await create_doc(name='Doc A', identifier='DOC-A')
+    archived_doc = await create_doc(name='Doc B', identifier='DOC-B')
+    client.put(f'/doc/{archived_doc.id}/toggle-archive')
+
+    response = client.get('/doc/')
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+    assert len(data['documents']) == 1
+    assert data['documents'][0]['id'] == str(doc.id)
+
+
+@pytest.mark.asyncio
+async def test_read_docs_filter_archived_true(client, create_doc):
+    doc = await create_doc(name='Doc A2', identifier='DOC-A2')
+    archived = await create_doc(name='Doc A3', identifier='DOC-A3')
+    client.put(f'/doc/{archived.id}/toggle-archive')
+    non_archived = await create_doc(name='Doc A4', identifier='DOC-A4')
+
+    response = client.get('/doc/?archived=true')
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+    assert len(data['documents']) == 1
+    assert data['documents'][0]['id'] == str(archived.id)
+
+
+@pytest.mark.asyncio
+async def test_toggle_archive_switches_value(client, create_doc):
+    doc = await create_doc(name='Doc Toggle', identifier='DOC-T1')
+
+    response = client.put(f'/doc/{doc.id}/toggle-archive')
+    assert response.status_code == HTTPStatus.OK
+
+    response2 = client.put(f'/doc/{doc.id}/toggle-archive')
+    assert response2.status_code == HTTPStatus.OK
+
+
+@pytest.mark.asyncio
+async def test_toggle_archive_not_found(client):
+    random_id = uuid4()
+    response = client.put(f'/doc/{random_id}/toggle-archive')
+    assert response.status_code == HTTPStatus.NOT_FOUND
+
+
+@pytest.mark.asyncio
+async def test_read_doc_by_id_includes_is_archived(client, create_doc):
+    doc = await create_doc(name='Doc Check', identifier='DOC-CHECK')
+    client.put(f'/doc/{doc.id}/toggle-archive')
+
+    response = client.get(f'/doc/{doc.id}')
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+    assert data['id'] == str(doc.id)
+
+
+@pytest.mark.asyncio
+async def test_full_archive_flow(client, create_doc):
+    doc = await create_doc(name='Flow Doc', identifier='FLOW')
+
+    response = client.put(f'/doc/{doc.id}/toggle-archive')
+    assert response.status_code == HTTPStatus.OK
+
+    response2 = client.get('/doc/?archived=true')
+    assert response2.status_code == HTTPStatus.OK
+    data = response2.json()
+    assert len(data['documents']) == 1
+    assert data['documents'][0]['id'] == str(doc.id)
+
+    response3 = client.put(f'/doc/{doc.id}/toggle-archive')
+    assert response3.status_code == HTTPStatus.OK

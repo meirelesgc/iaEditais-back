@@ -488,6 +488,7 @@ class Document(AuditMixin):
         init=False,
         cascade='all, delete-orphan',
     )
+    is_archived: Mapped[bool] = mapped_column(nullable=False, default=False)
 
     __table_args__ = (
         Index(
