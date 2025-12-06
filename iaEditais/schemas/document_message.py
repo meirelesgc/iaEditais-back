@@ -37,11 +37,10 @@ class QuotedMessage(BaseModel):
 
 
 class DocumentMessageSchema(BaseModel):
-    # Conteúdo textual da mensagem, que pode conter menções e citações.
     content: str = Field()
-    # Lista de entidades mencionadas na mensagem.
+
     mentions: Optional[List[MessageMention]] = Field(default_factory=list)
-    # Mensagem citada (resposta).
+
     quoted_message: Optional[QuotedMessage] = Field(None)
 
 

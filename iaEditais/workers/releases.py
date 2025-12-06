@@ -3,12 +3,16 @@ from http import HTTPStatus
 from uuid import UUID
 
 import httpx
+from fastapi import Depends
 from faststream.rabbit import RabbitRouter
+from redis import Redis
 
-from iaEditais.core.dependencies import CacheManager, Model, Session, VStore
+from iaEditais.core.cache import get_redis
+from iaEditais.core.dependencies import Model, Session, VStore
 from iaEditais.core.settings import Settings
 from iaEditais.models import DocumentRelease, Source
-from iaEditais.schemas import DocumentReleasePublic, WSMessage
+from iaEditais.schemas.common import WSMessage
+from iaEditais.schemas.document_release import DocumentReleasePublic
 from iaEditais.services import (
     notification_service,
     releases_service,
@@ -108,7 +112,7 @@ async def create_vectors(
     release_id: UUID,
     session: Session,
     vectorstore: VStore,
-    manager: CacheManager,
+    redis: Redis = Depends(get_redis),
 ):
     db_release = await session.get(DocumentRelease, release_id)
     if not db_release:
@@ -119,12 +123,14 @@ async def create_vectors(
     file_path = os.path.join(UPLOAD_DIRECTORY, unique_filename)
     if not os.path.exists(file_path):
         return {'error': 'Document file not found'}
+
     release_public = DocumentReleasePublic.model_validate(db_release)
     payload = release_public.model_dump(mode='json')
     ws_message = WSMessage(
         event='doc.release.update', message='creating_vectors', payload=payload
     )
-    manager.broadcast(ws_message)
+    await redis.publish('ws:broadcast', ws_message.model_dump_json())
+
     documents = await vstore_service.load_document(file_path)
     chunks = vstore_service.split_documents(documents)
     presidio_anonymizer = PresidioAnonymizer()
@@ -142,7 +148,7 @@ async def create_check_tree(
     session: Session,
     vectorstore: VStore,
     model: Model,
-    manager: CacheManager,
+    redis: Redis = Depends(get_redis),
 ):
     db_release = await session.get(DocumentRelease, release_id)
     if not db_release:
@@ -152,7 +158,7 @@ async def create_check_tree(
     ws_message = WSMessage(
         event='doc.release.update', message='evaluating', payload=payload
     )
-    manager.broadcast(ws_message)
+    await redis.publish('ws:broadcast', ws_message.model_dump_json())
     check_tree = await releases_service.get_check_tree(session, db_release)
     chain = releases_service.get_chain(model)
     input_vars = await releases_service.get_vars(
@@ -170,7 +176,7 @@ async def create_check_tree(
     ws_message = WSMessage(
         event='doc.release.update', message='complete', payload=payload
     )
-    manager.broadcast(ws_message)
+    await redis.publish('ws:broadcast', ws_message.model_dump_json())
     message_text = notification_service.format_release_message(db_release)
     db_doc = db_release.history.document
     user_ids = [editor.id for editor in db_doc.editors if editor.id]

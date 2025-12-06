@@ -124,7 +124,6 @@ async def test_update_user_self(logged_client, create_unit):
         'username': 'novo_nome',
         'email': 'novo@test.com',
         'phone_number': '6666',
-        'password': 'newpass',
         'access_level': AccessType.DEFAULT,
         'unit_id': str(unit.id),
     }
@@ -194,7 +193,6 @@ async def test_delete_user_not_found(logged_client):
 async def test_add_icon_success(logged_client):
     client, token, headers, user = await logged_client()
 
-    # Simulate a PNG file upload
     file_content = io.BytesIO(b'fake image content')
     response = client.post(
         f'/user/{user.id}/icon',
@@ -352,3 +350,164 @@ async def test_admin_can_update_other_user_and_access_level(
     data = response.json()
     assert data['username'] == 'target_updated'
     assert data['access_level'] == AccessType.ANALYST
+
+
+@pytest.mark.asyncio
+async def test_update_user_rejects_password_field(logged_client, create_unit):
+    client, token, headers, current_user = await logged_client()
+    unit = await create_unit()
+
+    payload = {
+        'id': str(current_user.id),
+        'username': 'novo_nome',
+        'email': 'novo@test.com',
+        'phone_number': '6666',
+        'password': 'Newpass1',
+        'access_level': AccessType.DEFAULT,
+        'unit_id': str(unit.id),
+    }
+
+    response = client.put('/user/', json=payload)
+    assert response.status_code == HTTPStatus.OK
+
+
+@pytest.mark.asyncio
+async def test_change_password_self_success(logged_client):
+    client, token, headers, current_user = await logged_client()
+
+    payload = {
+        'user_id': str(current_user.id),
+        'current_password': 'secret',
+        'new_password': 'Newpass1',
+    }
+
+    response = client.put('/user/password', json=payload, headers=headers)
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()['message'] == 'Password updated successfully'
+
+
+@pytest.mark.asyncio
+async def test_change_password_self_missing_current_password(logged_client):
+    client, token, headers, current_user = await logged_client()
+
+    payload = {
+        'user_id': str(current_user.id),
+        'new_password': 'Newpass1',
+    }
+
+    response = client.put('/user/password', json=payload, headers=headers)
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.json()['detail'] == 'Current password is required'
+
+
+@pytest.mark.asyncio
+async def test_change_password_self_invalid_current_password(logged_client):
+    client, token, headers, current_user = await logged_client()
+
+    payload = {
+        'user_id': str(current_user.id),
+        'current_password': 'wrong',
+        'new_password': 'Newpass1',
+    }
+
+    response = client.put('/user/password', json=payload, headers=headers)
+
+    assert response.status_code == HTTPStatus.UNAUTHORIZED
+    assert response.json()['detail'] == 'Invalid current password'
+
+
+@pytest.mark.asyncio
+async def test_change_password_weak_password(logged_client):
+    client, token, headers, current_user = await logged_client()
+
+    payload = {
+        'user_id': str(current_user.id),
+        'current_password': 'secret',
+        'new_password': 'Abc1',
+    }
+
+    response = client.put('/user/password', json=payload, headers=headers)
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert (
+        response.json()['detail']
+        == 'Password must be at least 8 characters long'
+    )
+
+
+@pytest.mark.asyncio
+async def test_change_password_user_not_found(logged_client):
+    client, token, headers, current_user = await logged_client()
+
+    payload = {
+        'user_id': str(uuid4()),
+        'current_password': 'secret',
+        'new_password': 'Newpass1',
+    }
+
+    response = client.put('/user/password', json=payload, headers=headers)
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json()['detail'] == 'User not found'
+
+
+@pytest.mark.asyncio
+async def test_change_password_other_user_forbidden(
+    logged_client, create_user, create_unit
+):
+    client, token, headers, current_user = await logged_client()
+    unit = await create_unit()
+
+    victim = await create_user(
+        username='victim',
+        email='victim@test.com',
+        phone_number='9999',
+        unit_id=str(unit.id),
+    )
+
+    payload = {
+        'user_id': str(victim.id),
+        'current_password': 'secret',
+        'new_password': 'Newpass1',
+    }
+
+    response = client.put('/user/password', json=payload, headers=headers)
+
+    assert response.status_code == HTTPStatus.FORBIDDEN
+    assert (
+        response.json()['detail']
+        == 'You are not authorized to change this password'
+    )
+
+
+@pytest.mark.asyncio
+async def test_admin_can_change_other_user_password(
+    client, create_user, create_unit, logged_client
+):
+    unit = await create_unit()
+
+    client, token, headers, admin_user = await logged_client(
+        username='admin',
+        email='admin@test.com',
+        phone_number='8888',
+        access_level=AccessType.ADMIN,
+    )
+
+    target_user = await create_user(
+        username='target',
+        email='target@test.com',
+        phone_number='9999',
+        unit_id=str(unit.id),
+    )
+
+    payload = {
+        'user_id': str(target_user.id),
+        'new_password': 'Newpass1',
+    }
+
+    response = client.put('/user/password', json=payload, headers=headers)
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()['message'] == 'Password updated successfully'

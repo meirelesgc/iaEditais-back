@@ -1,13 +1,13 @@
 import os
-from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import Depends, File, HTTPException, UploadFile
+from faststream.rabbit.fastapi import RabbitRouter as APIRouter
 from sqlalchemy import select
 
-from iaEditais.core.dependencies import Broker, CurrentUser, Session
+from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import Source
 from iaEditais.schemas import (
     FilterPage,
@@ -16,7 +16,7 @@ from iaEditais.schemas import (
     SourcePublic,
     SourceUpdate,
 )
-from iaEditais.services import storage_service
+from iaEditais.services import audit_service, storage_service
 
 router = APIRouter(prefix='/source', tags=['árvore de verificação, fontes'])
 
@@ -44,10 +44,23 @@ async def create_source(
     db_source = Source(
         name=source.name,
         description=source.description,
-        created_by=current_user.id,
     )
 
+    db_source.set_creation_audit(current_user.id)
+
     session.add(db_source)
+
+    await session.flush()
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='CREATE',
+        table_name=Source.__tablename__,
+        record_id=db_source.id,
+        old_data=None,
+    )
+
     await session.commit()
     await session.refresh(db_source)
 
@@ -78,7 +91,7 @@ async def read_sources(
 async def upload_source_document(
     source_id: UUID,
     session: Session,
-    broker: Broker,
+    current_user: CurrentUser,
     file: UploadFile = File(...),
 ):
     source = await session.get(Source, source_id)
@@ -86,6 +99,8 @@ async def upload_source_document(
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail='Source not found'
         )
+
+    old_data = SourcePublic.model_validate(source).model_dump(mode='json')
 
     if source.file_path and os.path.exists(source.file_path):
         unique_filename = source.file_path.split('/')[-1]
@@ -95,11 +110,27 @@ async def upload_source_document(
     file_path = await storage_service.save_file(file, UPLOAD_DIRECTORY)
 
     source.file_path = file_path
-    source.updated_at = datetime.now()
-    session.add(source)
-    await session.commit()
 
-    await broker.publish(source.id, 'sources_create_vectors')
+    new_data = SourcePublic.model_validate(source).model_dump(mode='json')
+
+    source.set_update_audit(current_user.id)
+
+    session.add(source)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='UPDATE',
+        table_name=Source.__tablename__,
+        record_id=source.id,
+        old_data=old_data,
+        new_data=new_data,
+    )
+
+    await session.commit()
+    await session.refresh(source)
+    await router.broker.publish(source.id, 'sources_create_vectors')
+
     return source
 
 
@@ -130,6 +161,8 @@ async def update_source(
             detail='Source not found',
         )
 
+    old_data = SourcePublic.model_validate(db_source).model_dump(mode='json')
+
     db_source_same_name = await session.scalar(
         select(Source).where(
             Source.deleted_at.is_(None), Source.name == source.name
@@ -144,7 +177,20 @@ async def update_source(
 
     db_source.name = source.name
     db_source.description = source.description
-    db_source.updated_by = current_user.id
+
+    new_data = SourcePublic.model_validate(db_source).model_dump(mode='json')
+
+    db_source.set_update_audit(current_user.id)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='UPDATE',
+        table_name=Source.__tablename__,
+        record_id=db_source.id,
+        old_data=old_data,
+        new_data=new_data,
+    )
 
     await session.commit()
     await session.refresh(db_source)
@@ -169,8 +215,19 @@ async def delete_source(
             detail='Source not found',
         )
 
-    db_source.deleted_at = datetime.now(timezone.utc)
-    db_source.deleted_by = current_user.id
+    old_data = SourcePublic.model_validate(db_source).model_dump(mode='json')
+
+    db_source.set_deletion_audit(current_user.id)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='DELETE',
+        table_name=Source.__tablename__,
+        record_id=db_source.id,
+        old_data=old_data,
+    )
+
     await session.commit()
 
     return {'message': 'Source deleted'}

@@ -36,13 +36,10 @@ class InstanceCounterAnonymizer(Operator):
         if not entity_mapping_for_type:
             return -1
 
-        # Extrair índices dos identificadores existentes
         indices = []
         for identifier in entity_mapping_for_type.values():
-            # Formato: <ENTITY_TYPE_INDEX>
             if identifier.startswith('<') and identifier.endswith('>'):
                 try:
-                    # Extrair número após último underscore
                     parts = identifier[1:-1].split('_')
                     if len(parts) >= 2:
                         index = int(parts[-1])

@@ -36,37 +36,63 @@ DOCUMENT_ANALYSIS_PROMPT = """
 
 ---
 
-## Sua Missão
-Você é um analista técnico especializado em avaliação documental segundo critérios normativos.  
-Sua tarefa é **analisar o documento e atribuir uma nota de 0 a 10** conforme o grau em que o conteúdo atende ao critério apresentado.  
-A análise deve ser **coesa, objetiva e fundamentada na norma ou fonte indicada**.
+## Contexto de Localização
+Sessão esperada conforme taxonomia: **{expected_session}**
 
-**Fonte dos critérios:** {typification_source}
+## Finalidade da Análise
+Você atua como analista técnico especializado em avaliação documental com base em critérios normativos.
+Sua atribuição é **avaliar o documento apresentado e atribuir uma nota final de 0 a 10**, exclusivamente com base no barema definido abaixo.
+A análise deve ser **objetiva, tecnicamente fundamentada e estritamente aderente à norma ou fonte indicada**.
 
----
-
-## Critérios de Avaliação
-
-### Critério Principal
-* **Título:** {taxonomy_title}
-* **Descrição:** {taxonomy_description}
-* **Fonte:** {taxonomy_source}
-
-### Critério Específico
-* **Título:** {taxonomy_branch_title}
-* **Descrição:** {taxonomy_branch_description}
+**Fonte dos critérios normativos:**
+{typification_source}
 
 ---
 
-## Instruções de Análise
+## Estrutura do Critério Avaliado
+**Título:** {taxonomy_branch_title}
+**Descrição:** {taxonomy_branch_description}
 
-1. Avalie em que medida o documento atende ao critério principal e ao critério específico.
-2. Descreva **de forma objetiva e técnica** os pontos fortes e as lacunas observadas.
-3. Baseie sua justificativa nas informações do documento e na fonte dos critérios.
-4. Escreva o **feedback** em um único parágrafo, claro e coeso, sem repetir frases do enunciado.
+**Critério Superior:** {taxonomy_title} ({taxonomy_description})
+**Fonte Normativa:** {taxonomy_source}
 
 ---
+
+## Barema de Avaliação (0 a 10)
+
+A nota final deve ser a soma direta dos pontos atribuídos a cada item, sem arredondamentos ou ajustes subjetivos.
+
+1. Enquadramento na Sessão Esperada - até 3 pontos
+Avalia se as informações que comprovam o atendimento ao critério estão localizadas na sessão esperada ({expected_session}).
+
+2. Aderência ao Critério Normativo Avaliado - até 3 pontos
+Avalia o grau de conformidade objetiva do conteúdo com o critério normativo e sua fonte.
+
+3. Clareza e Objetividade das Informações - até 2 pontos
+Avalia se as informações são claras, diretas e suficientes para compreensão técnica, sem ambiguidades.
+
+4. Suficiência dos Elementos Documentais - até 2 pontos
+Avalia se os elementos presentes no documento são suficientes para comprovar o atendimento ao critério.
+
+---
+
+## Diretrizes de Análise
+
+1. A avaliação deve considerar exclusivamente as informações efetivamente presentes no documento.
+2. Todo identificador presente deve ser considerado válido, suficiente e plenamente eficaz.
+3. É vedado mencionar ou inferir qualquer aspecto relacionado a anonimização, placeholders ou estruturas internas.
+4. Caso as informações estejam em seção diversa da esperada, aplique a penalização correspondente no item de localização e registre essa condição no feedback.
+5. Quando o requisito estiver atendido, não utilize linguagem mitigadora ou condicional.
+6. Em caso de conflito interpretativo, estas diretrizes prevalecem sobre qualquer inferência adicional.
+
+---
+
+## Saída Esperada
+
+- Nota final de 0 a 10
+- Pontuação detalhada por item do barema
+- Feedback técnico em **um único parágrafo**, claro, impessoal e fundamentado
 
 **Formato de Saída:** {format_instructions}
-**Consulta:** {query}
+**Consulta Avaliada:** {query}
 """

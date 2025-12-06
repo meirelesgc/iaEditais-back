@@ -1,11 +1,11 @@
-from datetime import datetime, timezone
 from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import File, HTTPException, UploadFile
+from faststream.rabbit.fastapi import RabbitRouter as APIRouter
 from sqlalchemy import select
 
-from iaEditais.core.dependencies import Broker, CurrentUser, Session
+from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import (
     DocumentHistory,
     DocumentRelease,
@@ -14,7 +14,7 @@ from iaEditais.schemas import (
     DocumentReleaseList,
     DocumentReleasePublic,
 )
-from iaEditais.services import releases_service
+from iaEditais.services import audit_service, releases_service
 
 router = APIRouter(
     prefix='/doc/{doc_id}/release',
@@ -29,13 +29,23 @@ async def create_release(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
-    broker: Broker,
     file: UploadFile = File(...),
 ):
     db_release = await releases_service.create_release(
         doc_id, session, current_user, file
     )
-    await broker.publish(db_release.id, 'releases_create_vectors')
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='CREATE',
+        table_name=DocumentRelease.__tablename__,
+        record_id=db_release.id,
+        old_data=None,
+    )
+    await session.commit()
+
+    await router.broker.publish(db_release.id, 'releases_create_vectors')
     return db_release
 
 
@@ -80,8 +90,21 @@ async def delete_release(
             detail='File not found or does not belong to this document.',
         )
 
-    db_release.deleted_at = datetime.now(timezone.utc)
-    db_release.deleted_by = current_user.id
+    old_data = DocumentReleasePublic.model_validate(db_release).model_dump(
+        mode='json'
+    )
+
+    db_release.set_deletion_audit(current_user.id)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='DELETE',
+        table_name=DocumentRelease.__tablename__,
+        record_id=db_release.id,
+        old_data=old_data,
+    )
+
     await session.commit()
 
     return {'message': 'File deleted successfully'}

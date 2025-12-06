@@ -1,37 +1,49 @@
 FROM python:3.13-slim AS builder
 
-ENV POETRY_VIRTUALENVS_CREATE=false \
-    PIP_NO_CACHE_DIR=off \
-    PIP_DISABLE_PIP_VERSION_CHECK=on
+ENV PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=on \
+    POETRY_VIRTUALENVS_IN_PROJECT=true \
+    POETRY_NO_INTERACTION=1
 
 WORKDIR /app
 
-RUN pip install poetry
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    git \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN pip install --no-cache-dir poetry
 
 COPY poetry.lock pyproject.toml ./
 
-RUN poetry install --no-interaction --no-ansi --without dev --no-root
+RUN poetry install --without dev --no-root
 
-FROM python:3.13-slim
+RUN . .venv/bin/activate && python -m spacy download pt_core_news_lg
+RUN . .venv/bin/activate && opentelemetry-bootstrap -a install
 
-ENV POETRY_VIRTUALENVS_CREATE=false \
-    PYTHONUNBUFFERED=1
+
+FROM python:3.13-slim AS runtime
+
+ENV PYTHONUNBUFFERED=1 \
+    PATH="/app/.venv/bin:$PATH"
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y socat --no-install-recommends \
-    && apt-get autoremove -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq5 \
+    libgl1 \
+    libglib2.0-0 \
+    libgomp1 \
+    socat \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/local/lib/python3.13/site-packages /usr/local/lib/python3.13/site-packages
-
-COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=builder /app/.venv /app/.venv
 
 COPY . .
 
-COPY entrypoint.sh .
 RUN chmod +x ./entrypoint.sh
 
 EXPOSE 8000
-
 ENTRYPOINT ["./entrypoint.sh"]

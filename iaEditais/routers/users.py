@@ -1,25 +1,30 @@
-from datetime import datetime, timezone
 from http import HTTPStatus
 from secrets import token_hex
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import Depends, File, HTTPException, UploadFile
+from faststream.rabbit.fastapi import RabbitRouter as APIRouter
 from sqlalchemy import or_, select
 
-from iaEditais.core.dependencies import Broker, CurrentUser, Session
-from iaEditais.core.security import get_password_hash
+from iaEditais.core.dependencies import CurrentUser, Session
+from iaEditais.core.security import get_password_hash, verify_password
 from iaEditais.models import User, UserImage
 from iaEditais.schemas import (
     UserCreate,
     UserFilter,
     UserList,
+    UserPasswordChange,
     UserPublic,
     UserUpdate,
 )
 from iaEditais.schemas.common import Message
-from iaEditais.schemas.user import AccessType
-from iaEditais.services import notification_service, storage_service
+from iaEditais.schemas.user import AccessType, UserImagePublic
+from iaEditais.services import (
+    audit_service,
+    notification_service,
+    storage_service,
+)
 
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 
@@ -27,7 +32,7 @@ router = APIRouter(prefix='/user', tags=['operações de sistema, usuário'])
 
 
 @router.post('/', status_code=HTTPStatus.CREATED, response_model=UserPublic)
-async def create_user(user: UserCreate, session: Session, broker: Broker):
+async def create_user(user: UserCreate, session: Session):
     db_user = await session.scalar(
         select(User).where(
             User.deleted_at.is_(None),
@@ -61,12 +66,26 @@ async def create_user(user: UserCreate, session: Session, broker: Broker):
     )
 
     session.add(db_user)
+
+    await session.flush()
+
+    db_user.set_creation_audit(db_user.id)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=db_user.id,
+        action='CREATE',
+        table_name=User.__tablename__,
+        record_id=db_user.id,
+        old_data=None,
+    )
+
     await session.commit()
     await session.refresh(db_user)
 
     if password_was_generated:
         await notification_service.publish_user_welcome_notification(
-            db_user, temp_password, broker
+            db_user, temp_password, router.broker
         )
 
     return db_user
@@ -79,7 +98,10 @@ async def add_icon(
     current_user: CurrentUser,
     file: UploadFile = File(...),
 ):
-    user_db = await session.get(User, user_id)
+    result = await session.execute(select(User).where(User.id == user_id))
+
+    user_db = result.scalar_one_or_none()
+
     if not user_db:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -92,21 +114,20 @@ async def add_icon(
             detail='Access denied',
         )
 
-    # 2. Validação do Arquivo
+    old_data = UserPublic.model_validate(user_db).model_dump(mode='json')
+
     if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail='Invalid file format. Use PNG or JPG',
         )
 
-    # 3. Limpeza de Ícone Antigo (Evita arquivos orfãos)
     if user_db.icon_id:
         old_icon = await session.get(UserImage, user_db.icon_id)
         if old_icon:
             await storage_service.delete_file(old_icon.file_path)
             await session.delete(old_icon)
 
-    # 4. Upload e Criação do Novo Registro
     file_path = await storage_service.save_file(file, UPLOAD_DIRECTORY)
 
     user_image = UserImage(
@@ -118,6 +139,23 @@ async def add_icon(
     await session.flush()
 
     user_db.icon_id = user_image.id
+
+    new_data = UserPublic.model_validate(user_db).model_dump(mode='json')
+    new_data['icon'] = UserImagePublic.model_validate(user_image).model_dump(
+        mode='json'
+    )
+
+    user_db.set_update_audit(current_user.id)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='UPDATE',
+        table_name=User.__tablename__,
+        record_id=user_db.id,
+        old_data=old_data,
+        new_data=new_data,
+    )
 
     await session.commit()
 
@@ -182,6 +220,8 @@ async def update_user(
             detail='You are not authorized to update this user',
         )
 
+    old_data = UserPublic.model_validate(db_user).model_dump(mode='json')
+
     conflict_user = await session.scalar(
         select(User).where(
             User.deleted_at.is_(None),
@@ -202,7 +242,6 @@ async def update_user(
     db_user.username = user_update.username
     db_user.email = user_update.email
     db_user.phone_number = user_update.phone_number
-    db_user.updated_by = current_user.id
 
     if is_admin:
         db_user.access_level = user_update.access_level
@@ -213,13 +252,103 @@ async def update_user(
     ):
         pass
 
-    if user_update.password:
-        db_user.password = get_password_hash(user_update.password)
+    new_data = UserPublic.model_validate(db_user).model_dump(mode='json')
+
+    db_user.set_update_audit(current_user.id)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='UPDATE',
+        table_name=User.__tablename__,
+        record_id=db_user.id,
+        old_data=old_data,
+        new_data=new_data,
+    )
 
     await session.commit()
     await session.refresh(db_user)
 
     return db_user
+
+
+@router.put('/password', response_model=Message)
+async def change_password(
+    payload: UserPasswordChange,
+    session: Session,
+    current_user: CurrentUser,
+):
+    db_user = await session.get(User, payload.user_id)
+
+    if not db_user or db_user.deleted_at:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='User not found',
+        )
+
+    is_owner = db_user.id == current_user.id
+    is_admin = current_user.access_level == AccessType.ADMIN
+
+    if not is_owner and not is_admin:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail='You are not authorized to change this password',
+        )
+
+    old_data = UserPublic.model_validate(db_user).model_dump(mode='json')
+
+    if is_owner:
+        if not payload.current_password:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail='Current password is required',
+            )
+
+        if not verify_password(payload.current_password, db_user.password):
+            raise HTTPException(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                detail='Invalid current password',
+            )
+
+    new_password = payload.new_password
+    if len(new_password) < 8:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail='Password must be at least 8 characters long',
+        )
+    if (
+        new_password.lower() == new_password
+        or new_password.upper() == new_password
+    ):
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail='Password must contain both uppercase and lowercase letters',
+        )
+    if not any(c.isdigit() for c in new_password):
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail='Password must contain at least one number',
+        )
+
+    db_user.password = get_password_hash(new_password)
+
+    new_data = UserPublic.model_validate(db_user).model_dump(mode='json')
+
+    db_user.set_update_audit(current_user.id)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='UPDATE',
+        table_name=User.__tablename__,
+        record_id=db_user.id,
+        old_data=old_data,
+        new_data=new_data,
+    )
+
+    await session.commit()
+
+    return Message(message='Password updated successfully')
 
 
 @router.delete(
@@ -237,8 +366,19 @@ async def delete_user(
             status_code=HTTPStatus.NOT_FOUND, detail='User not found'
         )
 
-    db_user.deleted_at = datetime.now(timezone.utc)
-    db_user.deleted_by = current_user.id
+    old_data = UserPublic.model_validate(db_user).model_dump(mode='json')
+
+    db_user.set_deletion_audit(current_user.id)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='DELETE',
+        table_name=User.__tablename__,
+        record_id=db_user.id,
+        old_data=old_data,
+    )
+
     await session.commit()
 
 
@@ -266,6 +406,8 @@ async def delete_icon(
             status_code=HTTPStatus.NOT_FOUND, detail='Icon not found'
         )
 
+    old_data = UserPublic.model_validate(user_db).model_dump(mode='json')
+
     user_image = await session.get(UserImage, user_db.icon_id)
 
     if user_image:
@@ -274,6 +416,62 @@ async def delete_icon(
 
     user_db.icon_id = None
 
+    new_data = UserPublic.model_validate(user_db).model_dump(mode='json')
+
+    user_db.set_update_audit(current_user.id)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='UPDATE',
+        table_name=User.__tablename__,
+        record_id=user_db.id,
+        old_data=old_data,
+        new_data=new_data,
+    )
+
     await session.commit()
 
     return Message(message='Icon successfully deleted!')
+
+
+@router.post('/{user_id}/test-whatsapp', response_model=Message)
+async def test_whatsapp(
+    user_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+):
+    db_user = await session.get(User, user_id)
+
+    if not db_user or db_user.deleted_at:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail='User not found'
+        )
+
+    is_owner = db_user.id == current_user.id
+    is_admin = current_user.access_level == AccessType.ADMIN
+
+    if not is_owner and not is_admin:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail='You are not authorized to test this number',
+        )
+
+    if not db_user.phone_number:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail='User has no phone number registered',
+        )
+
+    result = await notification_service.publish_test_whatsapp_notification(
+        db_user, router.broker
+    )
+
+    if result['status'] == 'error':
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail=result['detail']
+        )
+
+    return Message(
+        message='Test message sent to WhatsApp queue. Check your device.'
+    )

@@ -27,10 +27,21 @@ class UserCreate(UserSchema):
     password: Optional[str] = None
 
 
+class UserImagePublic(BaseModel):
+    id: UUID
+    file_path: str
+    type: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class UserPublic(UserSchema):
     id: UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
+    icon: Optional[UserImagePublic] = None
+
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -50,22 +61,9 @@ class UserPublicMessage(BaseModel):
 
 class UserUpdate(UserSchema):
     id: UUID
-    password: Optional[str] = None
 
 
-class UserImagePublic(BaseModel):
-    id: UUID
-    file_path: str
-    type: str
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class UserPublic(UserSchema):
-    id: UUID
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-    icon: Optional[UserImagePublic] = None
-
-    model_config = ConfigDict(from_attributes=True)
+class UserPasswordChange(BaseModel):
+    user_id: UUID
+    current_password: Optional[str] = None
+    new_password: str

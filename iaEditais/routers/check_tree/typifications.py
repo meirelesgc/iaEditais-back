@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
@@ -20,6 +19,7 @@ from iaEditais.schemas import (
     TypificationPublic,
     TypificationUpdate,
 )
+from iaEditais.services import audit_service
 from iaEditais.services.report_service import typification_report
 
 router = APIRouter(
@@ -53,9 +53,13 @@ async def create_typification(
 
     db_typification = Typification(
         name=typification.name,
-        created_by=current_user.id,
     )
+
+    db_typification.set_creation_audit(current_user.id)
+
     session.add(db_typification)
+
+    await session.flush()
 
     if typification.source_ids:
         source_check = await session.scalars(
@@ -76,6 +80,15 @@ async def create_typification(
                 created_by=current_user.id,
             )
             session.add(association_entry)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='CREATE',
+        table_name=Typification.__tablename__,
+        record_id=db_typification.id,
+        old_data=None,
+    )
 
     await session.commit()
     await session.refresh(db_typification)
@@ -125,6 +138,10 @@ async def update_typification(
             detail='Typification not found',
         )
 
+    old_data = TypificationPublic.model_validate(db_typification).model_dump(
+        mode='json'
+    )
+
     db_typification_same_name = await session.scalar(
         select(Typification).where(
             Typification.deleted_at.is_(None),
@@ -140,7 +157,6 @@ async def update_typification(
         )
 
     db_typification.name = typification.name
-    db_typification.updated_by = current_user.id
 
     if typification.source_ids:
         sources = await session.scalars(
@@ -149,6 +165,22 @@ async def update_typification(
         db_typification.sources = sources.all()
     else:
         db_typification.sources = []
+
+    new_data = TypificationPublic.model_validate(db_typification).model_dump(
+        mode='json'
+    )
+
+    db_typification.set_update_audit(current_user.id)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='UPDATE',
+        table_name=Typification.__tablename__,
+        record_id=db_typification.id,
+        old_data=old_data,
+        new_data=new_data,
+    )
 
     await session.commit()
     await session.refresh(db_typification)
@@ -172,8 +204,21 @@ async def delete_typification(
             detail='Typification not found',
         )
 
-    db_typification.deleted_at = datetime.now(timezone.utc)
-    db_typification.deleted_by = current_user.id
+    old_data = TypificationPublic.model_validate(db_typification).model_dump(
+        mode='json'
+    )
+
+    db_typification.set_deletion_audit(current_user.id)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='DELETE',
+        table_name=Typification.__tablename__,
+        record_id=db_typification.id,
+        old_data=old_data,
+    )
+
     await session.commit()
 
     return {'message': 'Typification deleted'}
@@ -190,7 +235,6 @@ async def exportar_tipificacoes_pdf(
         .order_by(Typification.created_at.desc())
     )
 
-    # adiciona filtro opcional
     if typification_id:
         stmt = stmt.where(Typification.id == typification_id)
 

@@ -11,6 +11,7 @@ from iaEditais.core.security import (
 from iaEditais.core.settings import Settings
 from iaEditais.models import User
 from iaEditais.schemas import Token
+from iaEditais.services import audit_service
 
 SETTINGS = Settings()
 
@@ -32,12 +33,33 @@ async def login_for_access_token(form_data: OAuth2Form, session: Session):
             status_code=HTTPStatus.UNAUTHORIZED,
             detail='Incorrect email or password',
         )
+
+    await audit_service.register_action(
+        session=session,
+        user_id=user.id,
+        action='LOGIN',
+        table_name=User.__tablename__,
+        record_id=user.id,
+        old_data=None,
+    )
+    await session.commit()
+
     access_token = create_access_token(data={'sub': user.email})
     return {'access_token': access_token, 'token_type': 'bearer'}
 
 
 @router.post('/refresh_token', response_model=Token)
-async def refresh_access_token(user: CurrentUser):
+async def refresh_access_token(user: CurrentUser, session: Session):
+    await audit_service.register_action(
+        session=session,
+        user_id=user.id,
+        action='REFRESH_TOKEN',
+        table_name=User.__tablename__,
+        record_id=user.id,
+        old_data=None,
+    )
+    await session.commit()
+
     new_access_token = create_access_token(data={'sub': user.email})
     return {'access_token': new_access_token, 'token_type': 'bearer'}
 
@@ -59,6 +81,17 @@ async def sign_in_for_cookie(
             status_code=HTTPStatus.UNAUTHORIZED,
             detail='Incorrect email or password',
         )
+
+    await audit_service.register_action(
+        session=session,
+        user_id=user.id,
+        action='LOGIN_COOKIE',
+        table_name=User.__tablename__,
+        record_id=user.id,
+        old_data=None,
+    )
+    await session.commit()
+
     access_token = create_access_token(data={'sub': user.email})
 
     max_age = SETTINGS.ACCESS_TOKEN_EXPIRE_MINUTES * 60
@@ -69,6 +102,7 @@ async def sign_in_for_cookie(
         httponly=True,
         max_age=max_age,
         expires=max_age,
+        domain=SETTINGS.COOKIE_DOMAIN,
         path=SETTINGS.COOKIE_PATH,
         secure=SETTINGS.COOKIE_SECURE,
         samesite=SETTINGS.COOKIE_SAMESITE,
@@ -78,6 +112,18 @@ async def sign_in_for_cookie(
 
 
 @router.post('/sign-out')
-async def sign_out(response: Response):
+async def sign_out(
+    response: Response, session: Session, current_user: CurrentUser
+):
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='LOGOUT',
+        table_name=User.__tablename__,
+        record_id=current_user.id,
+        old_data=None,
+    )
+    await session.commit()
+
     response.delete_cookie(SETTINGS.ACCESS_TOKEN_COOKIE_NAME, path='/')
     return {'detail': 'signed out'}

@@ -1,20 +1,20 @@
-from datetime import datetime, timezone
 from enum import Enum
 from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import HTTPException
+from faststream.rabbit.fastapi import RabbitBroker
+from faststream.rabbit.fastapi import RabbitRouter as APIRouter
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from iaEditais.core.dependencies import (
-    Broker,
-    CacheManager,
     CurrentUser,
     Session,
 )
 from iaEditais.models import Document, DocumentHistory, User
-from iaEditais.schemas import DocumentPublic, DocumentStatus, WSMessage
+from iaEditais.schemas import DocumentPublic, DocumentStatus
+from iaEditais.services import audit_service
 
 router = APIRouter(
     prefix='/doc/{doc_id}/status', tags=['verificação dos documentos, kanban']
@@ -24,6 +24,7 @@ router = APIRouter(
 class NotifyTarget(str, Enum):
     EDITORS = 'editors'
     CREATOR = 'creator'
+    UNIT_AUDITORS = 'unit_auditors'
 
 
 NOTIFICATION_RULES: dict[
@@ -35,7 +36,7 @@ NOTIFICATION_RULES: dict[
     },
     DocumentStatus.WAITING_FOR_REVIEW: {
         'enabled': True,
-        'targets': [NotifyTarget.CREATOR],
+        'targets': [NotifyTarget.CREATOR, NotifyTarget.UNIT_AUDITORS],
     },
     DocumentStatus.PENDING: {
         'enabled': False,
@@ -68,26 +69,32 @@ async def _set_status(
     status: DocumentStatus,
     user: User,
     session: Session,
-    manager: CacheManager,
 ) -> Document:
+    old_data = DocumentPublic.model_validate(doc).model_dump(mode='json')
+
     history = DocumentHistory(
         document_id=doc.id,
         status=status.value,
-        created_by=user.id,
     )
+    history.set_creation_audit(user.id)
     session.add(history)
-    doc.updated_by = user.id
-    doc.updated_at = datetime.now(timezone.utc)
+
+    new_data = DocumentPublic.model_validate(doc).model_dump(mode='json')
+
+    doc.set_update_audit(user.id)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=user.id,
+        action='UPDATE',
+        table_name=Document.__tablename__,
+        record_id=doc.id,
+        old_data=old_data,
+        new_data=new_data,
+    )
+
     await session.commit()
     await session.refresh(doc)
-
-    doc_public = DocumentPublic.model_validate(doc)
-    payload = doc_public.model_dump(mode='json')
-    ws_message = WSMessage(
-        event='doc.kanban.update', message=status.value, payload=payload
-    )
-    manager.broadcast(ws_message)
-
     return doc
 
 
@@ -95,7 +102,7 @@ async def _queue_notification_if_needed(
     doc: Document,
     status: DocumentStatus,
     session: Session,
-    broker: Broker,
+    broker: RabbitBroker,
 ):
     status_para_portugues = {
         DocumentStatus.PENDING: 'Pendente',
@@ -108,13 +115,31 @@ async def _queue_notification_if_needed(
         return
 
     targets: list[User] = []
-    for _, target in enumerate(rules['targets']):
+
+    creator_cache = None
+
+    for target in rules['targets']:
         if target == NotifyTarget.EDITORS:
             targets.extend(doc.editors)
+
         elif target == NotifyTarget.CREATOR and doc.created_by:
-            creator = await session.get(User, doc.created_by)
-            if creator:
-                targets.append(creator)
+            if not creator_cache:
+                creator_cache = await session.get(User, doc.created_by)
+
+            if creator_cache:
+                targets.append(creator_cache)
+
+        elif target == NotifyTarget.UNIT_AUDITORS and doc.created_by:
+            if not creator_cache:
+                creator_cache = await session.get(User, doc.created_by)
+
+            if creator_cache and creator_cache.unit_id:
+                stmt = select(User).where(
+                    User.access_level == 'AUDITOR',
+                    User.unit_id == creator_cache.unit_id,
+                )
+                auditors_result = await session.execute(stmt)
+                targets.extend(auditors_result.scalars().all())
 
     unique_targets = {user.id: user for user in targets}.values()
     user_ids = [user.id for user in unique_targets if user.id]
@@ -127,7 +152,6 @@ async def _queue_notification_if_needed(
         f"Olá! O status do documento '{doc.name}' "
         f'foi atualizado para: {status_traduzido}'
     )
-
     payload = {'user_ids': user_ids, 'message_text': message_text}
     await broker.publish(payload, 'notifications_send_message')
 
@@ -137,15 +161,13 @@ async def set_status_pending(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
-    broker: Broker,
-    manager: CacheManager,
 ):
     doc = await get_doc_or_404(doc_id, session)
     await _queue_notification_if_needed(
-        doc, DocumentStatus.PENDING, session, broker
+        doc, DocumentStatus.PENDING, session, router.broker
     )
     return await _set_status(
-        doc, DocumentStatus.PENDING, current_user, session, manager
+        doc, DocumentStatus.PENDING, current_user, session
     )
 
 
@@ -154,15 +176,13 @@ async def set_status_under_construction(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
-    broker: Broker,
-    manager: CacheManager,
 ):
     doc = await get_doc_or_404(doc_id, session)
     await _queue_notification_if_needed(
-        doc, DocumentStatus.UNDER_CONSTRUCTION, session, broker
+        doc, DocumentStatus.UNDER_CONSTRUCTION, session, router.broker
     )
     return await _set_status(
-        doc, DocumentStatus.UNDER_CONSTRUCTION, current_user, session, manager
+        doc, DocumentStatus.UNDER_CONSTRUCTION, current_user, session
     )
 
 
@@ -171,15 +191,13 @@ async def set_status_waiting_review(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
-    broker: Broker,
-    manager: CacheManager,
 ):
     doc = await get_doc_or_404(doc_id, session)
     await _queue_notification_if_needed(
-        doc, DocumentStatus.WAITING_FOR_REVIEW, session, broker
+        doc, DocumentStatus.WAITING_FOR_REVIEW, session, router.broker
     )
     return await _set_status(
-        doc, DocumentStatus.WAITING_FOR_REVIEW, current_user, session, manager
+        doc, DocumentStatus.WAITING_FOR_REVIEW, current_user, session
     )
 
 
@@ -188,13 +206,11 @@ async def set_status_completed(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
-    broker: Broker,
-    manager: CacheManager,
 ):
     doc = await get_doc_or_404(doc_id, session)
     await _queue_notification_if_needed(
-        doc, DocumentStatus.COMPLETED, session, broker
+        doc, DocumentStatus.COMPLETED, session, router.broker
     )
     return await _set_status(
-        doc, DocumentStatus.COMPLETED, current_user, session, manager
+        doc, DocumentStatus.COMPLETED, current_user, session
     )

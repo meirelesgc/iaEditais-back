@@ -1,15 +1,20 @@
+import logging
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import tomli
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from faststream.rabbit.fastapi import RabbitRouter
+from redis.asyncio import Redis
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-from iaEditais import workers
-from iaEditais.core import broker
+from iaEditais.core.cache import WebSocketManager
 from iaEditais.core.settings import Settings
 from iaEditais.routers import auth, stats, units, users
+from iaEditais.routers.audit import audit_logs
 from iaEditais.routers.check_tree import (
     branches,
     sources,
@@ -18,10 +23,11 @@ from iaEditais.routers.check_tree import (
 )
 from iaEditais.routers.docs import docs, kanban, messages, releases
 from iaEditais.routers.docs import ws as docs_ws
+from iaEditais.workers import releases as w_releases
 
 PROJECT_FILE = Path(__file__).parent.parent / 'pyproject.toml'
 
-# Diretórios
+
 BASE_DIR = os.path.dirname(__file__)
 STORAGE_DIR = os.path.join(BASE_DIR, 'storage')
 UPLOADS_DIR = os.path.join(STORAGE_DIR, 'uploads')
@@ -33,10 +39,31 @@ for directory in [STORAGE_DIR, UPLOADS_DIR, TEMP_DIR]:
 
 SETTINGS = Settings()
 
-# Aplicação
-app = FastAPI(docs_url='/swagger')
+logging.basicConfig(
+    level=SETTINGS.LOG_LEVEL, format='%(levelname)s: %(message)s'
+)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    redis_instance = Redis.from_url(SETTINGS.CACHE_URL)
+    socket_manager = WebSocketManager(client=redis_instance)
+    app.state.redis = redis_instance
+    app.state.socket_manager = socket_manager
+    yield
+    await redis_instance.close()
+
+
+app = FastAPI(
+    docs_url='/swagger',
+    lifespan=lifespan,
+    root_path=SETTINGS.ROOT_PATH,
+)
+index = RabbitRouter()
 
 app.mount('/uploads', StaticFiles(directory=UPLOADS_DIR), name='uploads')
+
+app.add_middleware(ProxyHeadersMiddleware, trusted_hosts='*')
 
 app.add_middleware(
     CORSMiddleware,
@@ -47,28 +74,34 @@ app.add_middleware(
 )
 
 
-# Routers principais
 app.include_router(units.router)
-app.include_router(users.router)
+
 app.include_router(auth.router)
 app.include_router(stats.router)
 
-# Routers de documentação
+
 app.include_router(docs.router)
-app.include_router(kanban.router)
-app.include_router(releases.router)
+
+
 app.include_router(messages.router)
 app.include_router(docs_ws.router)
 
-# Routers de árvore
-app.include_router(sources.router)
+
 app.include_router(typifications.router)
 app.include_router(taxonomies.router)
 app.include_router(branches.router)
 
-# Eventos assincronos
-app.include_router(workers.router)
-app.include_router(broker.router)
+
+index.include_router(users.router)
+index.include_router(w_releases.router)
+index.include_router(releases.router)
+index.include_router(kanban.router)
+index.include_router(sources.router)
+
+app.include_router(index)
+
+
+app.include_router(audit_logs.router)
 
 
 @app.get('/info')

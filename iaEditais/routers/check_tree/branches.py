@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
@@ -15,6 +14,7 @@ from iaEditais.schemas import (
     BranchPublic,
     BranchUpdate,
 )
+from iaEditais.services import audit_service
 
 router = APIRouter(
     prefix='/branch',
@@ -56,10 +56,23 @@ async def create_branch(
         title=branch.title,
         description=branch.description,
         taxonomy_id=branch.taxonomy_id,
-        created_by=current_user.id,
     )
 
+    db_branch.set_creation_audit(current_user.id)
+
     session.add(db_branch)
+
+    await session.flush()
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='CREATE',
+        table_name=Branch.__tablename__,
+        record_id=db_branch.id,
+        old_data=None,
+    )
+
     await session.commit()
     await session.refresh(db_branch)
 
@@ -89,7 +102,10 @@ async def read_branches(
 
 @router.get('/{branch_id}', response_model=BranchPublic)
 async def read_branch(branch_id: UUID, session: Session):
-    branch = await session.get(Branch, branch_id)
+    result = await session.execute(
+        select(Branch).where(Branch.id == branch_id)
+    )
+    branch = result.scalar_one_or_none()
 
     if not branch or branch.deleted_at:
         raise HTTPException(
@@ -113,6 +129,8 @@ async def update_branch(
             status_code=HTTPStatus.NOT_FOUND,
             detail='Branch not found',
         )
+
+    old_data = BranchPublic.model_validate(db_branch).model_dump(mode='json')
 
     if branch.title != db_branch.title:
         db_branch_same_title = await session.scalar(
@@ -139,7 +157,20 @@ async def update_branch(
     db_branch.title = branch.title
     db_branch.description = branch.description
     db_branch.taxonomy_id = branch.taxonomy_id
-    db_branch.updated_by = current_user.id
+
+    new_data = BranchPublic.model_validate(db_branch).model_dump(mode='json')
+
+    db_branch.set_update_audit(current_user.id)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='UPDATE',
+        table_name=Branch.__tablename__,
+        record_id=db_branch.id,
+        old_data=old_data,
+        new_data=new_data,
+    )
 
     await session.commit()
     await session.refresh(db_branch)
@@ -155,7 +186,10 @@ async def delete_branch(
     session: Session,
     current_user: CurrentUser,
 ):
-    db_branch = await session.get(Branch, branch_id)
+    result = await session.execute(
+        select(Branch).where(Branch.id == branch_id)
+    )
+    db_branch = result.scalar_one_or_none()
 
     if not db_branch or db_branch.deleted_at:
         raise HTTPException(
@@ -163,8 +197,19 @@ async def delete_branch(
             detail='Branch not found',
         )
 
-    db_branch.deleted_at = datetime.now(timezone.utc)
-    db_branch.deleted_by = current_user.id
+    old_data = BranchPublic.model_validate(db_branch).model_dump(mode='json')
+
+    db_branch.set_deletion_audit(current_user.id)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='DELETE',
+        table_name=Branch.__tablename__,
+        record_id=db_branch.id,
+        old_data=old_data,
+    )
+
     await session.commit()
 
     return {'message': 'Branch deleted'}

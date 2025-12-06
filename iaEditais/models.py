@@ -3,7 +3,8 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import ForeignKey, Index, column, func
+from sqlalchemy import ForeignKey, Index, Text, column, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import (
     Mapped,
     declared_attr,
@@ -488,6 +489,7 @@ class Document(AuditMixin):
         init=False,
         cascade='all, delete-orphan',
     )
+    is_archived: Mapped[bool] = mapped_column(nullable=False, default=False)
 
     __table_args__ = (
         Index(
@@ -963,4 +965,35 @@ class UserImage:
     file_path: Mapped[str] = mapped_column(nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
+    )
+
+
+@table_registry.mapped_as_dataclass
+class AuditLog:
+    __tablename__ = 'audit_logs'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
+    )
+    table_name: Mapped[str] = mapped_column(nullable=False, index=True)
+    record_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    action: Mapped[str] = mapped_column(nullable=False)
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey('users.id', name='fk_audit_logs_user_id'),
+        nullable=False,
+        index=True,
+    )
+    old_data: Mapped[Optional[dict]] = mapped_column(
+        JSONB, nullable=True, default=None
+    )
+    user: Mapped['User'] = relationship(init=False, lazy='selectin')
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now(), index=True
+    )
+    description: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, default=None
     )
