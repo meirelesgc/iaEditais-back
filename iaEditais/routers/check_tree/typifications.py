@@ -180,13 +180,21 @@ async def delete_typification(
 
 
 @router.get('/export/pdf')
-async def exportar_tipificacoes_pdf(session: Session):
-    query = await session.scalars(
+async def exportar_tipificacoes_pdf(
+    session: Session,
+    typification_id: UUID = None,
+):
+    stmt = (
         select(Typification)
         .where(Typification.deleted_at.is_(None))
         .order_by(Typification.created_at.desc())
     )
 
+    # adiciona filtro opcional
+    if typification_id:
+        stmt = stmt.where(Typification.id == typification_id)
+
+    query = await session.scalars(stmt)
     typifications = query.all()
 
     if not typifications:
