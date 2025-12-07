@@ -4,10 +4,11 @@ from secrets import token_hex
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import Depends, File, HTTPException, UploadFile
+from faststream.rabbit.fastapi import RabbitRouter as APIRouter
 from sqlalchemy import or_, select
 
-from iaEditais.core.dependencies import Broker, CurrentUser, Session
+from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.core.security import get_password_hash
 from iaEditais.models import User, UserImage
 from iaEditais.schemas import (
@@ -27,7 +28,7 @@ router = APIRouter(prefix='/user', tags=['operações de sistema, usuário'])
 
 
 @router.post('/', status_code=HTTPStatus.CREATED, response_model=UserPublic)
-async def create_user(user: UserCreate, session: Session, broker: Broker):
+async def create_user(user: UserCreate, session: Session):
     db_user = await session.scalar(
         select(User).where(
             User.deleted_at.is_(None),
@@ -66,7 +67,7 @@ async def create_user(user: UserCreate, session: Session, broker: Broker):
 
     if password_was_generated:
         await notification_service.publish_user_welcome_notification(
-            db_user, temp_password, broker
+            db_user, temp_password, router.broker
         )
 
     return db_user

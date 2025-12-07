@@ -5,9 +5,8 @@ import tomli
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from faststream.rabbit.fastapi import RabbitRouter
 
-from iaEditais import workers
-from iaEditais.core import broker
 from iaEditais.core.settings import Settings
 from iaEditais.routers import auth, stats, units, users
 from iaEditais.routers.check_tree import (
@@ -18,6 +17,7 @@ from iaEditais.routers.check_tree import (
 )
 from iaEditais.routers.docs import docs, kanban, messages, releases
 from iaEditais.routers.docs import ws as docs_ws
+from iaEditais.workers import releases as w_releases
 
 PROJECT_FILE = Path(__file__).parent.parent / 'pyproject.toml'
 
@@ -35,6 +35,7 @@ SETTINGS = Settings()
 
 # Aplicação
 app = FastAPI(docs_url='/swagger')
+index = RabbitRouter()
 
 app.mount('/uploads', StaticFiles(directory=UPLOADS_DIR), name='uploads')
 
@@ -49,26 +50,31 @@ app.add_middleware(
 
 # Routers principais
 app.include_router(units.router)
-app.include_router(users.router)
+
 app.include_router(auth.router)
 app.include_router(stats.router)
 
 # Routers de documentação
 app.include_router(docs.router)
-app.include_router(kanban.router)
-app.include_router(releases.router)
+
+
 app.include_router(messages.router)
 app.include_router(docs_ws.router)
 
 # Routers de árvore
-app.include_router(sources.router)
+
 app.include_router(typifications.router)
 app.include_router(taxonomies.router)
 app.include_router(branches.router)
 
 # Eventos assincronos
-app.include_router(workers.router)
-app.include_router(broker.router)
+index.include_router(users.router)
+index.include_router(w_releases.router)
+index.include_router(releases.router)
+index.include_router(kanban.router)
+index.include_router(sources.router)
+
+app.include_router(index)
 
 
 @app.get('/info')

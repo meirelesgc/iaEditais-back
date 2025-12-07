@@ -4,10 +4,11 @@ from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi import Depends, File, HTTPException, UploadFile
+from faststream.rabbit.fastapi import RabbitRouter as APIRouter
 from sqlalchemy import select
 
-from iaEditais.core.dependencies import Broker, CurrentUser, Session
+from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import Source
 from iaEditais.schemas import (
     FilterPage,
@@ -78,7 +79,6 @@ async def read_sources(
 async def upload_source_document(
     source_id: UUID,
     session: Session,
-    broker: Broker,
     file: UploadFile = File(...),
 ):
     source = await session.get(Source, source_id)
@@ -99,7 +99,7 @@ async def upload_source_document(
     session.add(source)
     await session.commit()
 
-    await broker.publish(source.id, 'sources_create_vectors')
+    await router.broker.publish(source.id, 'sources_create_vectors')
     return source
 
 

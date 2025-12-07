@@ -3,12 +3,13 @@ from enum import Enum
 from http import HTTPStatus
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException
+from fastapi import HTTPException
+from faststream.rabbit.fastapi import RabbitBroker
+from faststream.rabbit.fastapi import RabbitRouter as APIRouter
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from iaEditais.core.dependencies import (
-    Broker,
     CacheManager,
     CurrentUser,
     Session,
@@ -95,7 +96,7 @@ async def _queue_notification_if_needed(
     doc: Document,
     status: DocumentStatus,
     session: Session,
-    broker: Broker,
+    broker: RabbitBroker,
 ):
     status_para_portugues = {
         DocumentStatus.PENDING: 'Pendente',
@@ -137,12 +138,11 @@ async def set_status_pending(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
-    broker: Broker,
     manager: CacheManager,
 ):
     doc = await get_doc_or_404(doc_id, session)
     await _queue_notification_if_needed(
-        doc, DocumentStatus.PENDING, session, broker
+        doc, DocumentStatus.PENDING, session, router.broker
     )
     return await _set_status(
         doc, DocumentStatus.PENDING, current_user, session, manager
@@ -154,12 +154,11 @@ async def set_status_under_construction(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
-    broker: Broker,
     manager: CacheManager,
 ):
     doc = await get_doc_or_404(doc_id, session)
     await _queue_notification_if_needed(
-        doc, DocumentStatus.UNDER_CONSTRUCTION, session, broker
+        doc, DocumentStatus.UNDER_CONSTRUCTION, session, router.broker
     )
     return await _set_status(
         doc, DocumentStatus.UNDER_CONSTRUCTION, current_user, session, manager
@@ -171,12 +170,11 @@ async def set_status_waiting_review(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
-    broker: Broker,
     manager: CacheManager,
 ):
     doc = await get_doc_or_404(doc_id, session)
     await _queue_notification_if_needed(
-        doc, DocumentStatus.WAITING_FOR_REVIEW, session, broker
+        doc, DocumentStatus.WAITING_FOR_REVIEW, session, router.broker
     )
     return await _set_status(
         doc, DocumentStatus.WAITING_FOR_REVIEW, current_user, session, manager
@@ -188,12 +186,11 @@ async def set_status_completed(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
-    broker: Broker,
     manager: CacheManager,
 ):
     doc = await get_doc_or_404(doc_id, session)
     await _queue_notification_if_needed(
-        doc, DocumentStatus.COMPLETED, session, broker
+        doc, DocumentStatus.COMPLETED, session, router.broker
     )
     return await _set_status(
         doc, DocumentStatus.COMPLETED, current_user, session, manager

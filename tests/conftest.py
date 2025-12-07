@@ -18,9 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from testcontainers.postgres import PostgresContainer
 from testcontainers.redis import RedisContainer
 
-from iaEditais import workers
-from iaEditais.app import app
-from iaEditais.core.broker import get_broker
+from iaEditais.app import app, index
 from iaEditais.core.cache import ConnectionManager, get_cache
 from iaEditais.core.database import get_session
 from iaEditais.core.llm import get_model
@@ -80,12 +78,11 @@ async def client(session, engine, cache):
     def get_cache_override():
         return ConnectionManager(redis=cache)
 
-    async with TestRabbitBroker(workers.router.broker) as broker:
+    async with TestRabbitBroker(index.broker):
         with TestClient(app) as client:
             app.dependency_overrides[get_session] = get_session_override
             app.dependency_overrides[get_vectorstore] = get_vstore_override
             app.dependency_overrides[get_model] = get_model_override
-            app.dependency_overrides[get_broker] = lambda: broker
             app.dependency_overrides[get_cache] = get_cache_override
             yield client
 
@@ -325,7 +322,7 @@ def mock_upload_directory(monkeypatch):
         str(temp_upload_dir),
     )
     monkeypatch.setattr(
-        'iaEditais.workers.docs.releases.UPLOAD_DIRECTORY',
+        'iaEditais.workers.releases.UPLOAD_DIRECTORY',
         str(temp_upload_dir),
     )
 
