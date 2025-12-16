@@ -1102,6 +1102,11 @@ class TestRun(AuditMixin):
         nullable=True,
         default=None,
     )
+    test_case_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('test_cases.id', name='fk_test_runs_test_case_id'),
+        nullable=True,
+        default=None,
+    )
 
 
 @table_registry.mapped_as_dataclass

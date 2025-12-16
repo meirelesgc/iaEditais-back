@@ -3,7 +3,7 @@ Rotas para consulta de resultados de testes (TestResult).
 """
 
 from http import HTTPStatus
-from typing import Annotated
+from typing import Annotated, Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -26,19 +26,20 @@ router = APIRouter(
 async def read_test_results(
     session: Session,
     filters: Annotated[FilterPage, Depends()],
-    test_run_id: UUID = Query(
-        ..., description='ID do test run para filtrar os resultados'
+    test_run_id: Optional[UUID] = Query(
+        None, description='ID do test run para filtrar os resultados (opcional)'
     ),
 ):
-    """Lista todos os resultados de teste filtrados por test_run_id."""
+    """Lista todos os resultados de teste, opcionalmente filtrados por test_run_id."""
 
-    # Valida se o test_run existe
-    test_run = await evaluation_repository.get_test_run(session, test_run_id)
-    if not test_run or test_run.deleted_at:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Test run not found',
-        )
+    # Valida se o test_run existe (apenas se test_run_id foi fornecido)
+    if test_run_id:
+        test_run = await evaluation_repository.get_test_run(session, test_run_id)
+        if not test_run or test_run.deleted_at:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail='Test run not found',
+            )
 
     test_results = await evaluation_repository.get_test_results(
         session, test_run_id, filters.offset, filters.limit

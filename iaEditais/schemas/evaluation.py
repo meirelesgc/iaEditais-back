@@ -145,6 +145,7 @@ class TestCaseList(BaseModel):
 
 class TestRunSchema(BaseModel):
     test_collection_id: Optional[UUID] = None
+    test_case_id: Optional[UUID] = None
     created_by: Optional[UUID] = None
 
 

@@ -4,18 +4,56 @@ Rotas para execução de testes (TestRun).
 
 import json
 from http import HTTPStatus
+from typing import Annotated, Optional
+from uuid import UUID
 
-from fastapi import File, Form, HTTPException, UploadFile
+from fastapi import Depends, File, Form, HTTPException, Query, UploadFile
 from faststream.rabbit.fastapi import RabbitRouter as APIRouter
 
 from iaEditais.core.dependencies import CurrentUser, Session
-from iaEditais.schemas import TestRunExecute, TestRunExecutionResult
+from iaEditais.repositories import evaluation_repository
+from iaEditais.schemas import (
+    FilterPage,
+    TestRunExecute,
+    TestRunExecutionResult,
+    TestRunList,
+    TestRunPublic,
+)
 from iaEditais.services import evaluation_service
 
 router = APIRouter(
     prefix='/test-runs',
     tags=['avaliação, execução de testes'],
 )
+
+
+@router.get('/', response_model=TestRunList)
+async def read_test_runs(
+    session: Session,
+    filters: Annotated[FilterPage, Depends()],
+    test_case_id: Optional[UUID] = Query(
+        None, description='ID do test case para filtrar os test runs'
+    ),
+):
+    """Lista todos os test runs, opcionalmente filtrados por test_case_id."""
+    test_runs = await evaluation_repository.get_test_runs(
+        session, test_case_id, filters.offset, filters.limit
+    )
+    return {'test_runs': test_runs}
+
+
+@router.get('/{test_run_id}', response_model=TestRunPublic)
+async def read_test_run(test_run_id: UUID, session: Session):
+    """Busca um test run por ID."""
+    test_run = await evaluation_repository.get_test_run(session, test_run_id)
+
+    if not test_run or test_run.deleted_at:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Test run not found',
+        )
+
+    return test_run
 
 
 @router.post(

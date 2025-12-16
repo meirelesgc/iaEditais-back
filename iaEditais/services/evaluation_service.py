@@ -315,6 +315,7 @@ async def run_evaluation(
     print('DEBUG: Criando test_run no banco de dados - Checkpoint 15')
     test_run_data_db = {
         'test_collection_id': test_collection_id,
+        'test_case_id': test_case_id if test_case_id else None,
         'created_by': current_user.id,
     }
     test_run = await evaluation_repository.create_test_run(

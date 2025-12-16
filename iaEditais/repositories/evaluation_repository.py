@@ -326,6 +326,7 @@ async def create_test_run(
     """Cria uma nova execução de teste."""
     db_test_run = TestRun(
         test_collection_id=test_run_data.get('test_collection_id'),
+        test_case_id=test_run_data.get('test_case_id'),
         created_by=current_user.id,
     )
     session.add(db_test_run)
@@ -337,6 +338,28 @@ async def create_test_run(
 async def get_test_run(session: AsyncSession, test_run_id: UUID):
     """Busca uma execução de teste por ID."""
     return await session.get(TestRun, test_run_id)
+
+
+async def get_test_runs(
+    session: AsyncSession,
+    test_case_id: Optional[UUID] = None,
+    offset: int = 0,
+    limit: int = 100,
+):
+    """Lista todas as execuções de teste."""
+    query = (
+        select(TestRun)
+        .where(TestRun.deleted_at.is_(None))
+    )
+
+    if test_case_id:
+        query = query.where(TestRun.test_case_id == test_case_id)
+
+    query = (
+        query.offset(offset).limit(limit).order_by(TestRun.created_at.desc())
+    )
+    result = await session.scalars(query)
+    return result.all()
 
 
 # ===========================
