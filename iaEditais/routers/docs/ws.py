@@ -1,46 +1,45 @@
-import asyncio
 from uuid import UUID
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
-from iaEditais.core.dependencies import CacheManager
+from iaEditais.core.cache import WebSocketManager, get_socket_manager
 from iaEditais.schemas import WSMessage
 
 router = APIRouter(prefix='/ws', tags=['websockets'])
 
 
-@router.websocket('/{client_id}')
+@router.websocket('/{subscriber_id}')
 async def websocket_endpoint(
-    websocket: WebSocket, client_id: UUID, manager: CacheManager
+    websocket: WebSocket,
+    subscriber_id: UUID,
+    socket_manager: WebSocketManager = Depends(get_socket_manager),
 ):
-    manager.connect(client_id, websocket)
+    channel_id = 'ws:broadcast'
+    await socket_manager.add_user_to_channel(channel_id, websocket)
+
+    message = WSMessage(
+        event='user.connect',
+        message=f'User {subscriber_id} connected to channel - {channel_id}',
+        payload={},
+    )
+    await socket_manager.broadcast_to_channel(
+        channel_id, message.model_dump_json()
+    )
+
     try:
         while True:
-            raw_data = await websocket.receive_text()
-            try:
-                message = WSMessage.model_validate_json(raw_data)
-            except Exception:
-                message = 'Invalid message format'
-                ws_message = WSMessage(event='error', message=message)
-                manager.send_personal_message(client_id, ws_message)
-                continue
-            if message.event == 'ping':
-                ws_message = WSMessage(event='pong', message='ok')
-                manager.send_personal_message(client_id, ws_message)
-            elif message.event == 'broadcast':
-                ws_message = WSMessage(
-                    event='broadcast',
-                    message=message.message,
-                    payload=message.payload,
-                )
-                manager.broadcast(ws_message)
-            else:
-                ws_message = WSMessage(
-                    event='echo',
-                    message=message.message,
-                    payload=message.payload,
-                )
-                manager.send_personal_message(client_id, ws_message)
-            await asyncio.sleep(0.03)
+            data = await websocket.receive_text()
+            message = WSMessage(event='user.connect', message=data, payload={})
+            await socket_manager.broadcast_to_channel(
+                channel_id, message.model_dump_json()
+            )
     except WebSocketDisconnect:
-        manager.disconnect(client_id)
+        await socket_manager.remove_user_from_channel(channel_id, websocket)
+        message = WSMessage(
+            event='user.disconnect',
+            message=f'User {subscriber_id} disconnected to channel - {channel_id}',
+            payload={},
+        )
+        await socket_manager.broadcast_to_channel(
+            channel_id, message.model_dump_json()
+        )
