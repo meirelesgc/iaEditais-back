@@ -13,13 +13,14 @@ from faststream.rabbit import TestRabbitBroker
 from langchain_community.embeddings import FakeEmbeddings
 from langchain_core.language_models.fake_chat_models import FakeChatModel
 from langchain_postgres import PGVector
+from redis.asyncio import Redis
 from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from testcontainers.postgres import PostgresContainer
 from testcontainers.redis import RedisContainer
 
 from iaEditais.app import app, index
-from iaEditais.core.cache import ConnectionManager, get_cache
+from iaEditais.core.cache import WebSocketManager, get_socket_manager
 from iaEditais.core.database import get_session
 from iaEditais.core.llm import get_model
 from iaEditais.core.security import (
@@ -75,15 +76,19 @@ async def client(session, engine, cache):
     def get_session_override():
         return session
 
-    def get_cache_override():
-        return ConnectionManager(redis=cache)
+    socket_manager = WebSocketManager(client=cache)
+
+    def get_socket_manager_override():
+        return socket_manager
 
     async with TestRabbitBroker(index.broker):
         with TestClient(app) as client:
             app.dependency_overrides[get_session] = get_session_override
             app.dependency_overrides[get_vectorstore] = get_vstore_override
             app.dependency_overrides[get_model] = get_model_override
-            app.dependency_overrides[get_cache] = get_cache_override
+            app.dependency_overrides[get_socket_manager] = (
+                get_socket_manager_override
+            )
             yield client
 
     app.dependency_overrides.clear()
@@ -98,11 +103,13 @@ def engine():
 
 @pytest.fixture(scope='session')
 def cache():
-    container = RedisContainer('redis:latest')
-    container.start()
-    client = container.get_client()
-    yield client
-    container.stop()
+    with RedisContainer('redis:latest') as container:
+        client = Redis(
+            host=container.get_container_host_ip(),
+            port=container.get_exposed_port(container.port),
+            password=container.password,
+        )
+        yield client
 
 
 @pytest_asyncio.fixture

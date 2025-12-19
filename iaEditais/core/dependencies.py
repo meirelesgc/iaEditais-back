@@ -4,10 +4,8 @@ from fastapi import Depends
 from fastapi.security import OAuth2PasswordRequestForm
 from langchain_core.language_models.chat_models import BaseChatModel
 from langchain_core.vectorstores import VectorStore
-from redis import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from iaEditais.core.cache import get_cache
 from iaEditais.core.database import get_session
 from iaEditais.core.llm import get_model
 from iaEditais.core.security import get_current_user
@@ -19,4 +17,3 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 OAuth2Form = Annotated[OAuth2PasswordRequestForm, Depends()]
 VStore = Annotated[VectorStore, Depends(get_vectorstore)]
 Model = Annotated[BaseChatModel, Depends(get_model)]
-CacheManager = Annotated[Redis, Depends(get_cache)]

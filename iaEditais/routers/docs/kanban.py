@@ -10,12 +10,11 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 
 from iaEditais.core.dependencies import (
-    CacheManager,
     CurrentUser,
     Session,
 )
 from iaEditais.models import Document, DocumentHistory, User
-from iaEditais.schemas import DocumentPublic, DocumentStatus, WSMessage
+from iaEditais.schemas import DocumentPublic, DocumentStatus
 
 router = APIRouter(
     prefix='/doc/{doc_id}/status', tags=['verificação dos documentos, kanban']
@@ -69,7 +68,6 @@ async def _set_status(
     status: DocumentStatus,
     user: User,
     session: Session,
-    manager: CacheManager,
 ) -> Document:
     history = DocumentHistory(
         document_id=doc.id,
@@ -81,14 +79,6 @@ async def _set_status(
     doc.updated_at = datetime.now(timezone.utc)
     await session.commit()
     await session.refresh(doc)
-
-    doc_public = DocumentPublic.model_validate(doc)
-    payload = doc_public.model_dump(mode='json')
-    ws_message = WSMessage(
-        event='doc.kanban.update', message=status.value, payload=payload
-    )
-    manager.broadcast(ws_message)
-
     return doc
 
 
@@ -138,14 +128,13 @@ async def set_status_pending(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
-    manager: CacheManager,
 ):
     doc = await get_doc_or_404(doc_id, session)
     await _queue_notification_if_needed(
         doc, DocumentStatus.PENDING, session, router.broker
     )
     return await _set_status(
-        doc, DocumentStatus.PENDING, current_user, session, manager
+        doc, DocumentStatus.PENDING, current_user, session
     )
 
 
@@ -154,14 +143,13 @@ async def set_status_under_construction(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
-    manager: CacheManager,
 ):
     doc = await get_doc_or_404(doc_id, session)
     await _queue_notification_if_needed(
         doc, DocumentStatus.UNDER_CONSTRUCTION, session, router.broker
     )
     return await _set_status(
-        doc, DocumentStatus.UNDER_CONSTRUCTION, current_user, session, manager
+        doc, DocumentStatus.UNDER_CONSTRUCTION, current_user, session
     )
 
 
@@ -170,14 +158,13 @@ async def set_status_waiting_review(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
-    manager: CacheManager,
 ):
     doc = await get_doc_or_404(doc_id, session)
     await _queue_notification_if_needed(
         doc, DocumentStatus.WAITING_FOR_REVIEW, session, router.broker
     )
     return await _set_status(
-        doc, DocumentStatus.WAITING_FOR_REVIEW, current_user, session, manager
+        doc, DocumentStatus.WAITING_FOR_REVIEW, current_user, session
     )
 
 
@@ -186,12 +173,11 @@ async def set_status_completed(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
-    manager: CacheManager,
 ):
     doc = await get_doc_or_404(doc_id, session)
     await _queue_notification_if_needed(
         doc, DocumentStatus.COMPLETED, session, router.broker
     )
     return await _set_status(
-        doc, DocumentStatus.COMPLETED, current_user, session, manager
+        doc, DocumentStatus.COMPLETED, current_user, session
     )
