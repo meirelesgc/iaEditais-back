@@ -2,36 +2,50 @@ name: CI/CD Pipeline - iaEditais Back
 
 on:
   push:
-    branches: [ "develop" ]
-  pull_request:
-    branches: [ "develop" ]
+    branches: [ "support/v1.x" ]
 
 env:
-  ECR_REPOSITORY: iaeditais-back
-  IMAGE_TAG: ${{ github.sha }}
+  IMAGE_NAME: gleidsoncosta/fiotec-iaeditais 
 
 jobs:
-  tests:
+  build-and-push:
     runs-on: ubuntu-latest
-    env:
-      DATABASE_URL: postgresql+psycopg://postgres:postgres@iaeditais_db:5432/iaeditais
     steps:
-      - name: Checkout do código
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Configurar Python
-        uses: actions/setup-python@v4
+      - name: Login no Docker Hub
+        uses: docker/login-action@v3
         with:
-          python-version: '3.13'
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: Instalar Poetry
-        uses: snok/install-poetry@v1
+      - name: Build e Push da Imagem
+        uses: docker/build-push-action@v5
         with:
-          virtualenvs-create: true
-          virtualenvs-in-project: true
+          context: .
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:latest
+            ${{ env.IMAGE_NAME }}:${{ github.sha }}
 
-      - name: Instalar Dependências
-        run: poetry install --no-interaction --no-root
-
-      - name: Rodar Testes
-        run: poetry run task test
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.HOST_DNS }}
+          username: ${{ secrets.USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd /home/${{ secrets.USERNAME }}/iaEditais-stage/iaEditais-back/ 
+            
+            git pull
+            
+            docker compose pull iaeditais_api
+            
+            docker compose up -d --force-recreate iaeditais_api
+            
+            docker image prune -f
