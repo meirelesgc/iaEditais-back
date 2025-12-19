@@ -1,58 +1,72 @@
-import json
-from typing import Dict
-from uuid import UUID
+import asyncio
 
-from fastapi import WebSocket
-from redis import Redis
-
-from iaEditais.core.settings import Settings
-from iaEditais.schemas import WSMessage
-
-SETTINGS = Settings()
+import redis.asyncio as aioredis
+from fastapi import Request, WebSocket
+from redis.asyncio import Redis
 
 
-class ConnectionManager:
-    def __init__(self, redis: Redis, channel: str = 'ws:broadcast'):
-        self.active_connections: Dict[UUID, WebSocket] = {}
-        self.redis = redis
-        self.channel = channel
+class PubSubManager:
+    def __init__(self, redis: aioredis.Redis):
+        self.redis_connection = redis
+        self.pubsub = None
 
-    def connect(self, client_id: UUID, websocket: WebSocket):
-        websocket.accept()
-        self.active_connections[client_id] = websocket
+    async def connect(self) -> None:
+        self.pubsub = self.redis_connection.pubsub()
 
-    def disconnect(self, client_id: UUID):
-        self.active_connections.pop(client_id, None)
+    async def _publish(self, channel_id: str, message: str) -> None:
+        await self.redis_connection.publish(channel_id, message)
 
-    def send_personal_message(self, client_id: UUID, message: WSMessage):
-        ws = self.active_connections.get(client_id)
-        if ws:
-            ws.send_json(message.model_dump())
+    async def subscribe(self, channel_id: str):
+        await self.pubsub.subscribe(channel_id)
+        return self.pubsub
 
-    def broadcast(self, message: WSMessage):
-        data = message.model_dump_json()
-        self.redis.publish(self.channel, data)
-
-    def listen_to_broadcasts(self):
-        pubsub = self.redis.pubsub()
-        pubsub.subscribe(self.channel)
-        for msg in pubsub.listen():
-            if msg and msg['type'] == 'message':
-                try:
-                    data = json.loads(msg['data'])
-                    ws_message = WSMessage(**data)
-                    self.local_broadcast(ws_message)
-                except Exception:
-                    continue
-
-    def local_broadcast(self, message: WSMessage):
-        for ws in list(self.active_connections.values()):
-            try:
-                ws.send_json(message.model_dump())
-            except Exception:
-                continue
+    async def unsubscribe(self, channel_id: str) -> None:
+        await self.pubsub.unsubscribe(channel_id)
 
 
-def get_cache():  # pragma: no cover
-    redis = Redis.from_url(SETTINGS.CACHE_URL)
-    return ConnectionManager(redis=redis)
+class WebSocketManager:
+    def __init__(self, client: aioredis.Redis):
+        self.channels: dict = {}
+        self.pubsub_client = PubSubManager(client)
+
+    async def add_user_to_channel(self, channel_id: str, websocket: WebSocket):
+        await websocket.accept()
+        if channel_id in self.channels:
+            self.channels[channel_id].append(websocket)
+        else:
+            self.channels[channel_id] = [websocket]
+
+            await self.pubsub_client.connect()
+            pubsub_subscriber = await self.pubsub_client.subscribe(channel_id)
+            asyncio.create_task(self._pubsub_data_reader(pubsub_subscriber))
+
+    async def broadcast_to_channel(self, channel_id: str, message: str):
+        await self.pubsub_client._publish(channel_id, message)
+
+    async def remove_user_from_channel(
+        self, channel_id: str, websocket: WebSocket
+    ):
+        self.channels[channel_id].remove(websocket)
+        if len(self.channels[channel_id]) == 0:
+            del self.channels[channel_id]
+            await self.pubsub_client.unsubscribe(channel_id)
+
+    async def _pubsub_data_reader(self, pubsub_subscriber):
+        while True:
+            message = await pubsub_subscriber.get_message(
+                ignore_subscribe_messages=True
+            )
+            if message is not None:
+                channel_id = message['channel'].decode('utf-8')
+                all_sockets = self.channels[channel_id]
+                for socket in all_sockets:
+                    data = message['data'].decode('utf-8')
+                    await socket.send_text(data)
+
+
+def get_socket_manager(websocket: WebSocket) -> WebSocketManager:
+    return websocket.app.state.socket_manager
+
+
+def get_redis(request: Request) -> Redis:
+    return request.app.state.redis

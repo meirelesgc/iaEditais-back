@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import tomli
@@ -6,7 +7,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from faststream.rabbit.fastapi import RabbitRouter
+from redis.asyncio import Redis
 
+from iaEditais.core.cache import WebSocketManager
 from iaEditais.core.settings import Settings
 from iaEditais.routers import auth, stats, units, users
 from iaEditais.routers.check_tree import (
@@ -33,8 +36,19 @@ for directory in [STORAGE_DIR, UPLOADS_DIR, TEMP_DIR]:
 
 SETTINGS = Settings()
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    redis_instance = Redis.from_url(SETTINGS.CACHE_URL)
+    socket_manager = WebSocketManager(client=redis_instance)
+    app.state.redis = redis_instance
+    app.state.socket_manager = socket_manager
+    yield
+    await redis_instance.close()
+
+
 # Aplicação
-app = FastAPI(docs_url='/swagger')
+app = FastAPI(docs_url='/swagger', lifespan=lifespan)
 index = RabbitRouter()
 
 app.mount('/uploads', StaticFiles(directory=UPLOADS_DIR), name='uploads')
