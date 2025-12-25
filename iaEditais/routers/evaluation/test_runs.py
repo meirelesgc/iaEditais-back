@@ -14,12 +14,14 @@ from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.repositories import evaluation_repository
 from iaEditais.schemas import (
     FilterPage,
+    TestRunAccepted,
     TestRunExecute,
-    TestRunExecutionResult,
     TestRunList,
     TestRunPublic,
 )
-from iaEditais.services import evaluation_service
+from iaEditais.services import storage_service
+
+UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 
 router = APIRouter(
     prefix='/test-runs',
@@ -30,6 +32,7 @@ router = APIRouter(
 @router.get('/', response_model=TestRunList)
 async def read_test_runs(
     session: Session,
+    current_user: CurrentUser,
     filters: Annotated[FilterPage, Depends()],
     test_case_id: Optional[UUID] = Query(
         None, description='ID do test case para filtrar os test runs'
@@ -43,7 +46,11 @@ async def read_test_runs(
 
 
 @router.get('/{test_run_id}', response_model=TestRunPublic)
-async def read_test_run(test_run_id: UUID, session: Session):
+async def read_test_run(
+    test_run_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+):
     """Busca um test run por ID."""
     test_run = await evaluation_repository.get_test_run(session, test_run_id)
 
@@ -58,8 +65,8 @@ async def read_test_run(test_run_id: UUID, session: Session):
 
 @router.post(
     '/',
-    status_code=HTTPStatus.CREATED,
-    response_model=TestRunExecutionResult,
+    status_code=HTTPStatus.ACCEPTED,
+    response_model=TestRunAccepted,
 )
 async def execute_test_run(
     session: Session,
@@ -68,8 +75,10 @@ async def execute_test_run(
     file: UploadFile = File(...),
 ):
     """
-    Executa uma bateria de testes.
+    Inicia uma bateria de testes de forma assíncrona.
     Payload deve ser um JSON compatível com TestRunExecute.
+    Retorna imediatamente com status 202 Accepted e o ID do test run.
+    O processamento ocorre em background via worker.
     """
     print('DEBUG: Iniciando execução de test run - Checkpoint 1')
     try:
@@ -91,9 +100,26 @@ async def execute_test_run(
                 'Either test_collection_id or test_case_id is required'
             )
 
-        print('DEBUG: Preparando dados para o service - Checkpoint 4')
-        # Prepara dados para o service
-        data_to_service = {
+        # Salva arquivo para processamento posterior
+        print('DEBUG: Salvando arquivo para processamento posterior - Checkpoint 4')
+        file_path = await storage_service.save_file(file, UPLOAD_DIRECTORY)
+        print(f'DEBUG: Arquivo salvo em: {file_path} - Checkpoint 4.1')
+
+        # Cria test_run com status 'pending'
+        print('DEBUG: Criando test_run com status pending - Checkpoint 5')
+        test_run_data_db = {
+            'test_collection_id': test_run_execute.test_collection_id,
+            'test_case_id': test_run_execute.test_case_id,
+            'status': 'pending',
+        }
+        test_run = await evaluation_repository.create_test_run(
+            session, test_run_data_db, current_user
+        )
+        print(f'DEBUG: Test run criado com ID: {test_run.id} - Checkpoint 6')
+
+        # Prepara dados para o worker
+        worker_payload = {
+            'test_run_id': str(test_run.id),
             'test_collection_id': (
                 str(test_run_execute.test_collection_id)
                 if test_run_execute.test_collection_id
@@ -110,16 +136,20 @@ async def execute_test_run(
                 if test_run_execute.model_id
                 else None
             ),
-            'created_by': current_user.id,
+            'file_path': str(file_path),
+            'created_by': str(current_user.id),
         }
 
-        print('DEBUG: Chamando evaluation_service.run_evaluation - Checkpoint 5')
-        result = await evaluation_service.run_evaluation(
-            session, data_to_service, current_user, file, router.broker
-        )
+        # Publica no RabbitMQ para processamento assíncrono
+        print('DEBUG: Publicando no RabbitMQ para processamento - Checkpoint 7')
+        await router.broker.publish(worker_payload, 'test_run_process')
+        print('DEBUG: Mensagem publicada no RabbitMQ - Checkpoint 8')
 
-        print('DEBUG: Test run executado com sucesso - Checkpoint 6')
-        return result
+        return TestRunAccepted(
+            test_run_id=test_run.id,
+            status='pending',
+            message='Test run iniciado. Acompanhe o progresso via WebSocket.',
+        )
 
     except json.JSONDecodeError as e:
         raise HTTPException(
@@ -130,11 +160,8 @@ async def execute_test_run(
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST, detail=str(e)
         ) from e
-    except TimeoutError as e:
-        raise HTTPException(
-            status_code=HTTPStatus.REQUEST_TIMEOUT, detail=str(e)
-        ) from e
     except Exception as e:
+        print(f'DEBUG: Erro na execução: {str(e)} - Checkpoint ERROR')
         raise HTTPException(
             status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
             detail=f'Internal server error: {str(e)}',

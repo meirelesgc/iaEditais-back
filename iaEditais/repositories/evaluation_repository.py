@@ -328,8 +328,38 @@ async def create_test_run(
         test_collection_id=test_run_data.get('test_collection_id'),
         test_case_id=test_run_data.get('test_case_id'),
         created_by=current_user.id,
+        status=test_run_data.get('status', 'pending'),
+        progress=test_run_data.get('progress'),
+        error_message=test_run_data.get('error_message'),
+        release_id=test_run_data.get('release_id'),
     )
     session.add(db_test_run)
+    await session.commit()
+    await session.refresh(db_test_run)
+    return db_test_run
+
+
+async def update_test_run_status(
+    session: AsyncSession,
+    test_run_id: UUID,
+    status: str,
+    progress: Optional[str] = None,
+    error_message: Optional[str] = None,
+    release_id: Optional[UUID] = None,
+):
+    """Atualiza o status de uma execução de teste."""
+    db_test_run = await session.get(TestRun, test_run_id)
+    if not db_test_run:
+        return None
+
+    db_test_run.status = status
+    if progress is not None:
+        db_test_run.progress = progress
+    if error_message is not None:
+        db_test_run.error_message = error_message
+    if release_id is not None:
+        db_test_run.release_id = release_id
+
     await session.commit()
     await session.refresh(db_test_run)
     return db_test_run

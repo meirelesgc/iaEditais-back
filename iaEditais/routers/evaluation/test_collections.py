@@ -92,6 +92,30 @@ async def update_test_collection(
     current_user: CurrentUser,
 ):
     """Atualiza uma coleção de testes."""
+    # Verifica se a coleção existe
+    existing_collection = await evaluation_repository.get_test_collection(
+        session, collection_id
+    )
+    if not existing_collection or existing_collection.deleted_at:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail='Test collection not found'
+        )
+
+    # Valida se o novo nome já existe (exceto a própria coleção)
+    if test_collection_data.name:
+        name_conflict = await session.scalar(
+            select(TestCollection).where(
+                TestCollection.deleted_at.is_(None),
+                TestCollection.name == test_collection_data.name,
+                TestCollection.id != collection_id,
+            )
+        )
+        if name_conflict:
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail='Test collection name already exists',
+            )
+
     updated_collection = await evaluation_repository.update_test_collection(
         session, collection_id, test_collection_data.model_dump(), current_user
     )

@@ -8,7 +8,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from iaEditais.core.dependencies import Session
+from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.repositories import evaluation_repository
 from iaEditais.schemas import (
     FilterPage,
@@ -25,6 +25,7 @@ router = APIRouter(
 @router.get('/', response_model=TestResultList)
 async def read_test_results(
     session: Session,
+    current_user: CurrentUser,
     filters: Annotated[FilterPage, Depends()],
     test_run_id: Optional[UUID] = Query(
         None, description='ID do test run para filtrar os resultados (opcional)'
@@ -49,7 +50,11 @@ async def read_test_results(
 
 
 @router.get('/{test_result_id}', response_model=TestResultPublic)
-async def read_test_result(test_result_id: UUID, session: Session):
+async def read_test_result(
+    test_result_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+):
     """Busca um resultado de teste por ID."""
     test_result = await evaluation_repository.get_test_result(
         session, test_result_id

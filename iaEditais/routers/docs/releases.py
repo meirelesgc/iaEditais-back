@@ -47,6 +47,7 @@ async def read_releases(doc_id: UUID, session: Session):
         .where(
             DocumentHistory.document_id == doc_id,
             DocumentRelease.deleted_at.is_(None),
+            DocumentRelease.is_test == False,  # noqa: E712
         )
         .order_by(DocumentRelease.created_at.desc())
     )

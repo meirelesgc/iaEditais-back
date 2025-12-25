@@ -20,6 +20,7 @@ from iaEditais.routers.docs import docs, kanban, messages, releases
 from iaEditais.routers.docs import ws as docs_ws
 from iaEditais.routers.evaluation import (
     metrics,
+    models,
     test_cases,
     test_collections,
     test_results,
@@ -77,6 +78,7 @@ app.include_router(branches.router)
 app.include_router(test_collections.router)
 app.include_router(test_cases.router)
 app.include_router(metrics.router)
+app.include_router(models.router)
 app.include_router(test_runs.router)
 app.include_router(test_results.router)
 

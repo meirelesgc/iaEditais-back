@@ -147,6 +147,10 @@ class TestRunSchema(BaseModel):
     test_collection_id: Optional[UUID] = None
     test_case_id: Optional[UUID] = None
     created_by: Optional[UUID] = None
+    status: str = 'pending'
+    progress: Optional[str] = None
+    error_message: Optional[str] = None
+    release_id: Optional[UUID] = None
 
 
 class TestRunCreate(TestRunSchema):
@@ -182,6 +186,16 @@ class TestRunPublic(TestRunSchema):
 
 class TestRunList(BaseModel):
     test_runs: list[TestRunPublic]
+
+
+class TestRunAccepted(BaseModel):
+    """Resposta imediata quando um test run é iniciado."""
+
+    test_run_id: UUID
+    status: str
+    message: str
+
+    model_config = ConfigDict(from_attributes=False)
 
 
 # ===========================

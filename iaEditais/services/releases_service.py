@@ -40,6 +40,7 @@ async def create_release(
     session: Session,
     current_user: CurrentUser,
     file: UploadFile = File(...),
+    is_test: bool = False,
 ):
     allowed_content_types = {
         'text/plain',
@@ -75,7 +76,7 @@ async def create_release(
     latest_history = db_doc.history[0]
     file_path = await storage_service.save_file(file, UPLOAD_DIRECTORY)
     db_release = await releases_repository.insert_db_release(
-        latest_history, file_path, session, current_user
+        latest_history, file_path, session, current_user, is_test
     )
     return db_release
 

@@ -102,7 +102,10 @@ async def read_docs(
     query = (
         select(Document)
         .join(last_history, true())
-        .where(Document.deleted_at.is_(None))
+        .where(
+            Document.deleted_at.is_(None),
+            Document.is_test == False,  # noqa: E712
+        )
         .order_by(last_history.status.asc(), last_history.created_at.asc())
     )
 

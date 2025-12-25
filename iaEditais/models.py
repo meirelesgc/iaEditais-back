@@ -489,6 +489,8 @@ class Document(AuditMixin):
         cascade='all, delete-orphan',
     )
 
+    is_test: Mapped[bool] = mapped_column(default=False)
+
     __table_args__ = (
         Index(
             'ix_uq_documents_name_active',
@@ -574,6 +576,8 @@ class DocumentRelease(AuditMixin):
         init=False,
         cascade='all, delete-orphan',
     )
+
+    is_test: Mapped[bool] = mapped_column(default=False)
 
 
 @table_registry.mapped_as_dataclass
@@ -1104,6 +1108,16 @@ class TestRun(AuditMixin):
     )
     test_case_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey('test_cases.id', name='fk_test_runs_test_case_id'),
+        nullable=True,
+        default=None,
+    )
+    status: Mapped[str] = mapped_column(default='pending')
+    progress: Mapped[Optional[str]] = mapped_column(nullable=True, default=None)
+    error_message: Mapped[Optional[str]] = mapped_column(
+        nullable=True, default=None
+    )
+    release_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('document_releases.id', name='fk_test_runs_release_id'),
         nullable=True,
         default=None,
     )

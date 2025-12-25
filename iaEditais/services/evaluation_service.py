@@ -12,20 +12,19 @@ from uuid import UUID
 
 from deepeval.metrics import GEval
 from deepeval.test_case import LLMTestCase, LLMTestCaseParams
-from fastapi import File, UploadFile
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from iaEditais.models import (
+    AIModel,
     AppliedTaxonomy,
     AppliedTypification,
     DocumentRelease,
     Metric,
-    User,
+    TestCase,
 )
 from iaEditais.repositories import evaluation_repository
-from iaEditais.services import releases_service
 
 logger = logging.getLogger(__name__)
 
@@ -83,10 +82,10 @@ async def wait_for_release_processing(
 
 async def process_test_case(
     session: AsyncSession,
-    test_case,
+    test_case_id: UUID,
     metric_id: UUID,
     model_id: Optional[UUID],
-    processed_release: DocumentRelease,
+    release_id: UUID,
     test_run_id: UUID,
     current_user_id: UUID,
 ):
@@ -95,10 +94,17 @@ async def process_test_case(
     Compara o resultado do processamento (AppliedBranch) com o esperado (TestCase).
 
     Args:
+        test_case_id: UUID do test case (não o objeto, para evitar erro greenlet)
+        release_id: UUID do release (não o objeto, para evitar erro greenlet)
         current_user_id: UUID do usuário (não o objeto User, para evitar erro greenlet)
     """
-    print(f'DEBUG: Iniciando process_test_case para caso {test_case.id} com métrica {metric_id} - Checkpoint 33')
-    logger.info('Processing test case: %s', test_case.id)
+    print(f'DEBUG: Iniciando process_test_case para caso {test_case_id} com métrica {metric_id} - Checkpoint 33')
+    logger.info('Processing test case: %s', test_case_id)
+
+    # 0. Recarrega test_case na sessão atual para evitar erro greenlet
+    test_case = await session.get(TestCase, test_case_id)
+    if not test_case:
+        raise ValueError(f'TestCase {test_case_id} not found')
 
     # 1. Busca Métrica
     print(f'DEBUG: Buscando métrica {metric_id} no banco - Checkpoint 34')
@@ -106,13 +112,25 @@ async def process_test_case(
     if not metric_db:
         raise ValueError(f'Metric {metric_id} not found')
 
+    # 1.5 Busca AIModel se model_id foi passado
+    model_code_name = 'gpt-4o-mini'  # Default
+    if model_id:
+        ai_model = await session.get(AIModel, model_id)
+        if ai_model:
+            model_code_name = ai_model.code_name
+            print(f'DEBUG: Usando modelo {model_code_name} - Checkpoint 34.1')
+        else:
+            print(f'DEBUG: AIModel {model_id} não encontrado, usando default {model_code_name} - Checkpoint 34.2')
+    else:
+        print(f'DEBUG: model_id não informado, usando default {model_code_name} - Checkpoint 34.3')
+
     # 2. Recarrega o release com relacionamentos para garantir acesso assíncrono
     # CRÍTICO: Isso evita o erro "greenlet_spawn has not been called"
     # O objeto precisa ser recarregado na sessão atual para acessar relacionamentos
-    print(f'DEBUG: Recarregando release {processed_release.id} com relacionamentos - Checkpoint 35')
+    print(f'DEBUG: Recarregando release {release_id} com relacionamentos - Checkpoint 35')
     stmt = (
         select(DocumentRelease)
-        .where(DocumentRelease.id == processed_release.id)
+        .where(DocumentRelease.id == release_id)
         .options(
             selectinload(DocumentRelease.check_tree)
             .selectinload(AppliedTypification.taxonomies)
@@ -121,7 +139,7 @@ async def process_test_case(
     )
     release_with_tree = await session.scalar(stmt)
     if not release_with_tree:
-        raise ValueError(f'Release {processed_release.id} not found')
+        raise ValueError(f'Release {release_id} not found')
 
     # 3. Encontra o AppliedBranch correspondente ao TestCase
     print(f'DEBUG: Procurando AppliedBranch correspondente ao branch_id {test_case.branch_id} - Checkpoint 36')
@@ -169,7 +187,7 @@ async def process_test_case(
             LLMTestCaseParams.ACTUAL_OUTPUT,
             LLMTestCaseParams.EXPECTED_OUTPUT,
         ],
-        model='gpt-4o-mini',
+        model=model_code_name,
         threshold=metric_db.threshold or 0.5,
     )
 
@@ -225,178 +243,3 @@ async def process_test_case(
         'passed': passed,
         'score': score,
     }
-
-
-async def run_evaluation(
-    session: AsyncSession,
-    test_run_data: dict,
-    current_user: User,
-    file: UploadFile = File(...),
-    broker=None,
-):
-    """Orquestra o processo de avaliação de testes."""
-    print('DEBUG: Iniciando run_evaluation - Checkpoint 7')
-
-    print('DEBUG: Processando parâmetros de entrada - Checkpoint 8')
-    test_collection_id = test_run_data.get('test_collection_id')
-    if test_collection_id:
-        test_collection_id = UUID(test_collection_id)
-
-    test_case_id = test_run_data.get('test_case_id')
-    if test_case_id:
-        test_case_id = UUID(test_case_id)
-
-    metric_ids = [UUID(m_id) for m_id in test_run_data['metric_ids']]
-
-    model_id = test_run_data.get('model_id')
-    if model_id:
-        model_id = UUID(model_id)
-
-    test_cases = []
-    doc_id = None
-
-    print('DEBUG: Buscando casos de teste - Checkpoint 9')
-    if test_case_id:
-        # Execução de um caso de teste específico
-        print(f'DEBUG: Executando caso de teste específico: {test_case_id} - Checkpoint 10')
-        test_case = await evaluation_repository.get_test_case(
-            session, test_case_id
-        )
-        if not test_case or test_case.deleted_at:
-            raise ValueError('Test case not found')
-
-        test_cases = [test_case]
-        doc_id = test_case.doc_id
-
-        # Se não foi passado collection_id, tenta pegar do caso de teste
-        if not test_collection_id:
-            test_collection_id = test_case.test_collection_id
-
-    elif test_collection_id:
-        # Execução de toda a coleção
-        print(f'DEBUG: Executando coleção de testes: {test_collection_id} - Checkpoint 11')
-        test_collection = await evaluation_repository.get_test_collection(
-            session, test_collection_id
-        )
-        if not test_collection or test_collection.deleted_at:
-            raise ValueError('Test collection not found')
-
-        test_cases = await evaluation_repository.get_test_cases(
-            session, test_collection_id=test_collection_id
-        )
-        if not test_cases:
-            raise ValueError('No test cases found for this collection')
-        print(f'DEBUG: Encontrados {len(test_cases)} casos de teste - Checkpoint 12')
-    else:
-        raise ValueError(
-            'Either test_collection_id or test_case_id must be provided'
-        )
-
-    # Valida que todos os casos referenciam o mesmo documento
-    print('DEBUG: Validando documentos dos casos de teste - Checkpoint 13')
-    doc_ids = set(tc.doc_id for tc in test_cases if tc.doc_id)
-    if len(doc_ids) > 1:
-        raise ValueError('All test cases must reference the same document')
-
-    if not doc_ids:
-        raise ValueError('Test cases must have a document associated')
-
-    doc_id = doc_ids.pop()
-    print(f'DEBUG: Documento ID identificado: {doc_id} - Checkpoint 14')
-
-    # CRÍTICO: Salva IDs antes do wait_for_release_processing
-    # O session.expire_all() dentro de wait_for_release_processing expira todos os objetos
-    # Precisamos salvar os IDs para recarregar depois
-    test_case_ids = [tc.id for tc in test_cases]
-    current_user_id = current_user.id
-    print(f'DEBUG: IDs salvos - {len(test_case_ids)} test_cases, user_id: {current_user_id} - Checkpoint 14.1')
-
-    # Cria test_run
-    print('DEBUG: Criando test_run no banco de dados - Checkpoint 15')
-    test_run_data_db = {
-        'test_collection_id': test_collection_id,
-        'test_case_id': test_case_id if test_case_id else None,
-        'created_by': current_user.id,
-    }
-    test_run = await evaluation_repository.create_test_run(
-        session, test_run_data_db, current_user
-    )
-    test_run_id = test_run.id
-    print(f'DEBUG: Test run criado com ID: {test_run_id} - Checkpoint 16')
-
-    # Processa documento (Flow completo)
-    print('DEBUG: Criando release do documento - Checkpoint 17')
-    db_release = await releases_service.create_release(
-        doc_id, session, current_user, file
-    )
-
-    logger.info('Release created: %s', db_release.id)
-    print(f'DEBUG: Release criado com ID: {db_release.id} - Checkpoint 18')
-
-    # Publica evento no RabbitMQ para iniciar o processamento
-    print('DEBUG: Publicando evento no RabbitMQ para processamento - Checkpoint 19')
-    if broker:
-        await broker.publish(db_release.id, 'releases_create_vectors')
-        print('DEBUG: Evento publicado no RabbitMQ - Checkpoint 20')
-    else:
-        raise ValueError('Broker not available for publishing release event')
-
-    # Aguarda processamento completo do release
-    print('DEBUG: Aguardando processamento completo do release - Checkpoint 21')
-    processed_release = await wait_for_release_processing(
-        session, db_release.id
-    )
-
-    logger.info('Release processed: %s', processed_release.id)
-    print(f'DEBUG: Release processado com sucesso: {processed_release.id} - Checkpoint 22')
-
-    # CRÍTICO: Recarrega test_cases após wait_for_release_processing
-    # O session.expire_all() expirou todos os objetos, precisamos recarregar
-    print('DEBUG: Recarregando test_cases após expire_all - Checkpoint 22.1')
-    test_cases = []
-    for tc_id in test_case_ids:
-        tc = await evaluation_repository.get_test_case(session, tc_id)
-        if tc:
-            test_cases.append(tc)
-    print(f'DEBUG: {len(test_cases)} test_cases recarregados - Checkpoint 22.2')
-
-    # Processa cada caso de teste
-    print(f'DEBUG: Iniciando processamento de {len(test_cases)} casos de teste com {len(metric_ids)} métricas - Checkpoint 23')
-    results_summary = []
-
-    for idx, test_case in enumerate(test_cases, 1):
-        print(f'DEBUG: Processando caso de teste {idx}/{len(test_cases)}: {test_case.id} - Checkpoint 24')
-        for metric_idx, metric_id in enumerate(metric_ids, 1):
-            print(f'DEBUG: Processando métrica {metric_idx}/{len(metric_ids)}: {metric_id} para caso {test_case.id} - Checkpoint 25')
-            try:
-                result = await process_test_case(
-                    session,
-                    test_case,
-                    metric_id,
-                    model_id,
-                    processed_release,
-                    test_run_id,
-                    current_user_id,
-                )
-                results_summary.append(result)
-                print(f'DEBUG: Caso de teste {test_case.id} com métrica {metric_id} processado com sucesso - Checkpoint 26')
-            except Exception as e:
-                logger.exception('Error processing test case %s', test_case.id)
-                print(f'DEBUG: Erro ao processar caso {test_case.id} com métrica {metric_id}: {str(e)} - Checkpoint 27')
-                results_summary.append({
-                    'test_case_id': str(test_case.id),
-                    'metric_id': str(metric_id),
-                    'error': str(e),
-                })
-
-    print(f'DEBUG: Processamento completo. Total de resultados: {len(results_summary)} - Checkpoint 28')
-    return {
-        'test_run_id': str(test_run_id),
-        'test_collection_id': (
-            str(test_collection_id) if test_collection_id else None
-        ),
-        'case_count': len(test_cases),
-        'metric_count': len(metric_ids),
-        'results': results_summary,
-    }
-

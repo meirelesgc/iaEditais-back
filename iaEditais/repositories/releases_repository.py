@@ -31,14 +31,19 @@ async def get_db_doc(doc_id, session: Session):
 
 async def insert_db_release(
     latest_history: DocumentHistory,
-    file_path: Path,
+    file_path: str | Path,
     session: Session,
     current_user: CurrentUser,
+    is_test: bool = False,
 ):
+    # Converte para string se for Path (o banco espera string)
+    file_path_str = str(file_path) if isinstance(file_path, Path) else file_path
+    
     db_release = DocumentRelease(
         history_id=latest_history.id,
-        file_path=file_path,
+        file_path=file_path_str,
         created_by=current_user.id,
+        is_test=is_test,
     )
 
     session.add(db_release)
