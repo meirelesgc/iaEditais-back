@@ -20,7 +20,11 @@ from testcontainers.postgres import PostgresContainer
 from testcontainers.redis import RedisContainer
 
 from iaEditais.app import app, index
-from iaEditais.core.cache import WebSocketManager, get_socket_manager
+from iaEditais.core.cache import (
+    WebSocketManager,
+    get_redis,
+    get_socket_manager,
+)
 from iaEditais.core.database import get_session
 from iaEditais.core.llm import get_model
 from iaEditais.core.security import (
@@ -54,6 +58,41 @@ from tests.factories import (
 SETTINGS = Settings()
 
 
+@pytest.fixture(scope='session')
+def redis_container():
+    with RedisContainer('redis:latest') as container:
+        yield container
+
+
+@pytest_asyncio.fixture
+async def cache(redis_container):
+    client = Redis(
+        host=redis_container.get_container_host_ip(),
+        port=redis_container.get_exposed_port(6379),
+        password=redis_container.password,
+    )
+    yield client
+
+
+@pytest.fixture(scope='session')
+def engine():
+    with PostgresContainer('pgvector/pgvector:pg17', driver='psycopg') as p:
+        _engine = create_async_engine(p.get_connection_url())
+        yield _engine
+
+
+@pytest_asyncio.fixture
+async def session(engine):
+    async with engine.begin() as conn:
+        await conn.run_sync(table_registry.metadata.create_all)
+
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        yield session
+
+    async with engine.begin() as conn:
+        await conn.run_sync(table_registry.metadata.drop_all)
+
+
 @pytest_asyncio.fixture
 async def client(session, engine, cache):
     async def get_vstore_override():
@@ -76,6 +115,9 @@ async def client(session, engine, cache):
     def get_session_override():
         return session
 
+    def get_redis_override():
+        return cache
+
     socket_manager = WebSocketManager(client=cache)
 
     def get_socket_manager_override():
@@ -89,39 +131,11 @@ async def client(session, engine, cache):
             app.dependency_overrides[get_socket_manager] = (
                 get_socket_manager_override
             )
+            app.dependency_overrides[get_redis] = get_redis_override
+
             yield client
 
     app.dependency_overrides.clear()
-
-
-@pytest.fixture(scope='session')
-def engine():
-    with PostgresContainer('pgvector/pgvector:pg17', driver='psycopg') as p:
-        _engine = create_async_engine(p.get_connection_url())
-        yield _engine
-
-
-@pytest.fixture(scope='session')
-def cache():
-    with RedisContainer('redis:latest') as container:
-        client = Redis(
-            host=container.get_container_host_ip(),
-            port=container.get_exposed_port(container.port),
-            password=container.password,
-        )
-        yield client
-
-
-@pytest_asyncio.fixture
-async def session(engine):
-    async with engine.begin() as conn:
-        await conn.run_sync(table_registry.metadata.create_all)
-
-    async with AsyncSession(engine, expire_on_commit=False) as session:
-        yield session
-
-    async with engine.begin() as conn:
-        await conn.run_sync(table_registry.metadata.drop_all)
 
 
 @contextmanager

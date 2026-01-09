@@ -1,5 +1,4 @@
 import json
-import os
 import re
 from http import HTTPStatus
 from typing import List, Optional
@@ -32,7 +31,7 @@ from iaEditais.services import storage_service
 
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 SIMILARITY_THRESHOLD = 0.5
-MAX_CHUNKS = 5
+MAX_CHUNKS = 3
 
 
 async def create_release(
@@ -197,12 +196,7 @@ async def fetch_similar_contents_doc(
         k=MAX_CHUNKS,
         filter={'source': allowed_source, 'session': session},
     )
-
-    # Agora retornamos o objeto Document inteiro + score
-    filtered = [
-        (d, score) for d, score in results if score < SIMILARITY_THRESHOLD
-    ]
-
+    filtered = [(d, score) for d, score in results]
     return filtered
 
 
@@ -214,17 +208,12 @@ async def fetch_similar_contents_source(
 
     path = source.file_path.split('/')[-1]
     allowed_source = f'iaEditais/storage/uploads/{path}'
-
     results = await vectorstore.asimilarity_search_with_score(
         query,
         k=MAX_CHUNKS,
         filter={'source': allowed_source, 'session': session},
     )
-
-    filtered = [
-        (d, score) for d, score in results if score < SIMILARITY_THRESHOLD
-    ]
-
+    filtered = [(d, score) for d, score in results]
     return filtered
 
 
@@ -279,7 +268,6 @@ async def process_branch(
             for d, _ in retrieved_contents
             if d.page_content.strip()
         ])
-        os.system('clear')
         presidio_mapping = {
             k: v
             for d, _ in retrieved_contents
