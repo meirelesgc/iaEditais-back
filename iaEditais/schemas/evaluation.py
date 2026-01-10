@@ -5,10 +5,25 @@ Inclui schemas para TestCollection, AIModel, Metric, TestCase, TestRun e TestRes
 """
 
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
+
+
+# ===========================
+# Enums
+# ===========================
+
+
+class TestRunStatus(str, Enum):
+    """Status possíveis para um TestRun."""
+    PENDING = 'PENDING'
+    PROCESSING = 'PROCESSING'
+    EVALUATING = 'EVALUATING'
+    COMPLETED = 'COMPLETED'
+    ERROR = 'ERROR'
 
 
 # ===========================
@@ -18,7 +33,7 @@ from pydantic import BaseModel, ConfigDict
 
 class TestCollectionSchema(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str
 
 
 class TestCollectionCreate(TestCollectionSchema):
@@ -55,6 +70,11 @@ class AIModelCreate(AIModelSchema):
     pass
 
 
+class AIModelUpdate(BaseModel):
+    name: Optional[str] = None
+    code_name: Optional[str] = None
+
+
 class AIModelPublic(AIModelSchema):
     id: UUID
     created_at: datetime
@@ -74,8 +94,8 @@ class AIModelList(BaseModel):
 
 class MetricSchema(BaseModel):
     name: str
-    criteria: Optional[str] = None
-    evaluation_steps: Optional[str] = None
+    criteria: str
+    evaluation_steps: str
     threshold: Optional[float] = 0.5
 
 
@@ -107,11 +127,9 @@ class MetricList(BaseModel):
 class TestCaseSchema(BaseModel):
     name: str
     test_collection_id: UUID
-    branch_id: Optional[UUID] = None
-    doc_id: UUID
-    input: Optional[str] = None
-    expected_feedback: Optional[str] = None
-    expected_fulfilled: bool = False
+    branch_id: UUID
+    expected_feedback: str
+    expected_fulfilled: bool
 
 
 class TestCaseCreate(TestCaseSchema):
@@ -120,7 +138,6 @@ class TestCaseCreate(TestCaseSchema):
 
 class TestCaseUpdate(BaseModel):
     name: Optional[str] = None
-    input: Optional[str] = None
     expected_feedback: Optional[str] = None
     expected_fulfilled: Optional[bool] = None
     branch_id: Optional[UUID] = None
@@ -147,10 +164,11 @@ class TestRunSchema(BaseModel):
     test_collection_id: Optional[UUID] = None
     test_case_id: Optional[UUID] = None
     created_by: Optional[UUID] = None
-    status: str = 'pending'
+    status: TestRunStatus = TestRunStatus.PENDING
     progress: Optional[str] = None
     error_message: Optional[str] = None
     release_id: Optional[UUID] = None
+    doc_id: Optional[UUID] = None
 
 
 class TestRunCreate(TestRunSchema):
@@ -209,6 +227,7 @@ class TestResultPublic(BaseModel):
     test_case_id: UUID
     metric_id: UUID
     model_id: Optional[UUID] = None
+    input: Optional[str] = None
     threshold_used: Optional[float] = None
     reason_feedback: Optional[str] = None
     score_feedback: Optional[float] = None

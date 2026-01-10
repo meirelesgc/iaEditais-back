@@ -13,7 +13,7 @@ router = APIRouter(prefix='/ws', tags=['websockets'])
 async def websocket_endpoint(
     websocket: WebSocket, client_id: UUID, manager: CacheManager
 ):
-    manager.connect(client_id, websocket)
+    await manager.connect(client_id, websocket)
     try:
         while True:
             raw_data = await websocket.receive_text()

@@ -20,6 +20,7 @@ from iaEditais.models import (
     AIModel,
     AppliedTaxonomy,
     AppliedTypification,
+    Branch,
     DocumentRelease,
     Metric,
     TestCase,
@@ -162,8 +163,19 @@ async def process_test_case(
 
     # 4. Prepara LLMTestCase do DeepEval
     print(f'DEBUG: Preparando LLMTestCase do DeepEval - Checkpoint 37')
+
+    # Busca o Branch original para obter o título
+    branch_title = test_case.name  # fallback
+    if test_case.branch_id:
+        branch = await session.get(Branch, test_case.branch_id)
+        if branch:
+            branch_title = branch.title
+            print(f'DEBUG: Branch encontrado - título: {branch_title} - Checkpoint 37.1')
+
+    input_text = f"Faça uma análise e verifique se o critério '{branch_title}' está sendo atendido nesse edital"
+
     llm_test_case = LLMTestCase(
-        input=test_case.input or test_case.name,
+        input=input_text,
         actual_output=actual_output,
         expected_output=test_case.expected_feedback,
     )
@@ -217,6 +229,7 @@ async def process_test_case(
         'test_case_id': test_case.id,
         'metric_id': metric_id,
         'model_id': model_id,
+        'input': input_text,
         'threshold_used': metric_db.threshold,
         'reason_feedback': reason,
         'score_feedback': score,

@@ -5,12 +5,13 @@ Rotas para execução de testes (TestRun).
 import json
 from http import HTTPStatus
 from typing import Annotated, Optional
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import Depends, File, Form, HTTPException, Query, UploadFile
 from faststream.rabbit.fastapi import RabbitRouter as APIRouter
 
 from iaEditais.core.dependencies import CurrentUser, Session
+from iaEditais.models import Branch, Document, DocumentHistory, Taxonomy, Typification
 from iaEditais.repositories import evaluation_repository
 from iaEditais.schemas import (
     FilterPage,
@@ -18,6 +19,7 @@ from iaEditais.schemas import (
     TestRunExecute,
     TestRunList,
     TestRunPublic,
+    TestRunStatus,
 )
 from iaEditais.services import storage_service
 
@@ -105,12 +107,77 @@ async def execute_test_run(
         file_path = await storage_service.save_file(file, UPLOAD_DIRECTORY)
         print(f'DEBUG: Arquivo salvo em: {file_path} - Checkpoint 4.1')
 
+        # Busca test_case para obter test_collection_id e branch
+        test_collection_id = test_run_execute.test_collection_id
+        test_case = None
+        if test_run_execute.test_case_id:
+            print('DEBUG: Buscando test_case - Checkpoint 4.2')
+            test_case = await evaluation_repository.get_test_case(
+                session, test_run_execute.test_case_id
+            )
+            if test_case and not test_collection_id:
+                test_collection_id = test_case.test_collection_id
+                print(f'DEBUG: test_collection_id encontrado: {test_collection_id} - Checkpoint 4.3')
+
+        # Busca tipificação a partir do branch do test_case
+        print('DEBUG: Buscando tipificação do branch - Checkpoint 4.3.1')
+        typification = None
+        if test_case and test_case.branch_id:
+            branch = await session.get(Branch, test_case.branch_id)
+            if branch and branch.taxonomy_id:
+                taxonomy = await session.get(Taxonomy, branch.taxonomy_id)
+                if taxonomy and taxonomy.typification_id:
+                    typification = await session.get(Typification, taxonomy.typification_id)
+                    print(f'DEBUG: Tipificação encontrada: {typification.name} - Checkpoint 4.3.2')
+
+        if not typification:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail='Test case branch must have an associated typification',
+            )
+
+        # Cria Document automaticamente com is_test=true
+        print('DEBUG: Criando Document para teste - Checkpoint 4.4')
+        filename = file.filename or 'documento'
+        doc_uuid = uuid4()
+        doc_name = f'Edital - {filename} - {str(doc_uuid)[:8]}'
+        
+        db_doc = Document(
+            name=doc_name,
+            description='Documento de teste criado automaticamente',
+            identifier=str(doc_uuid),
+            unit_id=current_user.unit_id,
+            created_by=current_user.id,
+            is_test=True,
+        )
+        session.add(db_doc)
+        await session.flush()  # Para obter o ID antes de associar relacionamentos
+        
+        # Associa tipificação ao documento
+        print('DEBUG: Associando tipificação ao documento - Checkpoint 4.4.1')
+        db_doc.typifications = [typification]
+        
+        # Cria DocumentHistory
+        print('DEBUG: Criando DocumentHistory - Checkpoint 4.4.2')
+        history = DocumentHistory(
+            document_id=db_doc.id,
+            status='draft',
+            created_by=current_user.id,
+        )
+        session.add(history)
+        
+        await session.commit()
+        await session.refresh(db_doc)
+        doc_id = db_doc.id
+        print(f'DEBUG: Document criado com ID: {doc_id} - Checkpoint 4.5')
+
         # Cria test_run com status 'pending'
         print('DEBUG: Criando test_run com status pending - Checkpoint 5')
         test_run_data_db = {
-            'test_collection_id': test_run_execute.test_collection_id,
+            'test_collection_id': test_collection_id,
             'test_case_id': test_run_execute.test_case_id,
-            'status': 'pending',
+            'doc_id': doc_id,
+            'status': TestRunStatus.PENDING.value,
         }
         test_run = await evaluation_repository.create_test_run(
             session, test_run_data_db, current_user
@@ -120,11 +187,7 @@ async def execute_test_run(
         # Prepara dados para o worker
         worker_payload = {
             'test_run_id': str(test_run.id),
-            'test_collection_id': (
-                str(test_run_execute.test_collection_id)
-                if test_run_execute.test_collection_id
-                else None
-            ),
+            'test_collection_id': str(test_collection_id) if test_collection_id else None,
             'test_case_id': (
                 str(test_run_execute.test_case_id)
                 if test_run_execute.test_case_id
@@ -136,6 +199,7 @@ async def execute_test_run(
                 if test_run_execute.model_id
                 else None
             ),
+            'doc_id': str(doc_id),
             'file_path': str(file_path),
             'created_by': str(current_user.id),
         }
@@ -147,7 +211,7 @@ async def execute_test_run(
 
         return TestRunAccepted(
             test_run_id=test_run.id,
-            status='pending',
+            status=TestRunStatus.PENDING.value,
             message='Test run iniciado. Acompanhe o progresso via WebSocket.',
         )
 

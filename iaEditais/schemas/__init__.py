@@ -93,6 +93,7 @@ from .evaluation import (
     AIModelCreate,
     AIModelList,
     AIModelPublic,
+    AIModelUpdate,
     MetricCreate,
     MetricList,
     MetricPublic,
@@ -112,6 +113,7 @@ from .evaluation import (
     TestRunExecutionResult,
     TestRunList,
     TestRunPublic,
+    TestRunStatus,
 )
 
 # 2. Definir explicitamente a API pública do pacote 'schemas'
@@ -193,6 +195,7 @@ __all__ = [
     'AIModelCreate',
     'AIModelList',
     'AIModelPublic',
+    'AIModelUpdate',
     'MetricCreate',
     'MetricList',
     'MetricPublic',
@@ -212,4 +215,5 @@ __all__ = [
     'TestRunExecutionResult',
     'TestRunList',
     'TestRunPublic',
+    'TestRunStatus',
 ]

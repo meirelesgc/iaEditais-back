@@ -59,7 +59,9 @@ async def create_metric(
 
 @router.get('/', response_model=MetricList)
 async def read_metrics(
-    session: Session, filters: Annotated[FilterPage, Depends()]
+    session: Session,
+    current_user: CurrentUser,
+    filters: Annotated[FilterPage, Depends()],
 ):
     """Lista todas as métricas ativas."""
     metrics = await evaluation_repository.get_metrics(
@@ -69,7 +71,7 @@ async def read_metrics(
 
 
 @router.get('/{metric_id}', response_model=MetricPublic)
-async def read_metric(metric_id: UUID, session: Session):
+async def read_metric(metric_id: UUID, session: Session, current_user: CurrentUser):
     """Busca uma métrica por ID."""
     metric = await evaluation_repository.get_metric(session, metric_id)
 

@@ -137,6 +137,41 @@ async def get_ai_models(
     return result.all()
 
 
+async def update_ai_model(
+    session: AsyncSession,
+    model_id: UUID,
+    model_data: dict,
+    current_user: User,
+):
+    """Atualiza um modelo de IA."""
+    db_model = await session.get(AIModel, model_id)
+    if not db_model or db_model.deleted_at:
+        return None
+
+    for key, value in model_data.items():
+        if value is not None:
+            setattr(db_model, key, value)
+
+    db_model.updated_by = current_user.id
+    await session.commit()
+    await session.refresh(db_model)
+    return db_model
+
+
+async def delete_ai_model(
+    session: AsyncSession, model_id: UUID, current_user: User
+):
+    """Remove (soft delete) um modelo de IA."""
+    db_model = await session.get(AIModel, model_id)
+    if not db_model or db_model.deleted_at:
+        return None
+
+    db_model.deleted_at = datetime.now()
+    db_model.deleted_by = current_user.id
+    await session.commit()
+    return db_model
+
+
 # ===========================
 # Metric Repository
 # ===========================
@@ -246,8 +281,6 @@ async def create_test_case(
         name=test_case_data['name'],
         test_collection_id=test_case_data['test_collection_id'],
         branch_id=test_case_data.get('branch_id'),
-        doc_id=test_case_data.get('doc_id'),
-        input=test_case_data.get('input'),
         expected_feedback=test_case_data.get('expected_feedback'),
         expected_fulfilled=test_case_data.get('expected_fulfilled', False),
         created_by=current_user.id,
@@ -332,6 +365,7 @@ async def create_test_run(
         progress=test_run_data.get('progress'),
         error_message=test_run_data.get('error_message'),
         release_id=test_run_data.get('release_id'),
+        doc_id=test_run_data.get('doc_id'),
     )
     session.add(db_test_run)
     await session.commit()
@@ -404,6 +438,7 @@ async def create_test_result(session: AsyncSession, test_result_data: dict):
         test_case_id=test_result_data['test_case_id'],
         metric_id=test_result_data['metric_id'],
         model_id=test_result_data.get('model_id'),
+        input=test_result_data.get('input'),
         threshold_used=test_result_data.get('threshold_used'),
         reason_feedback=test_result_data.get('reason_feedback'),
         score_feedback=test_result_data.get('score_feedback'),

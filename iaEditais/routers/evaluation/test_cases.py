@@ -58,20 +58,20 @@ async def create_test_case(
                 detail='Branch not found',
             )
 
-    # Verifica unicidade do nome dentro da coleção
+    # Verifica unicidade do nome dentro da coleção e branch
     existing_test_case = await session.scalar(
         select(TestCase).where(
             TestCase.deleted_at.is_(None),
             TestCase.name == test_case.name,
             TestCase.test_collection_id == test_case.test_collection_id,
-            TestCase.doc_id == test_case.doc_id,
+            TestCase.branch_id == test_case.branch_id,
         )
     )
 
     if existing_test_case:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
-            detail='Test case name already exists for this collection and document',
+            detail='Test case name already exists for this collection and branch',
         )
 
     db_test_case = await evaluation_repository.create_test_case(
@@ -84,6 +84,7 @@ async def create_test_case(
 @router.get('/', response_model=TestCaseList)
 async def read_test_cases(
     session: Session,
+    current_user: CurrentUser,
     filters: Annotated[FilterPage, Depends()],
     test_collection_id: Optional[UUID] = None,
 ):
@@ -95,7 +96,7 @@ async def read_test_cases(
 
 
 @router.get('/{test_case_id}', response_model=TestCasePublic)
-async def read_test_case(test_case_id: UUID, session: Session):
+async def read_test_case(test_case_id: UUID, session: Session, current_user: CurrentUser):
     """Busca um caso de teste por ID."""
     test_case = await evaluation_repository.get_test_case(session, test_case_id)
 
@@ -132,14 +133,14 @@ async def update_test_case(
                 TestCase.deleted_at.is_(None),
                 TestCase.name == test_case_data.name,
                 TestCase.test_collection_id == db_test_case.test_collection_id,
-                TestCase.doc_id == db_test_case.doc_id,
+                TestCase.branch_id == db_test_case.branch_id,
                 TestCase.id != test_case_id,
             )
         )
         if existing_test_case:
             raise HTTPException(
                 status_code=HTTPStatus.CONFLICT,
-                detail='Test case name already exists for this collection and document',
+                detail='Test case name already exists for this collection and branch',
             )
 
     updated_test_case = await evaluation_repository.update_test_case(

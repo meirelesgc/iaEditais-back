@@ -1,10 +1,14 @@
+import asyncio
 import os
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import tomli
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+
+from iaEditais.core.cache import get_cache
 
 from iaEditais import workers
 from iaEditais.core import broker
@@ -41,8 +45,22 @@ for directory in [STORAGE_DIR, UPLOADS_DIR, TEMP_DIR]:
 
 SETTINGS = Settings()
 
+
+# Lifespan para iniciar o listener de WebSocket
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    manager = get_cache()
+    listener_task = asyncio.create_task(manager.start_redis_listener())
+    print('DEBUG: WebSocket listener iniciado no startup')
+    yield
+    # Shutdown
+    listener_task.cancel()
+    print('DEBUG: WebSocket listener encerrado')
+
+
 # Aplicação
-app = FastAPI(docs_url='/swagger')
+app = FastAPI(docs_url='/swagger', lifespan=lifespan)
 
 app.mount('/uploads', StaticFiles(directory=UPLOADS_DIR), name='uploads')
 

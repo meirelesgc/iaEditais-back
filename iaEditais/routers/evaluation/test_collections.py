@@ -59,7 +59,9 @@ async def create_test_collection(
 
 @router.get('/', response_model=TestCollectionList)
 async def read_test_collections(
-    session: Session, filters: Annotated[FilterPage, Depends()]
+    session: Session,
+    current_user: CurrentUser,
+    filters: Annotated[FilterPage, Depends()],
 ):
     """Lista todas as coleções de testes ativas."""
     test_collections = await evaluation_repository.get_test_collections(
@@ -69,7 +71,7 @@ async def read_test_collections(
 
 
 @router.get('/{collection_id}', response_model=TestCollectionPublic)
-async def read_test_collection(collection_id: UUID, session: Session):
+async def read_test_collection(collection_id: UUID, session: Session, current_user: CurrentUser):
     """Busca uma coleção de testes por ID."""
     test_collection = await evaluation_repository.get_test_collection(
         session, collection_id

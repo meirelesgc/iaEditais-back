@@ -1062,25 +1062,20 @@ class TestCase(AuditMixin):
         nullable=False,
     )
     name: Mapped[str] = mapped_column(nullable=False)
-    doc_id: Mapped[UUID] = mapped_column(
-        ForeignKey('documents.id', name='fk_test_cases_doc_id'),
-        nullable=False,
-    )
     branch_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey('branches.id', name='fk_test_cases_branch_id'),
         nullable=True,
         default=None,
     )
-    input: Mapped[Optional[str]] = mapped_column(default=None)
     expected_feedback: Mapped[Optional[str]] = mapped_column(default=None)
     expected_fulfilled: Mapped[bool] = mapped_column(default=False)
 
     __table_args__ = (
         Index(
-            'ix_uq_test_cases_name_collection_doc_active',
+            'ix_uq_test_cases_name_collection_branch_active',
             'name',
             'test_collection_id',
-            'doc_id',
+            'branch_id',
             unique=True,
             postgresql_where=(column('deleted_at').is_(None)),
         ),
@@ -1121,6 +1116,11 @@ class TestRun(AuditMixin):
         nullable=True,
         default=None,
     )
+    doc_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('documents.id', name='fk_test_runs_doc_id'),
+        nullable=True,
+        default=None,
+    )
 
 
 @table_registry.mapped_as_dataclass
@@ -1153,6 +1153,7 @@ class TestResult(AuditMixin):
         nullable=True,
         default=None,
     )
+    input: Mapped[Optional[str]] = mapped_column(nullable=True, default=None)
 
     threshold_used: Mapped[Optional[float]] = mapped_column(default=None)
     reason_feedback: Mapped[Optional[str]] = mapped_column(default=None)
