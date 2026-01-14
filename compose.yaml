@@ -23,6 +23,14 @@ services:
     ports:
       - "8000:8000"
     environment:
+      OTEL_SERVICE_NAME: iaEditais
+      OTEL_EXPORTER_OTLP_ENDPOINT: iaeditais_otel:4317
+      OTEL_EXPORTER_OTLP_INSECURE: true
+      OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: true
+      OTEL_TRACES_EXPORTER: otlp
+      OTEL_METRICS_EXPORTER: otlp
+      OTEL_LOGS_EXPORTER: otlp
+      BROKER_URL: 'amqp://guest:guest@iaeditais_redis:5672/'
       DATABASE_URL: postgresql+psycopg://postgres:postgres@iaeditais_db:5432/iaeditais
       TZ: America/Sao_Paulo
     env_file: ".env"
@@ -71,6 +79,14 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+
+  iaeditais_otel:
+    image: grafana/otel-lgtm
+    profiles: ["prod"]
+    ports:
+      - "3000:3000"
+      - "4317:4317"
+      - "4318:4318"
 
   evolution_api:
     image: gleidsoncosta/evolution-api:v2.3.6
