@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
@@ -22,6 +21,7 @@ from iaEditais.schemas import (
     DocumentStatus,
     DocumentUpdate,
 )
+from iaEditais.services import audit
 
 router = APIRouter(prefix='/doc', tags=['verificação dos documentos, editais'])
 
@@ -49,21 +49,26 @@ async def create_doc(
             ),
         )
 
+    # 1. Criação do objeto (AuditMixin campos removidos do init)
     db_doc = Document(
         name=doc.name,
         description=doc.description,
         identifier=doc.identifier,
         unit_id=current_user.unit_id,
-        created_by=current_user.id,
     )
+    # 2. Preenche created_at e created_by via Mixin
+    db_doc.set_creation_audit(current_user.id)
+
     session.add(db_doc)
+    # Flush para garantir IDs antes de criar o histórico e logs
     await session.flush()
 
     history = DocumentHistory(
         document_id=db_doc.id,
         status=DocumentStatus.PENDING.value,
-        created_by=current_user.id,
     )
+    # Histórico também deve ter auditoria de criação
+    history.set_creation_audit(current_user.id)
     session.add(history)
 
     if doc.typification_ids:
@@ -79,6 +84,16 @@ async def create_doc(
             select(User).where(User.id.in_(doc.editors_ids))
         )
         db_doc.editors = [user for user in editors.all()]
+
+    # 3. Registro de Auditoria (CREATE)
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='CREATE',
+        table_name=Document.__tablename__,
+        record_id=db_doc.id,
+        old_data=None,
+    )
 
     await session.commit()
     await session.refresh(db_doc)
@@ -122,7 +137,10 @@ async def read_docs(
 
 @router.get('/{doc_id}', response_model=DocumentPublic)
 async def read_doc(doc_id: UUID, session: Session):
-    doc = await session.get(Document, doc_id)
+    result = await session.execute(
+        select(Document).where(Document.id == doc_id)
+    )
+    doc = result.scalar_one_or_none()
     if not doc or doc.deleted_at:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -141,6 +159,9 @@ async def update_doc(
             status_code=HTTPStatus.NOT_FOUND,
             detail='Doc not found',
         )
+
+    # 4. Snapshot dos dados antes da alteração
+    old_data = DocumentPublic.model_validate(db_doc).model_dump(mode='json')
 
     db_doc_conflict = await session.scalar(
         select(Document).where(
@@ -163,7 +184,9 @@ async def update_doc(
     db_doc.name = doc.name
     db_doc.description = doc.description
     db_doc.identifier = doc.identifier
-    db_doc.updated_by = current_user.id
+
+    # 5. Preenche updated_at e updated_by via Mixin
+    db_doc.set_update_audit(current_user.id)
 
     if doc.typification_ids is not None:
         typifications = await session.scalars(
@@ -179,13 +202,27 @@ async def update_doc(
         )
         db_doc.editors = [user for user in editors.all()]
 
+    # 6. Registro de Auditoria (UPDATE)
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='UPDATE',
+        table_name=Document.__tablename__,
+        record_id=db_doc.id,
+        old_data=old_data,
+    )
+
     await session.commit()
     await session.refresh(db_doc)
     return db_doc
 
 
 @router.put('/{document_id}/toggle-archive', response_model=DocumentPublic)
-async def toggle_archive(document_id: UUID, session: Session):
+async def toggle_archive(
+    document_id: UUID,
+    session: Session,
+    current_user: CurrentUser,  # Adicionado para registrar quem fez a ação
+):
     query = select(Document).where(
         Document.id == document_id, Document.deleted_at.is_(None)
     )
@@ -193,7 +230,25 @@ async def toggle_archive(document_id: UUID, session: Session):
     if not doc:
         raise HTTPException(status_code=404, detail='Documento não encontrado')
 
+    # 7. Snapshot antes de arquivar/desarquivar
+    old_data = DocumentPublic.model_validate(doc).model_dump(mode='json')
+
     doc.is_archived = not doc.is_archived
+
+    # 8. Atualiza auditoria do registro (updated_at/by)
+    doc.set_update_audit(current_user.id)
+
+    # 9. Registro de Auditoria (ARCHIVE ou UPDATE)
+    action = 'ARCHIVE' if doc.is_archived else 'UPDATE'
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action=action,
+        table_name=Document.__tablename__,
+        record_id=doc.id,
+        old_data=old_data,
+    )
+
     await session.commit()
     await session.refresh(doc)
 
@@ -215,8 +270,22 @@ async def delete_doc(
             detail='Doc not found',
         )
 
-    db_doc.deleted_at = datetime.now(timezone.utc)
-    db_doc.deleted_by = current_user.id
+    # 10. Snapshot antes de deletar
+    old_data = DocumentPublic.model_validate(db_doc).model_dump(mode='json')
+
+    # 11. Soft delete via Mixin
+    db_doc.set_deletion_audit(current_user.id)
+
+    # 12. Registro de Auditoria (DELETE)
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='DELETE',
+        table_name=Document.__tablename__,
+        record_id=db_doc.id,
+        old_data=old_data,
+    )
+
     await session.commit()
 
     return {'message': 'Doc deleted successfully'}

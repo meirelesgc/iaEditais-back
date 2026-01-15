@@ -216,8 +216,9 @@ async def test_delete_nonexistent_doc(logged_client):
 
 @pytest.mark.asyncio
 async def test_read_docs_archived_default_false_excludes_archived(
-    client, create_doc
+    logged_client, create_doc
 ):
+    client, *_ = await logged_client()
     doc = await create_doc(name='Doc A', identifier='DOC-A')
     archived_doc = await create_doc(name='Doc B', identifier='DOC-B')
 
@@ -234,8 +235,9 @@ async def test_read_docs_archived_default_false_excludes_archived(
 
 @pytest.mark.asyncio
 async def test_read_docs_filter_archived_true_returns_only_archived(
-    client, create_doc
+    logged_client, create_doc
 ):
+    client, *_ = await logged_client()
     non_archived_1 = await create_doc(name='Doc A2', identifier='DOC-A2')
     archived = await create_doc(name='Doc A3', identifier='DOC-A3')
     non_archived_2 = await create_doc(name='Doc A4', identifier='DOC-A4')
@@ -253,8 +255,9 @@ async def test_read_docs_filter_archived_true_returns_only_archived(
 
 @pytest.mark.asyncio
 async def test_read_docs_filter_archived_false_returns_only_non_archived(
-    client, create_doc
+    logged_client, create_doc
 ):
+    client, *_ = await logged_client()
     non_archived_1 = await create_doc(name='Doc NA1', identifier='DOC-NA1')
     archived = await create_doc(name='Doc AR1', identifier='DOC-AR1')
     non_archived_2 = await create_doc(name='Doc NA2', identifier='DOC-NA2')
@@ -274,7 +277,10 @@ async def test_read_docs_filter_archived_false_returns_only_non_archived(
 
 
 @pytest.mark.asyncio
-async def test_toggle_archive_switches_value_and_persists(client, create_doc):
+async def test_toggle_archive_switches_value_and_persists(
+    logged_client, create_doc
+):
+    client, *_ = await logged_client()
     doc = await create_doc(name='Doc Toggle', identifier='DOC-T1')
 
     r0 = client.get(f'/doc/{doc.id}')
@@ -301,7 +307,8 @@ async def test_toggle_archive_switches_value_and_persists(client, create_doc):
 
 
 @pytest.mark.asyncio
-async def test_toggle_archive_not_found(client):
+async def test_toggle_archive_not_found(logged_client):
+    client, *_ = await logged_client()
     random_id = uuid4()
     response = client.put(f'/doc/{random_id}/toggle-archive')
     assert response.status_code == HTTPStatus.NOT_FOUND
@@ -309,8 +316,9 @@ async def test_toggle_archive_not_found(client):
 
 @pytest.mark.asyncio
 async def test_read_doc_by_id_includes_is_archived_and_value(
-    client, create_doc
+    logged_client, create_doc
 ):
+    client, *_ = await logged_client()
     doc = await create_doc(name='Doc Check', identifier='DOC-CHECK')
 
     r0 = client.get(f'/doc/{doc.id}')
@@ -331,8 +339,9 @@ async def test_read_doc_by_id_includes_is_archived_and_value(
 
 @pytest.mark.asyncio
 async def test_full_archive_flow_archive_and_unarchive_affects_filters(
-    client, create_doc
+    logged_client, create_doc
 ):
+    client, *_ = await logged_client()
     doc = await create_doc(name='Flow Doc', identifier='FLOW')
 
     r_default_0 = client.get('/doc/')
@@ -394,8 +403,9 @@ async def test_full_archive_flow_archive_and_unarchive_affects_filters(
 
 @pytest.mark.asyncio
 async def test_read_docs_archived_param_is_case_insensitive_truthy_values(
-    client, create_doc
+    logged_client, create_doc
 ):
+    client, *_ = await logged_client()
     archived = await create_doc(name='Doc AR2', identifier='DOC-AR2')
     r = client.put(f'/doc/{archived.id}/toggle-archive')
     assert r.status_code == HTTPStatus.OK
@@ -409,8 +419,9 @@ async def test_read_docs_archived_param_is_case_insensitive_truthy_values(
 
 @pytest.mark.asyncio
 async def test_read_docs_archived_param_is_case_insensitive_falsy_values(
-    client, create_doc
+    logged_client, create_doc
 ):
+    client, *_ = await logged_client()
     non_archived = await create_doc(name='Doc NA3', identifier='DOC-NA3')
     archived = await create_doc(name='Doc AR3', identifier='DOC-AR3')
     r = client.put(f'/doc/{archived.id}/toggle-archive')
