@@ -136,7 +136,8 @@ async def test_sign_in_incorrect_password(client, create_user, create_unit):
 
 
 @pytest.mark.asyncio
-async def test_sign_out_clears_cookie(client):
+async def test_sign_out_clears_cookie(logged_client):
+    client, *_ = await logged_client()
     response = client.post('/auth/sign-out')
 
     assert response.status_code == HTTPStatus.OK
