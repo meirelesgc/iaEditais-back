@@ -32,6 +32,7 @@ class DocumentPublic(DocumentSchema):
     typifications: list[TypificationPublic]
     editors: list[UserPublic]
     created_at: datetime
+    is_archived: bool
     updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 
