@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
@@ -20,6 +19,7 @@ from iaEditais.schemas import (
     TaxonomyPublic,
     TaxonomyUpdate,
 )
+from iaEditais.services import audit
 
 router = APIRouter(
     prefix='/taxonomy',
@@ -55,13 +55,18 @@ async def create_taxonomy(
             detail='Typification not found',
         )
 
+    # 1. Criação do objeto (AuditMixin trata created_by)
     db_taxonomy = Taxonomy(
         title=taxonomy.title,
         description=taxonomy.description,
         typification_id=taxonomy.typification_id,
-        created_by=current_user.id,
     )
+    # 2. Preenche created_at e created_by via Mixin
+    db_taxonomy.set_creation_audit(current_user.id)
+
     session.add(db_taxonomy)
+    # Flush para garantir ID para as associações e log
+    await session.flush()
 
     if taxonomy.source_ids:
         source_check = await session.scalars(
@@ -82,6 +87,16 @@ async def create_taxonomy(
                 created_by=current_user.id,
             )
             session.add(association_entry)
+
+    # 3. Registro de Auditoria (CREATE)
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='CREATE',
+        table_name=Taxonomy.__tablename__,
+        record_id=db_taxonomy.id,
+        old_data=None,
+    )
 
     await session.commit()
     await session.refresh(db_taxonomy)
@@ -106,7 +121,10 @@ async def read_taxonomies(
 
 @router.get('/{taxonomy_id}', response_model=TaxonomyPublic)
 async def read_taxonomy(taxonomy_id: UUID, session: Session):
-    taxonomy = await session.get(Taxonomy, taxonomy_id)
+    result = await session.execute(
+        select(Taxonomy).where(Taxonomy.id == taxonomy_id)
+    )
+    taxonomy = result.scalar_one_or_none()
 
     if not taxonomy or taxonomy.deleted_at:
         raise HTTPException(
@@ -131,6 +149,11 @@ async def update_taxonomy(
             detail='Taxonomy not found',
         )
 
+    # 4. Snapshot antes da atualização
+    old_data = TaxonomyPublic.model_validate(db_taxonomy).model_dump(
+        mode='json'
+    )
+
     if taxonomy.title != db_taxonomy.title:
         db_taxonomy_same_title = await session.scalar(
             select(Taxonomy).where(
@@ -154,6 +177,7 @@ async def update_taxonomy(
                 status_code=HTTPStatus.NOT_FOUND,
                 detail='Typification not found',
             )
+
     if taxonomy.source_ids:
         sources = await session.scalars(
             select(Source).where(Source.id.in_(taxonomy.source_ids))
@@ -165,7 +189,19 @@ async def update_taxonomy(
     db_taxonomy.title = taxonomy.title
     db_taxonomy.description = taxonomy.description
     db_taxonomy.typification_id = taxonomy.typification_id
-    db_taxonomy.updated_by = current_user.id
+
+    # 5. Preenche updated_at e updated_by via Mixin
+    db_taxonomy.set_update_audit(current_user.id)
+
+    # 6. Registro de Auditoria (UPDATE)
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='UPDATE',
+        table_name=Taxonomy.__tablename__,
+        record_id=db_taxonomy.id,
+        old_data=old_data,
+    )
 
     await session.commit()
     await session.refresh(db_taxonomy)
@@ -189,8 +225,24 @@ async def delete_taxonomy(
             detail='Taxonomy not found',
         )
 
-    db_taxonomy.deleted_at = datetime.now(timezone.utc)
-    db_taxonomy.deleted_by = current_user.id
+    # 7. Snapshot antes de deletar
+    old_data = TaxonomyPublic.model_validate(db_taxonomy).model_dump(
+        mode='json'
+    )
+
+    # 8. Soft delete via Mixin
+    db_taxonomy.set_deletion_audit(current_user.id)
+
+    # 9. Registro de Auditoria (DELETE)
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='DELETE',
+        table_name=Taxonomy.__tablename__,
+        record_id=db_taxonomy.id,
+        old_data=old_data,
+    )
+
     await session.commit()
 
     return {'message': 'Taxonomy deleted'}

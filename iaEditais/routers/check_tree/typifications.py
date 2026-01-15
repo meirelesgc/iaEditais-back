@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
@@ -20,6 +19,7 @@ from iaEditais.schemas import (
     TypificationPublic,
     TypificationUpdate,
 )
+from iaEditais.services import audit
 from iaEditais.services.report_service import typification_report
 
 router = APIRouter(
@@ -51,11 +51,16 @@ async def create_typification(
             detail='Typification name already exists',
         )
 
+    # 1. Criação do objeto (AuditMixin trata created_by)
     db_typification = Typification(
         name=typification.name,
-        created_by=current_user.id,
     )
+    # 2. Preenche created_at e created_by via Mixin
+    db_typification.set_creation_audit(current_user.id)
+
     session.add(db_typification)
+    # Flush para garantir ID para as associações e log
+    await session.flush()
 
     if typification.source_ids:
         source_check = await session.scalars(
@@ -76,6 +81,16 @@ async def create_typification(
                 created_by=current_user.id,
             )
             session.add(association_entry)
+
+    # 3. Registro de Auditoria (CREATE)
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='CREATE',
+        table_name=Typification.__tablename__,
+        record_id=db_typification.id,
+        old_data=None,
+    )
 
     await session.commit()
     await session.refresh(db_typification)
@@ -125,6 +140,11 @@ async def update_typification(
             detail='Typification not found',
         )
 
+    # 4. Snapshot antes da atualização
+    old_data = TypificationPublic.model_validate(db_typification).model_dump(
+        mode='json'
+    )
+
     db_typification_same_name = await session.scalar(
         select(Typification).where(
             Typification.deleted_at.is_(None),
@@ -140,7 +160,9 @@ async def update_typification(
         )
 
     db_typification.name = typification.name
-    db_typification.updated_by = current_user.id
+
+    # 5. Preenche updated_at e updated_by via Mixin
+    db_typification.set_update_audit(current_user.id)
 
     if typification.source_ids:
         sources = await session.scalars(
@@ -149,6 +171,16 @@ async def update_typification(
         db_typification.sources = sources.all()
     else:
         db_typification.sources = []
+
+    # 6. Registro de Auditoria (UPDATE)
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='UPDATE',
+        table_name=Typification.__tablename__,
+        record_id=db_typification.id,
+        old_data=old_data,
+    )
 
     await session.commit()
     await session.refresh(db_typification)
@@ -172,8 +204,24 @@ async def delete_typification(
             detail='Typification not found',
         )
 
-    db_typification.deleted_at = datetime.now(timezone.utc)
-    db_typification.deleted_by = current_user.id
+    # 7. Snapshot antes de deletar
+    old_data = TypificationPublic.model_validate(db_typification).model_dump(
+        mode='json'
+    )
+
+    # 8. Soft delete via Mixin
+    db_typification.set_deletion_audit(current_user.id)
+
+    # 9. Registro de Auditoria (DELETE)
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='DELETE',
+        table_name=Typification.__tablename__,
+        record_id=db_typification.id,
+        old_data=old_data,
+    )
+
     await session.commit()
 
     return {'message': 'Typification deleted'}
