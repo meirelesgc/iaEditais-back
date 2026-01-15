@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from http import HTTPStatus
 from uuid import UUID
 
@@ -15,7 +14,7 @@ from iaEditais.schemas import (
     DocumentReleaseList,
     DocumentReleasePublic,
 )
-from iaEditais.services import releases_service
+from iaEditais.services import audit, releases_service
 
 router = APIRouter(
     prefix='/doc/{doc_id}/release',
@@ -35,6 +34,19 @@ async def create_release(
     db_release = await releases_service.create_release(
         doc_id, session, current_user, file
     )
+
+    # Registro de Auditoria (CREATE)
+    # O objeto já foi criado pelo serviço, agora registramos a ação
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='CREATE',
+        table_name=DocumentRelease.__tablename__,
+        record_id=db_release.id,
+        old_data=None,
+    )
+    await session.commit()
+
     await router.broker.publish(db_release.id, 'releases_create_vectors')
     return db_release
 
@@ -80,8 +92,24 @@ async def delete_release(
             detail='File not found or does not belong to this document.',
         )
 
-    db_release.deleted_at = datetime.now(timezone.utc)
-    db_release.deleted_by = current_user.id
+    # 1. Snapshot antes de deletar
+    old_data = DocumentReleasePublic.model_validate(db_release).model_dump(
+        mode='json'
+    )
+
+    # 2. Soft delete via Mixin
+    db_release.set_deletion_audit(current_user.id)
+
+    # 3. Registro de Auditoria (DELETE)
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='DELETE',
+        table_name=DocumentRelease.__tablename__,
+        record_id=db_release.id,
+        old_data=old_data,
+    )
+
     await session.commit()
 
     return {'message': 'File deleted successfully'}
