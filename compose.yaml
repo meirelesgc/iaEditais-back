@@ -87,6 +87,8 @@ services:
       - "3000:3000"
       - "4317:4317"
       - "4318:4318"
+    volumes:
+      - lgtm_data:/data
 
   evolution_api:
     image: gleidsoncosta/evolution-api:v2.3.6
@@ -107,5 +109,4 @@ volumes:
   cache:
   rabbitmq_data:
   evolution_instances:
-
-
+  lgtm_data:
