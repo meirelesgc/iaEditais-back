@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from enum import Enum
 from http import HTTPStatus
 from uuid import UUID
@@ -15,6 +14,7 @@ from iaEditais.core.dependencies import (
 )
 from iaEditais.models import Document, DocumentHistory, User
 from iaEditais.schemas import DocumentPublic, DocumentStatus
+from iaEditais.services import audit
 
 router = APIRouter(
     prefix='/doc/{doc_id}/status', tags=['verificação dos documentos, kanban']
@@ -69,14 +69,31 @@ async def _set_status(
     user: User,
     session: Session,
 ) -> Document:
+    # 1. Snapshot dos dados antes da atualização
+    old_data = DocumentPublic.model_validate(doc).model_dump(mode='json')
+
+    # 2. Criação do histórico usando Mixin
     history = DocumentHistory(
         document_id=doc.id,
         status=status.value,
-        created_by=user.id,
     )
+    history.set_creation_audit(user.id)
     session.add(history)
-    doc.updated_by = user.id
-    doc.updated_at = datetime.now(timezone.utc)
+
+    # 3. Atualização do Documento (updated_at/by) usando Mixin
+    doc.set_update_audit(user.id)
+
+    # 4. Registro de Auditoria (UPDATE)
+    # A mudança de status é considerada uma atualização do Documento
+    await audit.register_action(
+        session=session,
+        user_id=user.id,
+        action='UPDATE',
+        table_name=Document.__tablename__,
+        record_id=doc.id,
+        old_data=old_data,
+    )
+
     await session.commit()
     await session.refresh(doc)
     return doc
