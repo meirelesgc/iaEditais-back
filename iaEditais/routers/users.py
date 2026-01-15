@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from http import HTTPStatus
 from secrets import token_hex
 from typing import Annotated
@@ -20,7 +19,11 @@ from iaEditais.schemas import (
 )
 from iaEditais.schemas.common import Message
 from iaEditais.schemas.user import AccessType
-from iaEditais.services import notification_service, storage_service
+from iaEditais.services import (
+    audit,
+    notification_service,
+    storage_service,
+)
 
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 
@@ -62,6 +65,22 @@ async def create_user(user: UserCreate, session: Session):
     )
 
     session.add(db_user)
+    # Flush para gerar o ID antes de usar no log/audit
+    await session.flush()
+
+    # 1. Preenche created_at e created_by via Mixin (Auto-referência pois é criação)
+    db_user.set_creation_audit(db_user.id)
+
+    # 2. Registro de Auditoria (CREATE)
+    await audit.register_action(
+        session=session,
+        user_id=db_user.id,
+        action='CREATE',
+        table_name=User.__tablename__,
+        record_id=db_user.id,
+        old_data=None,
+    )
+
     await session.commit()
     await session.refresh(db_user)
 
@@ -93,6 +112,9 @@ async def add_icon(
             detail='Access denied',
         )
 
+    # Snapshot antes da alteração (O user será modificado ao receber o icon_id)
+    old_data = UserPublic.model_validate(user_db).model_dump(mode='json')
+
     # 2. Validação do Arquivo
     if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
         raise HTTPException(
@@ -119,6 +141,19 @@ async def add_icon(
     await session.flush()
 
     user_db.icon_id = user_image.id
+
+    # 5. Atualiza auditoria do User
+    user_db.set_update_audit(current_user.id)
+
+    # 6. Registro de Auditoria (UPDATE - Adição de Icone)
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='UPDATE',
+        table_name=User.__tablename__,
+        record_id=user_db.id,
+        old_data=old_data,
+    )
 
     await session.commit()
 
@@ -183,6 +218,9 @@ async def update_user(
             detail='You are not authorized to update this user',
         )
 
+    # Snapshot antes da atualização
+    old_data = UserPublic.model_validate(db_user).model_dump(mode='json')
+
     conflict_user = await session.scalar(
         select(User).where(
             User.deleted_at.is_(None),
@@ -203,7 +241,9 @@ async def update_user(
     db_user.username = user_update.username
     db_user.email = user_update.email
     db_user.phone_number = user_update.phone_number
-    db_user.updated_by = current_user.id
+
+    # Mixin trata updated_at e updated_by
+    db_user.set_update_audit(current_user.id)
 
     if is_admin:
         db_user.access_level = user_update.access_level
@@ -216,6 +256,16 @@ async def update_user(
 
     if user_update.password:
         db_user.password = get_password_hash(user_update.password)
+
+    # Registro de Auditoria (UPDATE)
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='UPDATE',
+        table_name=User.__tablename__,
+        record_id=db_user.id,
+        old_data=old_data,
+    )
 
     await session.commit()
     await session.refresh(db_user)
@@ -238,8 +288,22 @@ async def delete_user(
             status_code=HTTPStatus.NOT_FOUND, detail='User not found'
         )
 
-    db_user.deleted_at = datetime.now(timezone.utc)
-    db_user.deleted_by = current_user.id
+    # Snapshot antes de deletar
+    old_data = UserPublic.model_validate(db_user).model_dump(mode='json')
+
+    # Soft delete via Mixin
+    db_user.set_deletion_audit(current_user.id)
+
+    # Registro de Auditoria (DELETE)
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='DELETE',
+        table_name=User.__tablename__,
+        record_id=db_user.id,
+        old_data=old_data,
+    )
+
     await session.commit()
 
 
@@ -267,6 +331,9 @@ async def delete_icon(
             status_code=HTTPStatus.NOT_FOUND, detail='Icon not found'
         )
 
+    # Snapshot antes da alteração
+    old_data = UserPublic.model_validate(user_db).model_dump(mode='json')
+
     user_image = await session.get(UserImage, user_db.icon_id)
 
     if user_image:
@@ -274,6 +341,19 @@ async def delete_icon(
         await session.delete(user_image)
 
     user_db.icon_id = None
+
+    # Atualiza auditoria do User
+    user_db.set_update_audit(current_user.id)
+
+    # Registro de Auditoria (UPDATE - Remoção de ícone)
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='UPDATE',
+        table_name=User.__tablename__,
+        record_id=user_db.id,
+        old_data=old_data,
+    )
 
     await session.commit()
 
