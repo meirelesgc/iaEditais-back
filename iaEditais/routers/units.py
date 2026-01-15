@@ -1,4 +1,3 @@
-from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
@@ -14,6 +13,9 @@ from iaEditais.schemas import (
     UnitList,
     UnitPublic,
     UnitUpdate,
+)
+from iaEditais.services import (
+    audit,  # Certifique-se de ter criado este serviço
 )
 
 router = APIRouter(prefix='/unit', tags=['operações de sistema, unidades'])
@@ -35,13 +37,28 @@ async def create_unit(
             detail='Unit name already exists',
         )
 
+    # Criação do objeto (AuditMixin campos não estão no init)
     db_unit = Unit(
         name=unit.name,
         location=unit.location,
-        created_by=current_user.id,
     )
+    # 1. Preenche created_at e created_by via Mixin
+    db_unit.set_creation_audit(current_user.id)
 
     session.add(db_unit)
+    # Flush para garantir que o ID seja gerado antes do registro de auditoria
+    await session.flush()
+
+    # 2. Registro de Auditoria (CREATE)
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='CREATE',
+        table_name=Unit.__tablename__,
+        record_id=db_unit.id,
+        old_data=None,
+    )
+
     await session.commit()
     await session.refresh(db_unit)
 
@@ -91,14 +108,17 @@ async def update_unit(
             detail='Unit not found',
         )
 
-    conflit_unit = await session.scalar(
+    # 3. Snapshot dos dados antes da alteração para o AuditLog
+    old_data = UnitPublic.model_validate(db_unit).model_dump(mode='json')
+
+    conflict_unit = await session.scalar(
         select(Unit).where(
             Unit.deleted_at.is_(None),
             Unit.name == unit.name,
             Unit.id != unit.id,
         )
     )
-    if conflit_unit:
+    if conflict_unit:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
             detail='Unit name already exists',
@@ -106,7 +126,19 @@ async def update_unit(
 
     db_unit.name = unit.name
     db_unit.location = unit.location
-    db_unit.updated_by = current_user.id
+
+    # 4. Preenche updated_at e updated_by via Mixin
+    db_unit.set_update_audit(current_user.id)
+
+    # 5. Registro de Auditoria (UPDATE)
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='UPDATE',
+        table_name=Unit.__tablename__,
+        record_id=db_unit.id,
+        old_data=old_data,
+    )
 
     await session.commit()
     await session.refresh(db_unit)
@@ -130,8 +162,22 @@ async def delete_unit(
             detail='Unit not found',
         )
 
-    db_unit.deleted_at = datetime.now(timezone.utc)
-    db_unit.deleted_by = current_user.id
+    # 6. Snapshot antes de deletar
+    old_data = UnitPublic.model_validate(db_unit).model_dump(mode='json')
+
+    # 7. Soft delete via Mixin (updated_at=func.now(), deleted_by=user_id)
+    db_unit.set_deletion_audit(current_user.id)
+
+    # 8. Registro de Auditoria (DELETE)
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='DELETE',
+        table_name=Unit.__tablename__,
+        record_id=db_unit.id,
+        old_data=old_data,
+    )
+
     await session.commit()
 
     return {'message': 'Unit deleted'}
