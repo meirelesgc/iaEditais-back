@@ -12,6 +12,7 @@ from redis.asyncio import Redis
 from iaEditais.core.cache import WebSocketManager
 from iaEditais.core.settings import Settings
 from iaEditais.routers import auth, stats, units, users
+from iaEditais.routers.audit import audit_logs
 from iaEditais.routers.check_tree import (
     branches,
     sources,
@@ -89,6 +90,9 @@ index.include_router(kanban.router)
 index.include_router(sources.router)
 
 app.include_router(index)
+
+# Routers sem classificação
+app.include_router(audit_logs.router)
 
 
 @app.get('/info')

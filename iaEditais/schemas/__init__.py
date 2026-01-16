@@ -1,18 +1,4 @@
-"""
-Arquivo __init__ para o pacote de schemas.
-
-Este arquivo re-exporta todos os schemas Pydantic/SQLAlchemy individuais
-dos submódulos para criar uma API de importação plana e única.
-
-Em vez de:
-    from iaEditais.schemas.branch import BranchCreate
-    from iaEditais.schemas.document import DocumentPublic
-
-Você pode importar diretamente:
-    from iaEditais.schemas import BranchCreate, DocumentPublic
-"""
-
-# 1. Importar as classes dos submódulos usando imports relativos
+from .audit_log import AuditLogFilter, AuditLogList, AuditLogPublic
 from .branch import (
     BranchCreate,
     BranchFilter,
@@ -165,4 +151,8 @@ __all__ = [
     'DocumentMessagePublic',
     'MessageFilter',
     'MessageEntityType',
+    # Módulo de logs
+    'AuditLogFilter',
+    'AuditLogList',
+    'AuditLogPublic',
 ]
