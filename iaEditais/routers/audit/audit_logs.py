@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
-from sqlalchemy import func, or_, select
+from sqlalchemy import select
 
 from iaEditais.core.dependencies import Session
 from iaEditais.models import AuditLog, User
@@ -35,18 +35,6 @@ async def read_audit_logs(
 
     if filters.created_to:
         query = query.where(AuditLog.created_at <= filters.created_to)
-
-    if filters.search:
-        s = f'%{filters.search}%'
-        query = query.where(
-            or_(
-                AuditLog.table_name.ilike(s),
-                AuditLog.action.ilike(s),
-                func.cast(AuditLog.record_id, func.text).ilike(s),
-                func.cast(AuditLog.user_id, func.text).ilike(s),
-                func.cast(AuditLog.old_data, func.text).ilike(s),
-            )
-        )
 
     if (filters.order or '').lower() == 'asc':
         query = query.order_by(AuditLog.created_at.asc())
