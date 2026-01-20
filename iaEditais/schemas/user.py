@@ -50,7 +50,12 @@ class UserPublicMessage(BaseModel):
 
 class UserUpdate(UserSchema):
     id: UUID
-    password: Optional[str] = None
+
+
+class UserPasswordChange(BaseModel):
+    user_id: UUID
+    current_password: Optional[str] = None
+    new_password: str
 
 
 class UserImagePublic(BaseModel):

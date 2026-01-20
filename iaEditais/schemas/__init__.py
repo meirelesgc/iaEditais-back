@@ -74,6 +74,7 @@ from .user import (
     UserPublicMessage,
     UserSchema,
     UserUpdate,
+    UserPasswordChange,
 )
 
 # 2. Definir explicitamente a API pública do pacote 'schemas'
@@ -144,6 +145,7 @@ __all__ = [
     'UserPublicMessage',
     'UserSchema',
     'UserUpdate',
+    'UserPasswordChange',
     # Módulo messages
     'DocumentMessageList',
     'DocumentMessageCreate',

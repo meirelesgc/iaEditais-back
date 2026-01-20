@@ -14,6 +14,7 @@ from iaEditais.schemas import (
     UserCreate,
     UserFilter,
     UserList,
+    UserPasswordChange,
     UserPublic,
     UserUpdate,
 )
@@ -254,9 +255,6 @@ async def update_user(
     ):
         pass
 
-    if user_update.password:
-        db_user.password = get_password_hash(user_update.password)
-
     # Registro de Auditoria (UPDATE)
     await audit.register_action(
         session=session,
@@ -271,6 +269,94 @@ async def update_user(
     await session.refresh(db_user)
 
     return db_user
+
+
+@router.put('/password', response_model=Message)
+async def change_password(
+    payload: UserPasswordChange,
+    session: Session,
+    current_user: CurrentUser,
+):
+    db_user = await session.get(User, payload.user_id)
+
+    if not db_user or db_user.deleted_at:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='User not found',
+        )
+
+    is_owner = db_user.id == current_user.id
+    is_admin = current_user.access_level == AccessType.ADMIN
+
+    if not is_owner and not is_admin:
+        raise HTTPException(
+            status_code=HTTPStatus.FORBIDDEN,
+            detail='You are not authorized to change this password',
+        )
+
+    # Snapshot antes da atualização
+    old_data = UserPublic.model_validate(db_user).model_dump(mode='json')
+
+    # Dono precisa informar senha atual
+    if is_owner:
+        if not payload.current_password:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail='Current password is required',
+            )
+
+        try:
+            from iaEditais.core.security import verify_password
+        except ImportError:
+            raise HTTPException(
+                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+                detail='Password verification not available',
+            )
+
+        if not verify_password(payload.current_password, db_user.password):
+            raise HTTPException(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                detail='Invalid current password',
+            )
+
+    # Regras de segurança (fallback caso não exista algo no projeto)
+    new_password = payload.new_password
+    if len(new_password) < 8:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail='Password must be at least 8 characters long',
+        )
+    if (
+        new_password.lower() == new_password
+        or new_password.upper() == new_password
+    ):
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail='Password must contain both uppercase and lowercase letters',
+        )
+    if not any(c.isdigit() for c in new_password):
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail='Password must contain at least one number',
+        )
+
+    db_user.password = get_password_hash(new_password)
+
+    # Auditoria update
+    db_user.set_update_audit(current_user.id)
+
+    await audit.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='UPDATE',
+        table_name=User.__tablename__,
+        record_id=db_user.id,
+        old_data=old_data,
+    )
+
+    await session.commit()
+
+    return Message(message='Password updated successfully')
 
 
 @router.delete(
