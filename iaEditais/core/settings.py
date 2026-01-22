@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -31,3 +31,5 @@ class Settings(BaseSettings):
     COOKIE_SECURE: bool = True
     COOKIE_SAMESITE: str = 'lax'
     COOKIE_PATH: str = '/'
+
+    ROOT_PATH: Optional[str]

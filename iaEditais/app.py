@@ -49,7 +49,11 @@ async def lifespan(app: FastAPI):
 
 
 # Aplicação
-app = FastAPI(docs_url='/swagger', lifespan=lifespan)
+app = FastAPI(
+    docs_url='/swagger',
+    lifespan=lifespan,
+    root_path=SETTINGS.ROOT_PATH,
+)
 index = RabbitRouter()
 
 app.mount('/uploads', StaticFiles(directory=UPLOADS_DIR), name='uploads')
