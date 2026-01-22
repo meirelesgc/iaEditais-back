@@ -8,7 +8,7 @@ from faststream.rabbit.fastapi import RabbitRouter as APIRouter
 from sqlalchemy import or_, select
 
 from iaEditais.core.dependencies import CurrentUser, Session
-from iaEditais.core.security import get_password_hash
+from iaEditais.core.security import get_password_hash, verify_password
 from iaEditais.models import User, UserImage
 from iaEditais.schemas import (
     UserCreate,
@@ -294,23 +294,13 @@ async def change_password(
             detail='You are not authorized to change this password',
         )
 
-    # Snapshot antes da atualização
     old_data = UserPublic.model_validate(db_user).model_dump(mode='json')
 
-    # Dono precisa informar senha atual
     if is_owner:
         if not payload.current_password:
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
                 detail='Current password is required',
-            )
-
-        try:
-            from iaEditais.core.security import verify_password
-        except ImportError:
-            raise HTTPException(
-                status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
-                detail='Password verification not available',
             )
 
         if not verify_password(payload.current_password, db_user.password):
@@ -319,7 +309,6 @@ async def change_password(
                 detail='Invalid current password',
             )
 
-    # Regras de segurança (fallback caso não exista algo no projeto)
     new_password = payload.new_password
     if len(new_password) < 8:
         raise HTTPException(

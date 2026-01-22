@@ -32,4 +32,4 @@ class Settings(BaseSettings):
     COOKIE_SAMESITE: str = 'lax'
     COOKIE_PATH: str = '/'
 
-    ROOT_PATH: Optional[str]
+    ROOT_PATH: Optional[str] = str()
