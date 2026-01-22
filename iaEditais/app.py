@@ -1,3 +1,4 @@
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -22,6 +23,8 @@ from iaEditais.routers.check_tree import (
 from iaEditais.routers.docs import docs, kanban, messages, releases
 from iaEditais.routers.docs import ws as docs_ws
 from iaEditais.workers import releases as w_releases
+
+logging.basicConfig(level=logging.INFO)
 
 PROJECT_FILE = Path(__file__).parent.parent / 'pyproject.toml'
 
