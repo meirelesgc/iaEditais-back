@@ -93,7 +93,7 @@ services:
 
   evolution_api:
     image: gleidsoncosta/evolution-api:v2.3.6
-    restart: always
+    profiles: ["prod"]
     ports:
       - "8080:8080"
     env_file:

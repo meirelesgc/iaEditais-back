@@ -24,6 +24,7 @@ router = APIRouter(
 class NotifyTarget(str, Enum):
     EDITORS = 'editors'
     CREATOR = 'creator'
+    UNIT_AUDITORS = 'unit_auditors'
 
 
 NOTIFICATION_RULES: dict[
@@ -35,7 +36,7 @@ NOTIFICATION_RULES: dict[
     },
     DocumentStatus.WAITING_FOR_REVIEW: {
         'enabled': True,
-        'targets': [NotifyTarget.CREATOR],
+        'targets': [NotifyTarget.CREATOR, NotifyTarget.UNIT_AUDITORS],
     },
     DocumentStatus.PENDING: {
         'enabled': False,
@@ -69,10 +70,8 @@ async def _set_status(
     user: User,
     session: Session,
 ) -> Document:
-    # 1. Snapshot dos dados antes da atualização
     old_data = DocumentPublic.model_validate(doc).model_dump(mode='json')
 
-    # 2. Criação do histórico usando Mixin
     history = DocumentHistory(
         document_id=doc.id,
         status=status.value,
@@ -80,11 +79,8 @@ async def _set_status(
     history.set_creation_audit(user.id)
     session.add(history)
 
-    # 3. Atualização do Documento (updated_at/by) usando Mixin
     doc.set_update_audit(user.id)
 
-    # 4. Registro de Auditoria (UPDATE)
-    # A mudança de status é considerada uma atualização do Documento
     await audit.register_action(
         session=session,
         user_id=user.id,
@@ -116,13 +112,31 @@ async def _queue_notification_if_needed(
         return
 
     targets: list[User] = []
-    for _, target in enumerate(rules['targets']):
+
+    creator_cache = None
+
+    for target in rules['targets']:
         if target == NotifyTarget.EDITORS:
             targets.extend(doc.editors)
+
         elif target == NotifyTarget.CREATOR and doc.created_by:
-            creator = await session.get(User, doc.created_by)
-            if creator:
-                targets.append(creator)
+            if not creator_cache:
+                creator_cache = await session.get(User, doc.created_by)
+
+            if creator_cache:
+                targets.append(creator_cache)
+
+        elif target == NotifyTarget.UNIT_AUDITORS and doc.created_by:
+            if not creator_cache:
+                creator_cache = await session.get(User, doc.created_by)
+
+            if creator_cache and creator_cache.unit_id:
+                stmt = select(User).where(
+                    User.access_level == 'AUDITOR',
+                    User.unit_id == creator_cache.unit_id,
+                )
+                auditors_result = await session.execute(stmt)
+                targets.extend(auditors_result.scalars().all())
 
     unique_targets = {user.id: user for user in targets}.values()
     user_ids = [user.id for user in unique_targets if user.id]
@@ -135,7 +149,6 @@ async def _queue_notification_if_needed(
         f"Olá! O status do documento '{doc.name}' "
         f'foi atualizado para: {status_traduzido}'
     )
-
     payload = {'user_ids': user_ids, 'message_text': message_text}
     await broker.publish(payload, 'notifications_send_message')
 
