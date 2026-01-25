@@ -1,28 +1,26 @@
 import os
 import re
 
-from langchain_community.document_loaders import (
-    Docx2txtLoader,
-    PyMuPDFLoader,
-    TextLoader,
-)
 from langchain_core.documents import Document
+from langchain_docling.loader import DoclingLoader, ExportType
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
 async def load_document(file_path: str):
-    ext = os.path.splitext(file_path)[1].lower()
-    if ext == '.pdf':
-        loader = PyMuPDFLoader(file_path, mode='single')
-    elif ext == '.docx':
-        loader = Docx2txtLoader(file_path, mode='single')
-    elif ext == '.txt':
-        loader = TextLoader(file_path, encoding='utf-8')
-    else:
-        raise ValueError(f'Tipo de arquivo não suportado: {ext}')
+    if not os.path.exists(file_path):
+        raise FileNotFoundError(f'Arquivo não encontrado: {file_path}')
+
+    loader = DoclingLoader(
+        file_path=file_path, export_type=ExportType.MARKDOWN
+    )
+
     docs = loader.load()
+
     for d in docs:
         d.page_content = clean_text(d.page_content)
+        if 'source' not in d.metadata:
+            d.metadata['source'] = file_path
+
     return docs
 
 
@@ -37,14 +35,16 @@ def clean_text(text):
 
 
 def parse_with_session(chunks):
-    final_chunks = []
-    title_pattern = re.compile(r'^\s*(\d+\.\s+[^\n]+)')
+    final_chunks: list[Document] = []
+    title_pattern = re.compile(r'^\s*(?:[#*]+\s*)?(\d+\.\s+[^\n]+)')
+
     for chunk in chunks:
         text = chunk.page_content.strip()
 
         match = title_pattern.match(text)
         if match:
-            session_name = match.group(1).strip()
+            raw_title = match.group(1).strip()
+            session_name = raw_title.replace('*', '').strip()
         else:
             session_name = 'PREÂMBULO / INTRODUÇÃO'
 
@@ -72,12 +72,15 @@ def parse_with_session(chunks):
 
 def split_documents(documents):
     full_text = '\n'.join([doc.page_content for doc in documents])
-    regex_pattern = r'(?:\n|^)\s*(?=\d+\.\s+\S)'
+    regex_pattern = r'(?:\n|^)\s*(?=(?:[#*]+\s*)?\d+\.\s+\S)'
+
     text_chunks = [
         chunk for chunk in re.split(regex_pattern, full_text) if chunk.strip()
     ]
+
     base_metadata = documents[0].metadata if documents else {}
     final_chunks = []
+
     for chunk in text_chunks:
         clean_content = chunk.strip()
         if clean_content:
