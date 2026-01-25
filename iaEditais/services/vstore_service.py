@@ -1,6 +1,7 @@
 import os
 import re
 
+from langchain_community.document_loaders import TextLoader
 from langchain_core.documents import Document
 from langchain_docling.loader import DoclingLoader, ExportType
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -10,18 +11,34 @@ async def load_document(file_path: str):
     if not os.path.exists(file_path):
         raise FileNotFoundError(f'Arquivo não encontrado: {file_path}')
 
-    loader = DoclingLoader(
-        file_path=file_path, export_type=ExportType.MARKDOWN
-    )
+    ext = os.path.splitext(file_path)[1].lower()
 
-    docs = loader.load()
+    if ext == '.txt':
+        loader = TextLoader(file_path, encoding='utf-8')
+        docs = loader.load()
+        for d in docs:
+            d.page_content = clean_text(d.page_content)
+            if 'source' not in d.metadata:
+                d.metadata['source'] = file_path
+        return docs
 
-    for d in docs:
-        d.page_content = clean_text(d.page_content)
-        if 'source' not in d.metadata:
-            d.metadata['source'] = file_path
+    else:
+        try:
+            loader = DoclingLoader(
+                file_path=file_path, export_type=ExportType.MARKDOWN
+            )
+            docs = loader.load()
 
-    return docs
+            for d in docs:
+                d.page_content = clean_text(d.page_content)
+                if 'source' not in d.metadata:
+                    d.metadata['source'] = file_path
+            return docs
+
+        except Exception as e:
+            raise ValueError(
+                f'Erro ao processar arquivo {ext} com Docling: {e}'
+            )
 
 
 def clean_text(text):
