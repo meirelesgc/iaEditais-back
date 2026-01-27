@@ -64,7 +64,7 @@ def parse_with_session(chunks):
             raw_title = match.group(1).strip()
             session_name = raw_title.replace('*', '').strip()
         else:
-            session_name = 'PREÂMBULO / INTRODUÇÃO'
+            session_name = 'PREÂMBULO DO DOCUMENTO'
 
         splitter = RecursiveCharacterTextSplitter(
             chunk_size=2000,
