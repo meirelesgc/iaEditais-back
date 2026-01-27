@@ -28,6 +28,7 @@ from iaEditais.models import (
 from iaEditais.repositories import releases_repository
 from iaEditais.schemas import DocumentReleaseFeedback
 from iaEditais.services import storage_service
+from iaEditais.utils.PresidioDeanonymizer import PresidioDeanonymizer
 
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 SIMILARITY_THRESHOLD = 0.5
@@ -490,16 +491,24 @@ async def apply_branch(
     branch: 'Branch',
     resp: dict,
 ):
+    deanonymizer = PresidioDeanonymizer()
+
+    presidio_mapping = resp.get('presidio_mapping', {})
+
+    deanonymized_resp = deanonymizer.deanonymize_feedback_object(
+        resp, presidio_mapping
+    )
+
     CUTTING_LINE = 5
     applied_branch = AppliedBranch(
         title=branch.title,
         description=branch.description,
         applied_taxonomy_id=applied_tax.id,
         original_id=branch.id,
-        feedback=resp.get('feedback'),
+        feedback=deanonymized_resp.get('feedback'),
         fulfilled=True if resp.get('score', 0) > CUTTING_LINE else False,
         score=resp.get('score', 0),
-        presidio_mapping=str(resp.get('presidio_mapping')),
+        presidio_mapping=str(presidio_mapping),
     )
     session.add(applied_branch)
     return applied_branch

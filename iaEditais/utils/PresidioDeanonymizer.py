@@ -52,6 +52,7 @@ class PresidioDeanonymizer:
                 )
             },
         )
+        return deanonymized_result.text
 
     def deanonymize_feedback_object(
         self, feedback_obj: Dict, presidio_mapping: Dict
