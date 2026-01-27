@@ -83,7 +83,9 @@ async def read_units(
 
 @router.get('/{unit_id}', response_model=UnitPublic)
 async def read_unit(unit_id: UUID, session: Session):
-    unit = await session.get(Unit, unit_id)
+    result = await session.execute(select(Unit).where(Unit.id == unit_id))
+
+    unit = result.scalar_one_or_none()
 
     if not unit or unit.deleted_at:
         raise HTTPException(
@@ -100,7 +102,9 @@ async def update_unit(
     session: Session,
     current_user: CurrentUser,
 ):
-    db_unit = await session.get(Unit, unit.id)
+    result = await session.execute(select(Unit).where(Unit.id == unit.id))
+
+    db_unit = result.scalar_one_or_none()
 
     if not db_unit or db_unit.deleted_at:
         raise HTTPException(
@@ -154,7 +158,9 @@ async def delete_unit(
     session: Session,
     current_user: CurrentUser,
 ):
-    db_unit = await session.get(Unit, unit_id)
+    result = await session.execute(select(Unit).where(Unit.id == unit_id))
+
+    db_unit = result.scalar_one_or_none()
 
     if not db_unit or db_unit.deleted_at:
         raise HTTPException(

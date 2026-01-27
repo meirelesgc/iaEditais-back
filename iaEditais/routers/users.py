@@ -100,7 +100,10 @@ async def add_icon(
     current_user: CurrentUser,
     file: UploadFile = File(...),
 ):
-    user_db = await session.get(User, user_id)
+    result = await session.execute(select(User).where(User.id == user_id))
+
+    user_db = result.scalar_one_or_none()
+
     if not user_db:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -123,14 +126,12 @@ async def add_icon(
             detail='Invalid file format. Use PNG or JPG',
         )
 
-    # 3. Limpeza de Ícone Antigo (Evita arquivos orfãos)
     if user_db.icon_id:
         old_icon = await session.get(UserImage, user_db.icon_id)
         if old_icon:
             await storage_service.delete_file(old_icon.file_path)
             await session.delete(old_icon)
 
-    # 4. Upload e Criação do Novo Registro
     file_path = await storage_service.save_file(file, UPLOAD_DIRECTORY)
 
     user_image = UserImage(

@@ -6,7 +6,7 @@ ENV POETRY_VIRTUALENVS_CREATE=false \
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y socat --no-install-recommends \
+RUN apt-get update && apt-get install -y socat libgl1  libxcb1 libglx0 --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 RUN pip install poetry
@@ -14,6 +14,7 @@ RUN pip install poetry
 COPY poetry.lock pyproject.toml ./
 
 RUN poetry install --no-interaction --no-ansi --without dev --no-root
+RUN poetry run spacy download pt_core_news_lg
 RUN opentelemetry-bootstrap -a install
 
 COPY . .

@@ -153,7 +153,12 @@ async def read_doc(doc_id: UUID, session: Session):
 async def update_doc(
     doc: DocumentUpdate, session: Session, current_user: CurrentUser
 ):
-    db_doc = await session.get(Document, doc.id)
+    result = await session.execute(
+        select(Document).where(Document.id == doc.id)
+    )
+
+    db_doc = result.scalar_one_or_none()
+
     if not db_doc or db_doc.deleted_at:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
@@ -262,7 +267,10 @@ async def toggle_archive(
 async def delete_doc(
     doc_id: UUID, session: Session, current_user: CurrentUser
 ):
-    db_doc = await session.get(Document, doc_id)
+    result = await session.execute(
+        select(Document).where(Document.id == doc_id)
+    )
+    db_doc = result.scalar_one_or_none()
 
     if not db_doc or db_doc.deleted_at:
         raise HTTPException(
@@ -270,13 +278,10 @@ async def delete_doc(
             detail='Doc not found',
         )
 
-    # 10. Snapshot antes de deletar
     old_data = DocumentPublic.model_validate(db_doc).model_dump(mode='json')
 
-    # 11. Soft delete via Mixin
     db_doc.set_deletion_audit(current_user.id)
 
-    # 12. Registro de Auditoria (DELETE)
     await audit.register_action(
         session=session,
         user_id=current_user.id,
