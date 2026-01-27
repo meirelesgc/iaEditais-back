@@ -54,43 +54,6 @@ filterwarnings = [
 concurrency = ["thread", "greenlet"]
 
 [tool.taskipy.tasks]
-migrate = """
-    bash -c '
-    echo "📝 Digite uma mensagem para a migração (obrigatório):"
-    read MSG
-
-    if [ -z "$MSG" ]; then
-    MSG="migration"
-    fi
-
-    echo "🧠 Verificando se o banco está acessível..."
-    if ! alembic upgrade head --sql > /dev/null 2>&1; then
-    echo "❌ Banco não acessível ou configuração incorreta (verifique o alembic.ini)"
-    exit 1
-    fi
-
-    echo "🧹 Limpando stage do git..."
-    git reset > /dev/null
-
-    echo "🛠️ Gerando migração..."
-    alembic revision --autogenerate -m "$MSG"
-
-    if [ ! -d "migrations/versions" ]; then
-    echo "❌ Diretório de migrações não encontrado (esperado: migrations/versions)"
-    exit 1
-    fi
-
-    echo "💾 Commitando migração..."
-    git add migrations/versions
-    git commit -m "migration: $MSG" || echo "⚠️ Nenhuma migração commitada (possivelmente sem alterações)."
-
-    echo "🚀 Aplicando migração..."
-    alembic upgrade head
-
-    echo "✅ Migração aplicada com sucesso!"
-    '
-    """
-format = 'ruff check --fix; ruff format'
 run = 'fastapi dev iaEditais/app.py'
 test = 'pytest -s -x --cov=iaEditais -vv'
 cov = 'coverage html'
