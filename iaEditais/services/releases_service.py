@@ -32,6 +32,8 @@ from iaEditais.services import storage_service
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 SIMILARITY_THRESHOLD = 0.5
 MAX_CHUNKS = 3
+TOP_K_SESSIONS = 3
+CHUNKS_PER_SESSION = 3
 
 
 async def create_release(
@@ -176,28 +178,72 @@ async def get_vars(
         for taxonomy in typification.taxonomies:
             for branch in taxonomy.branches:
                 _branch = await process_branch(
-                    release, typification, taxonomy, branch, vectorstore
+                    release,
+                    typification,
+                    taxonomy,
+                    branch,
+                    vectorstore,
+                    top_k_sessions=TOP_K_SESSIONS,
+                    chunks_per_session=CHUNKS_PER_SESSION,
                 )
                 input_vars.append(_branch)
     return input_vars
 
 
-async def fetch_similar_contents_doc(
-    vectorstore: VStore, release: DocumentRelease, query: str, session: str
+async def get_top_sessions(
+    vectorstore: VStore,
+    release: DocumentRelease,
+    query: str,
+    top_k_sessions: int = 3,
+) -> List[str]:
+    path = release.file_path.split('/')[-1]
+    allowed_source = f'iaEditais/storage/uploads/{path}'
+
+    results = await vectorstore.asimilarity_search(
+        query, k=10, filter={'source': allowed_source}
+    )
+
+    if not results:
+        return []
+
+    seen_sessions = set()
+    unique_sessions = []
+
+    for doc in results:
+        session = doc.metadata.get('session')
+        if session and session not in seen_sessions:
+            seen_sessions.add(session)
+            unique_sessions.append(session)
+            if len(unique_sessions) >= top_k_sessions:
+                break
+
+    return unique_sessions
+
+
+async def fetch_multisession_contents(
+    vectorstore: VStore,
+    release: DocumentRelease,
+    query: str,
+    sessions: List[str],
+    chunks_per_session: int = 3,
 ):
-    if not session:
+    if not sessions:
         return []
 
     path = release.file_path.split('/')[-1]
     allowed_source = f'iaEditais/storage/uploads/{path}'
 
-    results = await vectorstore.asimilarity_search_with_score(
-        query,
-        k=MAX_CHUNKS,
-        filter={'source': allowed_source, 'session': session},
-    )
-    filtered = [(d, score) for d, score in results]
-    return filtered
+    aggregated_results = []
+
+    for session in sessions:
+        results = await vectorstore.asimilarity_search_with_score(
+            query,
+            k=chunks_per_session,
+            filter={'source': allowed_source, 'session': session},
+        )
+        aggregated_results.extend([(d, score) for d, score in results])
+
+    return aggregated_results
 
 
 async def fetch_similar_contents_source(
@@ -217,32 +263,26 @@ async def fetch_similar_contents_source(
     return filtered
 
 
-async def get_doc_session(
-    vectorstore: VStore, release: DocumentRelease, query: str
-):
-    path = release.file_path.split('/')[-1]
-    allowed_source = f'iaEditais/storage/uploads/{path}'
-    results = await vectorstore.asimilarity_search(
-        query, k=1, filter={'source': allowed_source}
-    )
-    if not results:
-        return None
-    return results[0].metadata.get('session')
-
-
 async def process_branch(
     release: DocumentRelease,
     typification: Typification,
     taxonomy: Taxonomy,
     branch: Branch,
     vectorstore: VStore,
+    top_k_sessions: int = 3,
+    chunks_per_session: int = 3,
 ):
-    query = f'{taxonomy.title}: {taxonomy.description or ""}'.strip()
-    session = await get_doc_session(vectorstore, release, query)
-    if not session:
+    # 1. Pesquisa de sessões pela Taxonomia
+    taxonomy_query = f'{taxonomy.title}: {taxonomy.description or ""}'.strip()
+    target_sessions = await get_top_sessions(
+        vectorstore, release, taxonomy_query, top_k_sessions
+    )
+
+    if not target_sessions:
         return {
             'presidio_mapping': {},
             'docs': 'Nenhum conteúdo relacionado encontrado para avaliação.',
+            'expected_session': 'Não identificada',
             'taxonomy_title': taxonomy.title.strip(),
             'taxonomy_description': (taxonomy.description or '').strip(),
             'taxonomy_source': '',
@@ -253,71 +293,62 @@ async def process_branch(
             'prompt_score': 0,
         }
 
-    query = f'{branch.title}: {branch.description or ""}'.strip()
-    retrieved_contents = await fetch_similar_contents_doc(
-        vectorstore, release, query, session
+    # 2. Pesquisa de chunks dentro das sessões pelo Branch
+    branch_query = f'{branch.title}: {branch.description or ""}'.strip()
+    retrieved_contents = await fetch_multisession_contents(
+        vectorstore, release, branch_query, target_sessions, chunks_per_session
     )
 
     docs_text = 'Nenhum conteúdo encontrado.'
     prompt_score = 0
     presidio_mapping = {}
 
-    if isinstance(retrieved_contents, list) and retrieved_contents:
-        docs_text = '\n\n'.join([
-            d.page_content.strip()
-            for d, _ in retrieved_contents
-            if d.page_content.strip()
-        ])
-        presidio_mapping = {
-            k: v
-            for d, _ in retrieved_contents
-            if d.metadata and 'presidio_mapping' in d.metadata
-            for k, v in d.metadata['presidio_mapping'].items()
-        }
-        prompt_score += sum(score for _, score in retrieved_contents)
+    if retrieved_contents:
+        formatted_parts = []
+        for d, score in retrieved_contents:
+            session_label = d.metadata.get('session', 'Sessão desconhecida')
+            content = d.page_content.strip()
+            formatted_parts.append(f'[SESSÃO: {session_label}]\n{content}')
 
+            # Mapeamento de privacidade e score
+            if d.metadata and 'presidio_mapping' in d.metadata:
+                presidio_mapping.update(d.metadata['presidio_mapping'])
+            prompt_score += score
+
+        docs_text = '\n\n---\n\n'.join(formatted_parts)
+
+    # 3. Fontes de Tipificação e Taxonomia
     typification_sources_text = []
     for source in getattr(typification, 'sources', []):
-        chunks = []
-        if getattr(source, 'file_path', None):
-            chunks = await fetch_similar_contents_source(
-                vectorstore, source, query, session
-            )
-
-        chunk_text = ''
-        if isinstance(chunks, list) and chunks:
-            chunk_text = ' '.join([
-                d.page_content.strip()
-                for d, _ in chunks
-                if d.page_content.strip()
-            ])
-
-        source_block = (
-            f'Nome da Fonte: {source.name}\n'
-            f'Descrição: {source.description or "sem descrição"}\n'
-            f'Conteúdo Relevante: {chunk_text or "nenhum conteúdo relevante encontrado"}'
+        chunks = await fetch_similar_contents_source(
+            vectorstore, source, branch_query, session=''
         )
-        typification_sources_text.append(source_block.strip())
+        chunk_text = (
+            ' '.join([d.page_content.strip() for d, _ in chunks])
+            if chunks
+            else ''
+        )
+        typification_sources_text.append(
+            f'Fonte: {source.name}\nDescrição: {source.description}\nConteúdo: {chunk_text}'
+        )
 
-    taxonomy_sources_text = []
-    for source in getattr(taxonomy, 'sources', []):
-        source_text = f'{source.name}\n{source.description or "sem descrição"}'
-        taxonomy_sources_text.append(source_text.strip())
-
-    typification_source_content = '\n\n---\n\n'.join(
-        typification_sources_text
-    ).strip()
-    taxonomy_source_content = '\n\n'.join(taxonomy_sources_text).strip()
+    taxonomy_sources_text = [
+        f'{s.name}\n{s.description or "sem descrição"}'
+        for s in getattr(taxonomy, 'sources', [])
+    ]
 
     return {
         'presidio_mapping': presidio_mapping,
         'docs': docs_text,
+        'expected_session': target_sessions[0],  # A primeira é a mais provável
         'taxonomy_title': taxonomy.title.strip(),
         'taxonomy_description': (taxonomy.description or '').strip(),
-        'taxonomy_source': taxonomy_source_content,
+        'taxonomy_source': '\n\n'.join(taxonomy_sources_text).strip(),
         'taxonomy_branch_title': branch.title.strip(),
         'taxonomy_branch_description': (branch.description or '').strip(),
-        'typification_source': typification_source_content,
+        'typification_source': '\n\n---\n\n'.join(
+            typification_sources_text
+        ).strip(),
         'query': 'Justifique sua resposta com base no conteúdo do edital.',
         'prompt_score': prompt_score,
     }
