@@ -1,3 +1,4 @@
+import json
 import os
 import re
 
@@ -104,5 +105,19 @@ def split_documents(documents):
             final_chunks.append(
                 Document(page_content=clean_content, metadata=base_metadata)
             )
-    chunks = parse_with_session(final_chunks)
+    chunks: list[Document] = parse_with_session(final_chunks)
+    result = [
+        {
+            'content': chunk.page_content,
+            'session': chunk.metadata.get('session'),
+        }
+        for chunk in chunks
+    ]
+
+    for r in result:
+        print(f'SESSÂO: {r["session"]}\nTEXTO: {r["content"]}')
+
+    with open('iaEditais/storage/temp/re.json', 'w', encoding='utf-8') as f:
+        json.dump(result, f, ensure_ascii=False, indent=4)
+
     return chunks
