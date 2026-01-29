@@ -3,7 +3,12 @@ iaEditais/storage
 .git
 .gitignore
 .gitattributes
-
+.git
+.venv
+__pycache__
+.pytest_cache
+tests
+README.md
 
 # CI
 .codeclimate.yml
