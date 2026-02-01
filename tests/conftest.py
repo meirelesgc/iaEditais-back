@@ -2,7 +2,6 @@ import io
 import shutil
 from contextlib import contextmanager
 from datetime import datetime
-from pathlib import Path
 from typing import override
 from uuid import uuid4
 
@@ -331,27 +330,6 @@ def create_release(session):
         return db_release
 
     return _create_release
-
-
-@pytest.fixture(autouse=True)
-def mock_upload_directory(monkeypatch):
-    temp_upload_dir = Path('iaEditais') / 'storage' / 'temp'
-    temp_upload_dir.mkdir(parents=True, exist_ok=True)
-
-    monkeypatch.setattr(
-        'iaEditais.services.releases_service.UPLOAD_DIRECTORY',
-        str(temp_upload_dir),
-    )
-    monkeypatch.setattr(
-        'iaEditais.workers.releases.UPLOAD_DIRECTORY',
-        str(temp_upload_dir),
-    )
-
-    monkeypatch.setattr(
-        'iaEditais.routers.check_tree.sources.UPLOAD_DIRECTORY',
-        str(temp_upload_dir),
-    )
-    return str(temp_upload_dir)
 
 
 @pytest_asyncio.fixture

@@ -67,3 +67,13 @@ class UserPasswordChange(BaseModel):
     user_id: UUID
     current_password: Optional[str] = None
     new_password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    token: str
+    new_password: str

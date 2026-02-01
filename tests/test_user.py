@@ -1,10 +1,13 @@
 import io
+from datetime import datetime, timedelta
 from http import HTTPStatus
 from uuid import uuid4
 
 import pytest
+from sqlalchemy import select
 
-from iaEditais.models import AccessType
+from iaEditais.core.security import get_password_hash
+from iaEditais.models import AccessType, PasswordReset
 
 
 @pytest.mark.asyncio
@@ -511,3 +514,216 @@ async def test_admin_can_change_other_user_password(
 
     assert response.status_code == HTTPStatus.OK
     assert response.json()['message'] == 'Password updated successfully'
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_success(
+    client, create_user, session, create_unit
+):
+    unit = await create_unit()
+    user = await create_user(
+        username='forgot_user',
+        email='forgot@example.com',
+        phone_number='11999998888',
+        unit_id=str(unit.id),
+    )
+
+    payload = {'email': 'forgot@example.com'}
+    response = client.post('/user/forgot-password', json=payload)
+
+    assert response.status_code == HTTPStatus.OK
+    assert (
+        response.json()['message']
+        == 'If user exists, a code was sent via WhatsApp'
+    )
+
+    # Verificação extra: garante que criou o registro no banco
+    db_reset = await session.scalar(
+        select(PasswordReset).where(PasswordReset.user_id == user.id)
+    )
+    assert db_reset is not None
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_user_not_found(client):
+    payload = {'email': 'naoexiste@example.com'}
+    response = client.post('/user/forgot-password', json=payload)
+
+    # Deve retornar 200 OK para evitar enumeração de usuários
+    assert response.status_code == HTTPStatus.OK
+    assert (
+        response.json()['message']
+        == 'If user exists, a code was sent via WhatsApp'
+    )
+
+
+@pytest.mark.asyncio
+async def test_reset_password_success(
+    client, create_user, session, create_unit
+):
+    unit = await create_unit()
+    user = await create_user(
+        username='reset_user',
+        email='reset@example.com',
+        phone_number='11988887777',
+        unit_id=str(unit.id),
+    )
+
+    # Setup: Criar manualmente um token válido no banco
+    raw_token = 'ABC123'
+    token_hash = get_password_hash(raw_token)
+    expires_at = datetime.now() + timedelta(minutes=15)
+
+    db_reset = PasswordReset(
+        user_id=user.id, token_hash=token_hash, expires_at=expires_at
+    )
+    session.add(db_reset)
+    await session.commit()
+
+    payload = {
+        'email': user.email,
+        'token': raw_token,
+        'new_password': 'NewPassword123',
+    }
+    response = client.post('/user/reset-password', json=payload)
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.json()['message'] == 'Password reset successfully'
+
+    await session.refresh(user)
+    reset_entry = await session.scalar(
+        select(PasswordReset).where(PasswordReset.user_id == user.id)
+    )
+    assert reset_entry is None
+
+
+@pytest.mark.asyncio
+async def test_reset_password_invalid_token(
+    client, create_user, session, create_unit
+):
+    unit = await create_unit()
+    user = await create_user(
+        email='wrongtoken@example.com',
+        phone_number='11977776666',
+        unit_id=str(unit.id),
+    )
+
+    token_hash = get_password_hash('ABC123')
+    db_reset = PasswordReset(
+        user_id=user.id,
+        token_hash=token_hash,
+        expires_at=datetime.now() + timedelta(minutes=15),
+    )
+    session.add(db_reset)
+    await session.commit()
+
+    payload = {
+        'email': user.email,
+        'token': 'WRONG999',
+        'new_password': 'NewPassword123',
+    }
+    response = client.post('/user/reset-password', json=payload)
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.json()['detail'] == 'Invalid token'
+
+
+@pytest.mark.asyncio
+async def test_reset_password_expired_token(
+    client, create_user, session, create_unit
+):
+    unit = await create_unit()
+    user = await create_user(
+        email='expired@example.com',
+        phone_number='11966665555',
+        unit_id=str(unit.id),
+    )
+
+    raw_token = 'EXPIRED'
+    token_hash = get_password_hash(raw_token)
+    # Data no passado
+    past_date = datetime.now() - timedelta(minutes=10)
+
+    db_reset = PasswordReset(
+        user_id=user.id, token_hash=token_hash, expires_at=past_date
+    )
+    session.add(db_reset)
+    await session.commit()
+
+    payload = {
+        'email': user.email,
+        'token': raw_token,
+        'new_password': 'NewPassword123',
+    }
+    response = client.post('/user/reset-password', json=payload)
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.json()['detail'] == 'Token expired'
+
+
+@pytest.mark.asyncio
+async def test_reset_password_weak_password(
+    client, create_user, session, create_unit
+):
+    unit = await create_unit()
+    user = await create_user(
+        email='weakpass@example.com',
+        phone_number='11955554444',
+        unit_id=str(unit.id),
+    )
+
+    raw_token = 'CODE123'
+    token_hash = get_password_hash(raw_token)
+
+    db_reset = PasswordReset(
+        user_id=user.id,
+        token_hash=token_hash,
+        expires_at=datetime.now() + timedelta(minutes=15),
+    )
+    session.add(db_reset)
+    await session.commit()
+
+    payload = {
+        'email': user.email,
+        'token': raw_token,
+        'new_password': '123',
+    }
+    response = client.post('/user/reset-password', json=payload)
+    print(response.json())
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.json()['detail'] == 'Password requirements not met'
+
+
+@pytest.mark.asyncio
+async def test_reset_password_user_not_found(client):
+    payload = {
+        'email': 'ghost@example.com',
+        'token': 'ANYTOKEN',
+        'new_password': 'NewPassword123',
+    }
+    response = client.post('/user/reset-password', json=payload)
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json()['detail'] == 'Invalid request'
+
+
+@pytest.mark.asyncio
+async def test_reset_password_no_request_created(
+    client, create_user, create_unit
+):
+    unit = await create_unit()
+    user = await create_user(
+        email='nopending@example.com',
+        phone_number='11944443333',
+        unit_id=str(unit.id),
+    )
+
+    payload = {
+        'email': user.email,
+        'token': 'ANYTOKEN',
+        'new_password': 'NewPassword123',
+    }
+    response = client.post('/user/reset-password', json=payload)
+
+    assert response.status_code == HTTPStatus.BAD_REQUEST
+    assert response.json()['detail'] == 'Invalid or expired token'

@@ -36,11 +36,7 @@ async def create_doc(
 ):
     db_doc = await session.scalar(
         select(Document).where(
-            Document.deleted_at.is_(None),
-            or_(
-                Document.name == doc.name,
-                Document.identifier == doc.identifier,
-            ),
+            Document.identifier == doc.identifier,
         )
     )
     if db_doc:

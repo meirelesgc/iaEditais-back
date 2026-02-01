@@ -1,15 +1,18 @@
+import secrets
+from datetime import datetime, timedelta
 from http import HTTPStatus
 from secrets import token_hex
 from typing import Annotated
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from fastapi import Depends, File, HTTPException, UploadFile
+from fastapi import Depends, File, HTTPException, UploadFile, status
 from faststream.rabbit.fastapi import RabbitRouter as APIRouter
-from sqlalchemy import or_, select
+from sqlalchemy import delete, or_, select
 
-from iaEditais.core.dependencies import CurrentUser, Session
+from iaEditais.core.dependencies import CurrentUser, Session, Storage
 from iaEditais.core.security import get_password_hash, verify_password
-from iaEditais.models import User, UserImage
+from iaEditais.core.settings import Settings
+from iaEditais.models import AccessType, PasswordReset, User, UserImage
 from iaEditais.schemas import (
     UserCreate,
     UserFilter,
@@ -19,16 +22,21 @@ from iaEditais.schemas import (
     UserUpdate,
 )
 from iaEditais.schemas.common import Message
-from iaEditais.schemas.user import AccessType, UserImagePublic
-from iaEditais.services import (
-    audit_service,
-    notification_service,
-    storage_service,
+from iaEditais.schemas.user import (
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
+    UserImagePublic,
 )
+from iaEditais.services import audit_service, notification_service
 
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
+SETTINGS = Settings()
+BROKER_URL = SETTINGS.BROKER_URL
 
-router = APIRouter(prefix='/user', tags=['operações de sistema, usuário'])
+router = APIRouter(
+    prefix='/user',
+    tags=['operações de sistema, usuário'],
+)
 
 
 @router.post('/', status_code=HTTPStatus.CREATED, response_model=UserPublic)
@@ -96,10 +104,10 @@ async def add_icon(
     user_id: UUID,
     session: Session,
     current_user: CurrentUser,
+    storage: Storage,
     file: UploadFile = File(...),
 ):
     result = await session.execute(select(User).where(User.id == user_id))
-
     user_db = result.scalar_one_or_none()
 
     if not user_db:
@@ -116,7 +124,7 @@ async def add_icon(
 
     old_data = UserPublic.model_validate(user_db).model_dump(mode='json')
 
-    if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+    if not file.filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST,
             detail='Invalid file format. Use PNG or JPG',
@@ -125,10 +133,11 @@ async def add_icon(
     if user_db.icon_id:
         old_icon = await session.get(UserImage, user_db.icon_id)
         if old_icon:
-            await storage_service.delete_file(old_icon.file_path)
+            await storage.delete(old_icon.file_path)
             await session.delete(old_icon)
 
-    file_path = await storage_service.save_file(file, UPLOAD_DIRECTORY)
+    unique_filename = f'{uuid4()}_{file.filename}'
+    file_path = await storage.save(file, unique_filename)
 
     user_image = UserImage(
         user_id=current_user.id,
@@ -272,7 +281,7 @@ async def update_user(
     return db_user
 
 
-@router.put('/password', response_model=Message)
+@router.put('/password', response_model=Message, include_in_schema=False)
 async def change_password(
     payload: UserPasswordChange,
     session: Session,
@@ -387,6 +396,7 @@ async def delete_icon(
     user_id: UUID,
     session: Session,
     current_user: CurrentUser,
+    storage: Storage,
 ):
     user_db = await session.get(User, user_id)
     if not user_db:
@@ -403,7 +413,8 @@ async def delete_icon(
 
     if not user_db.icon_id:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail='Icon not found'
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Icon not found',
         )
 
     old_data = UserPublic.model_validate(user_db).model_dump(mode='json')
@@ -411,7 +422,7 @@ async def delete_icon(
     user_image = await session.get(UserImage, user_db.icon_id)
 
     if user_image:
-        await storage_service.delete_file(user_image.file_path)
+        await storage.delete(user_image.file_path)
         await session.delete(user_image)
 
     user_db.icon_id = None
@@ -475,3 +486,100 @@ async def test_whatsapp(
     return Message(
         message='Test message sent to WhatsApp queue. Check your device.'
     )
+
+
+@router.post(
+    '/forgot-password', status_code=HTTPStatus.OK, include_in_schema=False
+)
+async def forgot_password(
+    payload: ForgotPasswordRequest,
+    session: Session,
+):
+    user = await session.scalar(
+        select(User).where(
+            User.email == payload.email, User.deleted_at.is_(None)
+        )
+    )
+
+    if not user:
+        return {'message': 'If user exists, a code was sent via WhatsApp'}
+
+    await session.execute(
+        delete(PasswordReset).where(PasswordReset.user_id == user.id)
+    )
+
+    reset_token = secrets.token_hex(3).upper()
+    token_hash = get_password_hash(reset_token)
+
+    expires_at = datetime.now() + timedelta(minutes=15)
+
+    db_reset = PasswordReset(
+        user_id=user.id, token_hash=token_hash, expires_at=expires_at
+    )
+
+    session.add(db_reset)
+    await session.commit()
+
+    await notification_service.publish_password_reset_notification(
+        user=user, reset_token=reset_token, broker=router.broker
+    )
+
+    return {'message': 'If user exists, a code was sent via WhatsApp'}
+
+
+@router.post(
+    '/reset-password', status_code=HTTPStatus.OK, include_in_schema=False
+)
+async def reset_password(
+    payload: ResetPasswordRequest,
+    session: Session,
+):
+    user = await session.scalar(
+        select(User).where(
+            User.email == payload.email, User.deleted_at.is_(None)
+        )
+    )
+
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail='Invalid request'
+        )
+
+    reset_entry = await session.scalar(
+        select(PasswordReset).where(PasswordReset.user_id == user.id)
+    )
+
+    if not reset_entry:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail='Invalid or expired token',
+        )
+
+    if datetime.now() > reset_entry.expires_at:
+        await session.delete(reset_entry)
+        await session.commit()
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail='Token expired'
+        )
+
+    if not verify_password(payload.token, reset_entry.token_hash):
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail='Invalid token'
+        )
+
+    new_password = payload.new_password
+    if len(new_password) < 8 or not any(c.isdigit() for c in new_password):
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail='Password requirements not met',
+        )
+
+    user.password = get_password_hash(new_password)
+
+    user.set_update_audit(user.id)
+
+    await session.delete(reset_entry)
+
+    await session.commit()
+
+    return {'message': 'Password reset successfully'}

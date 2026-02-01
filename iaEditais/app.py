@@ -3,7 +3,6 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-import tomli
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -23,7 +22,8 @@ from iaEditais.routers.check_tree import (
 )
 from iaEditais.routers.docs import docs, kanban, messages, releases
 from iaEditais.routers.docs import ws as docs_ws
-from iaEditais.workers import releases as w_releases
+from iaEditais.workers import utils as w_utils
+from iaEditais.workers.docs import releases as w_releases
 
 PROJECT_FILE = Path(__file__).parent.parent / 'pyproject.toml'
 
@@ -38,6 +38,7 @@ for directory in [STORAGE_DIR, UPLOADS_DIR, TEMP_DIR]:
 
 
 SETTINGS = Settings()
+BROKER_URL = SETTINGS.BROKER_URL
 
 logging.basicConfig(
     level=SETTINGS.LOG_LEVEL, format='%(levelname)s: %(message)s'
@@ -51,7 +52,6 @@ async def lifespan(app: FastAPI):
     app.state.redis = redis_instance
     app.state.socket_manager = socket_manager
     yield
-    await redis_instance.close()
 
 
 app = FastAPI(
@@ -59,11 +59,15 @@ app = FastAPI(
     lifespan=lifespan,
     root_path=SETTINGS.ROOT_PATH,
 )
-index = RabbitRouter()
+
+index = RabbitRouter(url=BROKER_URL)
 
 app.mount('/uploads', StaticFiles(directory=UPLOADS_DIR), name='uploads')
 
-app.add_middleware(ProxyHeadersMiddleware, trusted_hosts='*')
+app.add_middleware(
+    ProxyHeadersMiddleware,
+    trusted_hosts=SETTINGS.ALLOWED_ORIGINS,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -76,7 +80,6 @@ app.add_middleware(
 
 app.include_router(units.router)
 
-app.include_router(auth.router)
 app.include_router(stats.router)
 
 
@@ -92,8 +95,10 @@ app.include_router(taxonomies.router)
 app.include_router(branches.router)
 
 
+index.include_router(auth.router)
 index.include_router(users.router)
 index.include_router(w_releases.router)
+index.include_router(w_utils.router)
 index.include_router(releases.router)
 index.include_router(kanban.router)
 index.include_router(sources.router)
@@ -102,21 +107,3 @@ app.include_router(index)
 
 
 app.include_router(audit_logs.router)
-
-
-@app.get('/info')
-async def info():
-    with PROJECT_FILE.open('rb') as f:
-        data = tomli.load(f)
-    project = data.get('project', {})
-    urls = data.get('tool', {}).get('poetry', {}).get('urls', {})
-    authors = project.get('authors', [])
-    authors_str = [f'{a.get("name")} <{a.get("email")}>' for a in authors]
-    return {
-        'name': project.get('name'),
-        'version': project.get('version'),
-        'description': project.get('description'),
-        'authors': authors_str,
-        'license': project.get('license'),
-        'urls': urls,
-    }

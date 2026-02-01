@@ -61,7 +61,6 @@ async def create_branch(
     db_branch.set_creation_audit(current_user.id)
 
     session.add(db_branch)
-
     await session.flush()
 
     await audit_service.register_action(

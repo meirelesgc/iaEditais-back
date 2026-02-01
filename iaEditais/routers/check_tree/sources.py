@@ -1,4 +1,3 @@
-import os
 from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
@@ -7,7 +6,8 @@ from fastapi import Depends, File, HTTPException, UploadFile
 from faststream.rabbit.fastapi import RabbitRouter as APIRouter
 from sqlalchemy import select
 
-from iaEditais.core.dependencies import CurrentUser, Session
+from iaEditais.core.dependencies import CurrentUser, Session, Storage
+from iaEditais.core.settings import Settings
 from iaEditais.models import Source
 from iaEditais.schemas import (
     FilterPage,
@@ -16,9 +16,15 @@ from iaEditais.schemas import (
     SourcePublic,
     SourceUpdate,
 )
-from iaEditais.services import audit_service, storage_service
+from iaEditais.services import audit_service
 
-router = APIRouter(prefix='/source', tags=['árvore de verificação, fontes'])
+SETTINGS = Settings()
+BROKER_URL = SETTINGS.BROKER_URL
+
+router = APIRouter(
+    prefix='/source',
+    tags=['árvore de verificação, fontes'],
+)
 
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 
@@ -83,6 +89,9 @@ async def read_sources(
     return {'sources': sources}
 
 
+from uuid import uuid4
+
+
 @router.post(
     '/{source_id}/upload',
     status_code=HTTPStatus.CREATED,
@@ -92,22 +101,23 @@ async def upload_source_document(
     source_id: UUID,
     session: Session,
     current_user: CurrentUser,
+    storage: Storage,
     file: UploadFile = File(...),
 ):
     source = await session.get(Source, source_id)
     if not source or source.deleted_at:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail='Source not found'
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Source not found',
         )
 
     old_data = SourcePublic.model_validate(source).model_dump(mode='json')
 
-    if source.file_path and os.path.exists(source.file_path):
-        unique_filename = source.file_path.split('/')[-1]
-        file_path = os.path.join(UPLOAD_DIRECTORY, unique_filename)
-        os.remove(file_path)
+    if source.file_path:
+        await storage.delete(source.file_path)
 
-    file_path = await storage_service.save_file(file, UPLOAD_DIRECTORY)
+    unique_filename = f'{uuid4()}_{file.filename}'
+    file_path = await storage.save(file, unique_filename)
 
     source.file_path = file_path
 
@@ -129,7 +139,6 @@ async def upload_source_document(
 
     await session.commit()
     await session.refresh(source)
-    await router.broker.publish(source.id, 'sources_create_vectors')
 
     return source
 

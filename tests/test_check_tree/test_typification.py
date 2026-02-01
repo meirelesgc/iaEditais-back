@@ -105,6 +105,28 @@ async def test_update_typification(logged_client, create_typification):
 
 
 @pytest.mark.asyncio
+async def test_update_typification_updated_at_lazy_load_error(
+    logged_client, create_typification, create_source
+):
+    client, *_ = await logged_client()
+    typification = await create_typification(name='Old Name')
+    source = await create_source()
+
+    response = client.put(
+        '/typification/',
+        json={
+            'id': str(typification.id),
+            'name': 'New Name',
+            'source_ids': [str(source.id)],
+        },
+    )
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+    assert data['id'] == str(typification.id)
+    assert data['name'] == 'New Name'
+
+
+@pytest.mark.asyncio
 async def test_update_typification_conflict(
     logged_client, create_typification
 ):

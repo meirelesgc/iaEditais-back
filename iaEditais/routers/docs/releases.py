@@ -1,12 +1,14 @@
 from http import HTTPStatus
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import File, HTTPException, UploadFile
 from faststream.rabbit.fastapi import RabbitRouter as APIRouter
 from sqlalchemy import select
 
-from iaEditais.core.dependencies import CurrentUser, Session
+from iaEditais.core.dependencies import CurrentUser, Session, Storage
+from iaEditais.core.settings import Settings
 from iaEditais.models import (
+    Document,
     DocumentHistory,
     DocumentRelease,
 )
@@ -14,7 +16,10 @@ from iaEditais.schemas import (
     DocumentReleaseList,
     DocumentReleasePublic,
 )
-from iaEditais.services import audit_service, releases_service
+from iaEditais.services import audit_service
+
+SETTINGS = Settings()
+BROKER_URL = SETTINGS.BROKER_URL
 
 router = APIRouter(
     prefix='/doc/{doc_id}/release',
@@ -23,17 +28,45 @@ router = APIRouter(
 
 
 @router.post(
-    '/', status_code=HTTPStatus.CREATED, response_model=DocumentReleasePublic
+    '/',
+    status_code=HTTPStatus.CREATED,
+    response_model=DocumentReleasePublic,
 )
 async def create_release(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
+    storage: Storage,
     file: UploadFile = File(...),
 ):
-    db_release = await releases_service.create_release(
-        doc_id, session, current_user, file
+    result = await session.execute(
+        select(Document).where(Document.id == doc_id)
     )
+    db_doc = result.scalar_one_or_none()
+    if not db_doc or db_doc.deleted_at:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Doc not found',
+        )
+
+    if not db_doc.history or len(db_doc.typifications) == 0:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail='The document sent has integrity issues.',
+        )
+    latest_history = db_doc.history[0]
+    unique_filename = f'{uuid4()}_{file.filename}'
+    file_path = await storage.save(file, unique_filename)
+
+    db_release = DocumentRelease(
+        history_id=latest_history.id,
+        file_path=file_path,
+        created_by=current_user.id,
+    )
+
+    session.add(db_release)
+    await session.flush()
+    await session.refresh(db_release)
 
     await audit_service.register_action(
         session=session,
@@ -43,9 +76,9 @@ async def create_release(
         record_id=db_release.id,
         old_data=None,
     )
-    await session.commit()
 
-    await router.broker.publish(db_release.id, 'releases_create_vectors')
+    await session.commit()
+    await router.broker.publish(db_release.id, 'release_pipeline')
     return db_release
 
 

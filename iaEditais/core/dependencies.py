@@ -9,6 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from iaEditais.core.database import get_session
 from iaEditais.core.llm import get_model
 from iaEditais.core.security import get_current_user
+from iaEditais.core.storage_provider import (
+    StorageProvider,
+    get_storage_provider,
+)
 from iaEditais.core.vectorstore import get_vectorstore
 from iaEditais.models import User
 
@@ -17,3 +21,4 @@ CurrentUser = Annotated[User, Depends(get_current_user)]
 OAuth2Form = Annotated[OAuth2PasswordRequestForm, Depends()]
 VStore = Annotated[VectorStore, Depends(get_vectorstore)]
 Model = Annotated[BaseChatModel, Depends(get_model)]
+Storage = Annotated[StorageProvider, Depends(get_storage_provider)]

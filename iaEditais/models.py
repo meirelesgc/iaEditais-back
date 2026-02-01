@@ -142,7 +142,9 @@ class User(AuditMixin):
         nullable=True,
     )
     icon_id: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('user_images.id', name='fk_users_icon_id'),
+        ForeignKey(
+            'user_images.id', name='fk_users_icon_id', ondelete='SET NULL'
+        ),
         default=None,
         nullable=True,
     )
@@ -910,7 +912,6 @@ class DocumentMessage(AuditMixin):
     quoted_message: Mapped[Optional['DocumentMessage']] = relationship(
         remote_side='DocumentMessage.id', init=False, lazy='selectin'
     )
-
     mentions: Mapped[List['DocumentMessageMention']] = relationship(
         back_populates='message',
         lazy='selectin',
@@ -918,7 +919,6 @@ class DocumentMessage(AuditMixin):
         init=False,
         default_factory=list,
     )
-
     __table_args__ = (
         Index(
             'ix_doc_msg_document_id_created_at',
@@ -944,7 +944,6 @@ class DocumentMessageMention:
     message: Mapped['DocumentMessage'] = relationship(
         back_populates='mentions', init=False
     )
-
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )
@@ -996,4 +995,30 @@ class AuditLog:
     )
     description: Mapped[Optional[str]] = mapped_column(
         Text, nullable=True, default=None
+    )
+
+
+@table_registry.mapped_as_dataclass
+class PasswordReset:
+    __tablename__ = 'password_resets'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            'users.id', name='fk_password_resets_user_id', ondelete='CASCADE'
+        )
+    )
+
+    token_hash: Mapped[str]
+
+    expires_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
     )

@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import List, Literal, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -38,3 +39,6 @@ class Settings(BaseSettings):
     )
 
     ROOT_PATH: Optional[str] = str()
+
+    UPLOAD_DIRECTORY: Path = 'iaEditais/storage/uploads'
+    STORAGE_PROVIDER: Literal['S3', 'LOCAL'] = 'LOCAL'

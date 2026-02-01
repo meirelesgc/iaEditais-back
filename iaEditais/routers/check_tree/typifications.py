@@ -19,6 +19,7 @@ from iaEditais.schemas import (
     TypificationPublic,
     TypificationUpdate,
 )
+from iaEditais.schemas.source import SourceList
 from iaEditais.services import audit_service
 from iaEditais.services.report_service import typification_report
 
@@ -158,17 +159,21 @@ async def update_typification(
 
     db_typification.name = typification.name
 
+    new_data = TypificationPublic.model_validate(db_typification).model_dump(
+        mode='json'
+    )
+
     if typification.source_ids:
         sources = await session.scalars(
             select(Source).where(Source.id.in_(typification.source_ids))
         )
-        db_typification.sources = sources.all()
+        sources_list = sources.all()
+        db_typification.sources = sources_list
+        new_data['sources'] = SourceList.model_validate({
+            'sources': sources_list
+        }).model_dump()
     else:
         db_typification.sources = []
-
-    new_data = TypificationPublic.model_validate(db_typification).model_dump(
-        mode='json'
-    )
 
     db_typification.set_update_audit(current_user.id)
 

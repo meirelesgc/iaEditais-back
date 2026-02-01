@@ -67,6 +67,8 @@ from .unit import (
 )
 from .user import (
     AccessType,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
     UserCreate,
     UserFilter,
     UserList,
@@ -143,4 +145,6 @@ __all__ = [
     'AuditLogFilter',
     'AuditLogList',
     'AuditLogPublic',
+    'ForgotPasswordRequest',
+    'ResetPasswordRequest',
 ]

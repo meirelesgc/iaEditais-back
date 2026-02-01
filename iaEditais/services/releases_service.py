@@ -1,559 +1,429 @@
-import json
-import re
-from http import HTTPStatus
-from typing import List, Optional
+from typing import Optional
 from uuid import UUID
 
-import json5
-from fastapi import File, HTTPException, UploadFile
-from langchain_core.exceptions import OutputParserException
 from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables.base import RunnableLambda
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession as Session
+from sqlalchemy.orm import selectinload
 
 from iaEditais import prompts as PROMPTS
-from iaEditais.core.dependencies import CurrentUser, Model, Session, VStore
+from iaEditais.core.dependencies import Model, VStore
 from iaEditais.models import (
     AppliedBranch,
     AppliedSource,
     AppliedTaxonomy,
     AppliedTypification,
-    AppliedTypificationSource,
     Branch,
     DocumentRelease,
-    Source,
     Taxonomy,
     Typification,
 )
-from iaEditais.repositories import releases_repository
 from iaEditais.schemas import DocumentReleaseFeedback
-from iaEditais.services import storage_service
-from iaEditais.utils.PresidioDeanonymizer import PresidioDeanonymizer
+from iaEditais.schemas.typification import TypificationList
 
-UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
-SIMILARITY_THRESHOLD = 0.5
-MAX_CHUNKS = 3
-TOP_K_SESSIONS = 3
-CHUNKS_PER_SESSION = 3
+MAX_CHUNKS = 5
 
 
-async def create_release(
-    doc_id: UUID,
-    session: Session,
-    current_user: CurrentUser,
-    file: UploadFile = File(...),
+def get_base_filter(db_release: DocumentRelease) -> dict:
+    path = db_release.file_path.split('/')[-1]
+    allowed_source = f'iaEditais/storage/uploads/{path}'
+    return {'source': allowed_source}
+
+
+def get_query_from_taxonomy(taxonomy: dict) -> str:
+    title = (taxonomy.get('title') or '').strip()
+    description = (taxonomy.get('description') or '').strip()
+    if title and description:
+        return f'{title}: {description}'
+    return title or description
+
+
+def iter_typifications(eval_args: dict):
+    for typification in eval_args.get('typifications') or []:
+        yield typification
+
+
+def iter_taxonomies(typification: dict):
+    for taxonomy in typification.get('taxonomies') or []:
+        yield taxonomy
+
+
+def iter_branches(taxonomy: dict):
+    for branch in taxonomy.get('branches') or []:
+        yield branch
+
+
+def _chunk_key(chunk):
+    metadata = getattr(chunk, 'metadata', None) or {}
+    for k in ('id', 'chunk_id', 'uuid', 'pk'):
+        if metadata.get(k) is not None:
+            return f'{k}:{metadata[k]}'
+    src = metadata.get('source', '')
+    loc = metadata.get('loc', '')
+    content = (
+        getattr(chunk, 'page_content', None)
+        or getattr(chunk, 'content', None)
+        or ''
+    )
+    content = content[:80]
+    return f'src:{src}|loc:{loc}|c:{content}'
+
+
+async def get_branch_sessions(
+    vstore: VStore,
+    eval_args: dict,
+    base_filter: dict,
+    max_chunks: int = MAX_CHUNKS,
 ):
-    allowed_content_types = {
-        'text/plain',
-        'application/pdf',
-        'application/msword',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-    }
-
-    if file.content_type not in allowed_content_types:
-        raise HTTPException(
-            status_code=HTTPStatus.BAD_REQUEST,
-            detail='Invalid file type. Only Word and PDF files are allowed.',
-        )
-    db_doc = await releases_repository.get_db_doc(doc_id, session)
-
-    if not db_doc:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Document not found',
-        )
-
-    if not db_doc.history:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Document does not have a history to attach the file.',
-        )
-
-    if len(db_doc.typifications) == 0:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='There are no associated typifications',
-        )
-    latest_history = db_doc.history[0]
-    file_path = await storage_service.save_file(file, UPLOAD_DIRECTORY)
-    db_release = await releases_repository.insert_db_release(
-        latest_history, file_path, session, current_user
-    )
-    return db_release
+    for typification in iter_typifications(eval_args):
+        for taxonomy in iter_taxonomies(typification):
+            query = get_query_from_taxonomy(taxonomy)
+            for branch in iter_branches(taxonomy):
+                chunks = await vstore.asimilarity_search(
+                    query, k=max_chunks, filter=base_filter
+                )
+                branch['sessions'] = chunks
 
 
-async def get_check_tree(session: Session, db_release: DocumentRelease):
-    return await releases_repository.get_check_tree(session, db_release)
+def get_taxonomy_session_hits(eval_args: dict):
+    for typification in iter_typifications(eval_args):
+        for taxonomy in iter_taxonomies(typification):
+            seen = {}
+            for branch in iter_branches(taxonomy):
+                for chunk in branch.get('sessions') or []:
+                    seen[_chunk_key(chunk)] = chunk
+            taxonomy['session_hits'] = [
+                chunk.metadata.get('session') for chunk in seen.values()
+            ]
 
 
-async def create_description(
-    release: DocumentRelease,
-    applied_branches: List[AppliedBranch],
-    model: Model,
-    session: Session,
+async def get_documents_args(
+    vstore: VStore, eval_args: dict, base_filter: dict
 ):
-    hits = [b for b in applied_branches if b.fulfilled]
-    errors = [b for b in applied_branches if not b.fulfilled]
+    await get_branch_sessions(vstore, eval_args, base_filter)
+    get_taxonomy_session_hits(eval_args)
 
-    def _format_branch_line(branch: AppliedBranch) -> str:
-        description = branch.description or 'sem descrição'
-        evaluation = branch.evaluation
-        feedback = evaluation.get('feedback') or 'Sem feedback'
-        fulfilled = evaluation.get('fulfilled')
-        score = evaluation.get('score')
 
-        status = (
-            'Contemplado'
-            if fulfilled
-            else 'Não contemplado'
-            if fulfilled is not None
-            else 'Problema na análise'
-        )
+def get_eval_args_payload(tree: list[Typification]):
+    payload = {'typifications': tree}
+    return TypificationList.model_validate(payload).model_dump(mode='json')
 
-        return f'- {branch.title}: {description} | {status} | Nota: {score or "N/A"} | Feedback: {feedback}\n'
 
-    description_parts: List[str] = []
-
-    hits_text = ''.join(_format_branch_line(b) for b in hits[:3])
-    errors_text = ''.join(_format_branch_line(b) for b in errors[:3])
-    summary_prompt = (
-        PROMPTS.DESCRIPTION
-        + '\n\nAplicadas (contempladas):\n'
-        + (hits_text or 'Nenhuma ramificação bem-sucedida.\n')
-        + '\nErros:\n'
-        + (errors_text or 'Nenhuma ramificação com erro.\n')
-    )
-
-    summary_response = model.invoke(summary_prompt)
-    description_parts.append(summary_response.content.strip())
-
-    if errors:
-        prompt = PROMPTS.ERROR_SUMMARY
-        prompt += ''.join(_format_branch_line(b) for b in errors)
-    else:
-        top_hits = sorted(hits, key=lambda b: (b.score or 0), reverse=True)[:3]
-        prompt = PROMPTS.SUCCESS_SUMMARY
-        prompt += ''.join(_format_branch_line(b) for b in top_hits)
-
-    response = model.invoke(prompt)
-
-    description_parts.append(response.content.strip())
-
-    final_description = '\n\n'.join(description_parts)
-    return await releases_repository.save_description(
-        session, release, final_description
-    )
+async def get_eval_args(
+    vstore: VStore, tree: list[Typification], db_release: DocumentRelease
+):
+    eval_args = get_eval_args_payload(tree)
+    base_filter = get_base_filter(db_release)
+    await get_documents_args(vstore, eval_args, base_filter)
+    return eval_args
 
 
 def get_chain(model: Model):
     parser = JsonOutputParser(pydantic_object=DocumentReleaseFeedback)
+    fmt = {'format_instructions': parser.get_format_instructions()}
     prompt = PromptTemplate(
         template=PROMPTS.DOCUMENT_ANALYSIS_PROMPT,
         input_variables=[
-            'docs',
-            'taxonomy_title',
-            'typification_source',
-            'typification_source_content',
-            'taxonomy_description',
-            'taxonomy_source',
-            'taxonomy_branch_title',
-            'taxonomy_branch_description',
-            'format_instructions',
+            'document',
+            'source',
+            'requirement',
+            'expected_session',
             'query',
         ],
-        partial_variables={
-            'format_instructions': parser.get_format_instructions()
-        },
+        partial_variables=fmt,
     )
-
     return prompt | model | parser
 
 
-async def get_vars(
-    check_tree: list[Typification],
-    vectorstore: VStore,
-    release: DocumentRelease,
-):
-    input_vars = list()
-    for typification in check_tree:
-        for taxonomy in typification.taxonomies:
-            for branch in taxonomy.branches:
-                _branch = await process_branch(
-                    release,
-                    typification,
-                    taxonomy,
-                    branch,
-                    vectorstore,
-                    top_k_sessions=TOP_K_SESSIONS,
-                    chunks_per_session=CHUNKS_PER_SESSION,
-                )
-
-                input_vars.append(_branch)
-    return input_vars
+async def apply_tree(chain: RunnableLambda, eval_args):
+    last_exception = None
+    for _ in range(3):
+        try:
+            response = await chain.abatch(eval_args)
+            for item, result in zip(eval_args, response):
+                item.update(result)
+            return eval_args
+        except Exception as e:
+            last_exception = e
+    raise last_exception
 
 
-async def get_top_sessions(
-    vectorstore: VStore,
-    release: DocumentRelease,
-    query: str,
-    top_k_sessions: int = 3,
-) -> List[str]:
-    path = release.file_path.split('/')[-1]
-    allowed_source = f'iaEditais/storage/uploads/{path}'
-
-    results = await vectorstore.asimilarity_search(
-        query, k=10, filter={'source': allowed_source}
-    )
-
-    if not results:
-        return []
-
-    seen_sessions = set()
-    unique_sessions = []
-
-    for doc in results:
-        session = doc.metadata.get('session')
-        if session and session not in seen_sessions:
-            seen_sessions.add(session)
-            unique_sessions.append(session)
-            if len(unique_sessions) >= top_k_sessions:
-                break
-
-    return unique_sessions
+def _format_sources(taxonomy: dict) -> str:
+    sources = taxonomy.get('sources') or []
+    names = [getattr(s, 'name', str(s)) for s in sources]
+    return ', '.join(names)
 
 
-async def fetch_multisession_contents(
-    vectorstore: VStore,
-    release: DocumentRelease,
-    query: str,
-    sessions: List[str],
-    chunks_per_session: int = 3,
-):
-    if not sessions:
-        return []
-
-    path = release.file_path.split('/')[-1]
-    allowed_source = f'iaEditais/storage/uploads/{path}'
-
-    aggregated_results = []
-
-    for session in sessions:
-        results = await vectorstore.asimilarity_search_with_score(
-            query,
-            k=chunks_per_session,
-            filter={'source': allowed_source, 'session': session},
-        )
-        aggregated_results.extend([(d, score) for d, score in results])
-
-    return aggregated_results
-
-
-async def fetch_similar_contents_source(
-    vectorstore: VStore, source: Source, query: str, session: str
-):
-    if not session:
-        return []
-
-    path = source.file_path.split('/')[-1]
-    allowed_source = f'iaEditais/storage/uploads/{path}'
-    results = await vectorstore.asimilarity_search_with_score(
-        query,
-        k=MAX_CHUNKS,
-        filter={'source': allowed_source, 'session': session},
-    )
-    filtered = [(d, score) for d, score in results]
-    return filtered
-
-
-async def process_branch(
-    release: DocumentRelease,
-    typification: Typification,
-    taxonomy: Taxonomy,
-    branch: Branch,
-    vectorstore: VStore,
-    top_k_sessions: int = 3,
-    chunks_per_session: int = 3,
-):
-    taxonomy_query = f'{taxonomy.title}: {taxonomy.description or ""}'.strip()
-    target_sessions = await get_top_sessions(
-        vectorstore, release, taxonomy_query, top_k_sessions
-    )
-
-    if not target_sessions:
-        return {
-            'presidio_mapping': {},
-            'docs': 'Nenhum conteúdo relacionado encontrado para avaliação.',
-            'expected_session': 'Não identificada',
-            'taxonomy_title': taxonomy.title.strip(),
-            'taxonomy_description': (taxonomy.description or '').strip(),
-            'taxonomy_source': '',
-            'taxonomy_branch_title': branch.title.strip(),
-            'taxonomy_branch_description': (branch.description or '').strip(),
-            'typification_source': '',
-            'query': 'Justifique sua resposta com base no conteúdo do edital.',
-            'prompt_score': 0,
-        }
-
-    branch_query = f'{branch.title}: {branch.description or ""}'.strip()
-    retrieved_contents = await fetch_multisession_contents(
-        vectorstore, release, branch_query, target_sessions, chunks_per_session
-    )
-
-    docs_text = 'Nenhum conteúdo encontrado.'
-    prompt_score = 0
-    presidio_mapping = {}
-
-    if retrieved_contents:
-        formatted_parts = []
-        for d, score in retrieved_contents:
-            session_label = d.metadata.get('session', 'Sessão desconhecida')
-            content = d.page_content.strip()
-            formatted_parts.append(f'[SESSÃO: {session_label}]\n{content}')
-
-            if d.metadata and 'presidio_mapping' in d.metadata:
-                presidio_mapping.update(d.metadata['presidio_mapping'])
-            prompt_score += score
-
-        docs_text = '\n\n---\n\n'.join(formatted_parts)
-
-    typification_sources_text = []
-    for source in getattr(typification, 'sources', []):
-        chunks = await fetch_similar_contents_source(
-            vectorstore, source, branch_query, session=''
-        )
-        chunk_text = (
-            ' '.join([d.page_content.strip() for d, _ in chunks])
-            if chunks
-            else ''
-        )
-        typification_sources_text.append(
-            f'Fonte: {source.name}\nDescrição: {source.description}\nConteúdo: {chunk_text}'
-        )
-
-    taxonomy_sources_text = [
-        f'{s.name}\n{s.description or "sem descrição"}'
-        for s in getattr(taxonomy, 'sources', [])
+def _format_context(branch: dict) -> str:
+    sessions = branch.get('sessions') or []
+    contents = [
+        getattr(d, 'page_content', getattr(d, 'content', str(d)))
+        for d in sessions
     ]
+    return '\n\n---\n\n'.join(contents)
+
+
+def _format_requirement(branch: dict) -> str:
+    title = branch.get('title', '').strip()
+    desc = branch.get('description', '').strip()
+    if title and desc:
+        return f'{title}: {desc}'
+    return title or desc
+
+
+def _build_analysis_query(req_title: str, session_title: str) -> str:
+    return f"Analise o item '{req_title}' na seção '{session_title}'."
+
+
+def _recovery_presidio_mapping(branch: dict):
+    sessions = branch.get('sessions') or []
+    full_mapping = {}
+    for d in sessions:
+        current_mapping = d.metadata.get('presidio_mapping') or {}
+        for category, entities in current_mapping.items():
+            if category not in full_mapping:
+                full_mapping[category] = {}
+            full_mapping[category].update(entities)
+    return full_mapping
+
+
+def _create_eval_payload(taxonomy: dict, branch: dict) -> dict:
+    expected_session = taxonomy.get('title', '').strip()
+    req_title = branch.get('title', '').strip()
 
     return {
-        'presidio_mapping': presidio_mapping,
-        'docs': docs_text,
-        'expected_session': target_sessions[0],
-        'taxonomy_title': taxonomy.title.strip(),
-        'taxonomy_description': (taxonomy.description or '').strip(),
-        'taxonomy_source': '\n\n'.join(taxonomy_sources_text).strip(),
-        'taxonomy_branch_title': branch.title.strip(),
-        'taxonomy_branch_description': (branch.description or '').strip(),
-        'typification_source': '\n\n---\n\n'.join(
-            typification_sources_text
-        ).strip(),
-        'query': 'Justifique sua resposta com base no conteúdo do edital.',
-        'prompt_score': prompt_score,
+        'document': _format_context(branch),
+        'source': _format_sources(taxonomy),
+        'requirement': _format_requirement(branch),
+        'expected_session': expected_session,
+        'query': _build_analysis_query(req_title, expected_session),
+        'presidio_mapping': _recovery_presidio_mapping(branch),
     }
 
 
-def try_recover_json(msg: str):
-    json_match = re.search(r'\{[\s\S]*\}', msg)
-    if not json_match:
-        return None
+async def simplify_eval_args(eval_args: dict) -> list[dict]:
+    payloads = []
+    for typification in iter_typifications(eval_args):
+        for taxonomy in iter_taxonomies(typification):
+            for branch in iter_branches(taxonomy):
+                payload = _create_eval_payload(taxonomy, branch)
+                if payload['document']:
+                    payload['id'] = branch.get('id')
+                    payloads.append(payload)
 
-    raw_json = json_match.group(0)
-    cleaned = (
-        raw_json.replace('```json', '')
-        .replace('```', '')
-        .replace('\n', ' ')
-        .replace('\r', ' ')
-        .strip()
-    )
-    cleaned = re.sub(r',\s*([\]}])', r'\1', cleaned)
-    cleaned = re.sub(r'\s+', ' ', cleaned)
-
-    try:
-        return json.loads(cleaned)
-    except Exception:
-        try:
-            return json5.loads(cleaned)
-        except Exception:
-            return None
+    return payloads
 
 
-def normalize_output(data):
-    default = {
-        'fulfilled': False,
-        'score': -1,
-        'feedback': 'Não foi possível gerar feedback para este item.',
-    }
-
-    if not isinstance(data, dict):
-        return default
-
-    fulfilled = bool(data.get('fulfilled', False))
-    score = (
-        int(data.get('score', 0))
-        if isinstance(data.get('score', (int, float)), (int, float))
-        else 0
-    )
-    feedback = str(data.get('feedback', default['feedback']))
-
-    return {'fulfilled': fulfilled, 'score': score, 'feedback': feedback}
-
-
-def safe_wrapper(chain):
-    def _safe_invoke(input_item):
-        try:
-            result = chain.invoke(input_item)
-            return normalize_output(result)
-        except OutputParserException as e:
-            msg = str(e)
-            recovered = try_recover_json(msg)
-            if recovered:
-                return normalize_output(recovered)
-            return normalize_output(None)
-
-        except Exception:
-            return normalize_output(None)
-
-    return RunnableLambda(_safe_invoke)
-
-
-async def apply_check_tree(chain: Model, input_vars):
-    safe_chain = safe_wrapper(chain)
-    result = await safe_chain.abatch(input_vars)
-    return result
-
-
-async def apply_typification(
+async def save_eval(
     session: Session,
-    db_release: DocumentRelease,
-    typification: Typification,
+    eval_args: list[dict],
+    release_id: UUID,
+    user_id: Optional[UUID] = None,
 ):
-    applied_typ = AppliedTypification(
-        name=typification.name,
-        applied_release_id=db_release.id,
-        original_id=typification.id,
-    )
-    session.add(applied_typ)
-    await session.flush()
-    return applied_typ
+    applied_typs: dict[UUID, AppliedTypification] = {}
+    applied_taxes: dict[UUID, AppliedTaxonomy] = {}
 
+    for branch_data in eval_args:
+        branch_id = branch_data.get('id')
+        if not branch_id:
+            continue
 
-async def apply_source(session: Session, source_cache: dict, source: Source):
-    key = getattr(source, 'id', None) or getattr(source, 'name', None)
-    applied_src = source_cache.get(key)
-    if not applied_src:
-        applied_src = AppliedSource(
-            name=source.name,
-            description=getattr(source, 'description', None),
-            original_id=getattr(source, 'id', None),
-        )
-        session.add(applied_src)
-        await session.flush()
-        source_cache[key] = applied_src
-    return applied_src
-
-
-async def link_typification_sources(
-    session: Session,
-    applied_typ: AppliedTypification,
-    typification: Typification,
-    source_cache: dict,
-):
-    for source in getattr(typification, 'sources', []):
-        applied_src = await apply_source(session, source_cache, source)
-        session.add(
-            AppliedTypificationSource(
-                typification_id=applied_typ.id,
-                source_id=applied_src.id,
+        original_branch = await session.scalar(
+            select(Branch)
+            .where(Branch.id == branch_id)
+            .options(
+                selectinload(Branch.taxonomy).selectinload(Taxonomy.sources),
+                selectinload(Branch.taxonomy)
+                .selectinload(Taxonomy.typification)
+                .selectinload(Typification.sources),
             )
         )
 
+        if not original_branch:
+            continue
 
-async def apply_taxonomy(
-    session: Session, applied_typ: AppliedTypification, taxonomy: Taxonomy
-):
-    applied_tax = AppliedTaxonomy(
-        title=taxonomy.title,
-        description=taxonomy.description,
-        applied_typification_id=applied_typ.id,
-        original_id=taxonomy.id,
+        await apply_branch_hierarchy(
+            branch_data,
+            session,
+            original_branch,
+            release_id,
+            user_id,
+            applied_typs,
+            applied_taxes,
+        )
+
+    await session.commit()
+
+
+async def _get_or_create_applied_typification(
+    session: Session,
+    original_typ: Typification,
+    release_id: UUID,
+    user_id: Optional[UUID],
+    cache: dict[UUID, AppliedTypification],
+) -> AppliedTypification:
+    cached = cache.get(original_typ.id)
+    if cached:
+        return cached
+
+    existing = await session.scalar(
+        select(AppliedTypification).where(
+            AppliedTypification.original_id == original_typ.id,
+            AppliedTypification.applied_release_id == release_id,
+        )
     )
+    if existing:
+        cache[original_typ.id] = existing
+        return existing
+
+    applied_typ = AppliedTypification(
+        name=original_typ.name,
+        applied_release_id=release_id,
+        original_id=original_typ.id,
+        created_by=user_id,
+    )
+
+    for src in original_typ.sources:
+        applied_typ.sources.append(
+            AppliedSource(
+                name=src.name,
+                description=src.description,
+                original_id=src.id,
+                created_by=user_id,
+            )
+        )
+
+    session.add(applied_typ)
+    await session.flush()
+
+    cache[original_typ.id] = applied_typ
+    return applied_typ
+
+
+async def _get_or_create_applied_taxonomy(
+    session: Session,
+    original_tax: Taxonomy,
+    applied_typ: AppliedTypification,
+    user_id: Optional[UUID],
+    cache: dict[UUID, AppliedTaxonomy],
+) -> AppliedTaxonomy:
+    cached = cache.get(original_tax.id)
+    if cached:
+        return cached
+
+    existing = await session.scalar(
+        select(AppliedTaxonomy).where(
+            AppliedTaxonomy.original_id == original_tax.id,
+            AppliedTaxonomy.applied_typification_id == applied_typ.id,
+        )
+    )
+    if existing:
+        cache[original_tax.id] = existing
+        return existing
+
+    applied_tax = AppliedTaxonomy(
+        title=original_tax.title,
+        description=original_tax.description,
+        applied_typification_id=applied_typ.id,
+        original_id=original_tax.id,
+        created_by=user_id,
+    )
+
+    for src in original_tax.sources:
+        applied_tax.sources.append(
+            AppliedSource(
+                name=src.name,
+                description=src.description,
+                original_id=src.id,
+                created_by=user_id,
+            )
+        )
+
     session.add(applied_tax)
     await session.flush()
+
+    cache[original_tax.id] = applied_tax
     return applied_tax
 
 
-async def apply_branch(
+async def apply_branch_hierarchy(
+    branch: dict,
     session: Session,
-    applied_tax: AppliedTaxonomy,
-    branch: 'Branch',
-    resp: dict,
+    original_branch: Branch,
+    release_id: UUID,
+    user_id: Optional[UUID],
+    applied_typs: dict[UUID, AppliedTypification],
+    applied_taxes: dict[UUID, AppliedTaxonomy],
 ):
-    deanonymizer = PresidioDeanonymizer()
+    original_taxonomy = original_branch.taxonomy
+    original_typification = original_taxonomy.typification
 
-    presidio_mapping = resp.get('presidio_mapping', {})
-
-    deanonymized_resp = deanonymizer.deanonymize_feedback_object(
-        resp, presidio_mapping
+    applied_typ = await _get_or_create_applied_typification(
+        session=session,
+        original_typ=original_typification,
+        release_id=release_id,
+        user_id=user_id,
+        cache=applied_typs,
     )
 
-    CUTTING_LINE = 5
+    applied_tax = await _get_or_create_applied_taxonomy(
+        session=session,
+        original_tax=original_taxonomy,
+        applied_typ=applied_typ,
+        user_id=user_id,
+        cache=applied_taxes,
+    )
+
     applied_branch = AppliedBranch(
-        title=branch.title,
-        description=branch.description,
+        title=original_branch.title,
+        description=original_branch.description,
         applied_taxonomy_id=applied_tax.id,
-        original_id=branch.id,
-        feedback=deanonymized_resp.get('feedback'),
-        fulfilled=True if resp.get('score', 0) > CUTTING_LINE else False,
-        score=resp.get('score', 0),
-        presidio_mapping=str(presidio_mapping),
+        original_id=original_branch.id,
+        created_by=user_id,
+        fulfilled=branch.get('fulfilled'),
+        score=branch.get('score'),
+        feedback=branch.get('feedback'),
+        presidio_mapping=str(branch.get('presidio_mapping')),
     )
+
     session.add(applied_branch)
+    await session.flush()
     return applied_branch
 
 
-async def save_evaluation(
-    session: Session,
-    db_release: DocumentRelease,
-    check_tree: list[Typification],
-    response: list,
-    real_input_vars: list,
+def _get_prompt(eval_args: list[dict]):
+    sorted_data = sorted(eval_args, key=lambda x: x['score'], reverse=True)
+
+    top_results = sorted_data[:2]
+    bottom_results = sorted_data[-2:]
+
+    top_text = ''
+    for item in top_results:
+        top_text += f'- Item: {item.get("query")}\n'
+        top_text += f'  Nota: {item.get("score")}\n'
+        top_text += f'  Status: {"Contemplado" if item.get("fulfilled") else "Não contemplado"}\n'
+        top_text += f'  Feedback: {item.get("feedback")}\n\n'
+
+    bottom_text = ''
+    for item in bottom_results:
+        bottom_text += f'- Item: {item.get("query")}\n'
+        bottom_text += f'  Nota: {item.get("score")}\n'
+        bottom_text += f'  Status: {"Contemplado" if item.get("fulfilled") else "Não contemplado"}\n'
+        bottom_text += f'  Feedback: {item.get("feedback")}\n\n'
+
+    prompt = PROMPTS.DESCRIPTION.format(
+        top_text=top_text, bottom_text=bottom_text
+    )
+    return prompt.strip()
+
+
+async def create_desc(
+    session: Session, eval_args: dict, model: Model, release: DocumentRelease
 ):
-    input_vars = []
-    response_index = 0
-    source_cache: dict[Optional[UUID], 'AppliedSource'] = {}
-
-    for typification in check_tree:
-        applied_typ = await apply_typification(
-            session, db_release, typification
-        )
-        await link_typification_sources(
-            session, applied_typ, typification, source_cache
-        )
-
-        for taxonomy in typification.taxonomies:
-            applied_tax = await apply_taxonomy(session, applied_typ, taxonomy)
-
-            for branch in taxonomy.branches:
-                resp = (
-                    response[response_index]
-                    if response_index < len(response)
-                    else {}
-                )
-                presidio_vars = (
-                    real_input_vars[response_index]
-                    if response_index < len(real_input_vars)
-                    else {}
-                )
-                presidio_mapping = presidio_vars.get('presidio_mapping', {})
-
-                resp = {**(resp or {}), 'presidio_mapping': presidio_mapping}
-
-                applied_branch = await apply_branch(
-                    session, applied_tax, branch, resp
-                )
-
-                input_vars.append(applied_branch)
-                response_index += 1
-
+    prompt = _get_prompt(eval_args)
+    description = model.invoke(prompt)
+    release.description = description.content.strip()
     await session.commit()
-    return input_vars
+    await session.refresh(release)

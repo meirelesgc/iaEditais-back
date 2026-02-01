@@ -12,12 +12,17 @@ from iaEditais.core.dependencies import (
     CurrentUser,
     Session,
 )
+from iaEditais.core.settings import Settings
 from iaEditais.models import Document, DocumentHistory, User
 from iaEditais.schemas import DocumentPublic, DocumentStatus
 from iaEditais.services import audit_service
 
+SETTINGS = Settings()
+BROKER_URL = SETTINGS.BROKER_URL
+
 router = APIRouter(
-    prefix='/doc/{doc_id}/status', tags=['verificação dos documentos, kanban']
+    prefix='/doc/{doc_id}/status',
+    tags=['verificação dos documentos, kanban'],
 )
 
 
@@ -153,7 +158,7 @@ async def _queue_notification_if_needed(
         f'foi atualizado para: {status_traduzido}'
     )
     payload = {'user_ids': user_ids, 'message_text': message_text}
-    await broker.publish(payload, 'notifications_send_message')
+    # await broker.publish(payload, 'notifications_send_message')
 
 
 @router.put('/pending', response_model=DocumentPublic)
