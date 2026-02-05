@@ -15,6 +15,8 @@ from iaEditais.models import Branch, Document, DocumentHistory, Taxonomy, Typifi
 from iaEditais.repositories import evaluation_repository
 from iaEditais.schemas import (
     FilterPage,
+    SortBy,
+    SortOrder,
     TestRunAccepted,
     TestRunExecute,
     TestRunList,
@@ -36,13 +38,65 @@ async def read_test_runs(
     session: Session,
     current_user: CurrentUser,
     filters: Annotated[FilterPage, Depends()],
+    test_collection_id: Optional[UUID] = Query(
+        None, description='ID da coleção de testes para filtrar (opcional)'
+    ),
     test_case_id: Optional[UUID] = Query(
-        None, description='ID do test case para filtrar os test runs'
+        None, description='ID do test case para filtrar os test runs (opcional)'
+    ),
+    status: Optional[str] = Query(
+        None,
+        description='Status do test run (PENDING, PROCESSING, EVALUATING, COMPLETED, ERROR)',
+    ),
+    sort_by: SortBy = Query(
+        SortBy.CREATED_AT,
+        description='Campo para ordenação (created_at ou updated_at)',
+    ),
+    sort_order: SortOrder = Query(
+        SortOrder.DESC,
+        description='Direção da ordenação (asc ou desc)',
     ),
 ):
-    """Lista todos os test runs, opcionalmente filtrados por test_case_id."""
+    """Lista todos os test runs com filtros opcionais."""
+
+    if status is not None:
+        valid_statuses = [s.value for s in TestRunStatus]
+        if status.upper() not in valid_statuses:
+            raise HTTPException(
+                status_code=HTTPStatus.BAD_REQUEST,
+                detail=f'Invalid status. Must be one of: {", ".join(valid_statuses)}',
+            )
+        status = status.upper()
+
+    if test_collection_id:
+        test_collection = await evaluation_repository.get_test_collection(
+            session, test_collection_id
+        )
+        if not test_collection or test_collection.deleted_at:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail='Test collection not found',
+            )
+
+    if test_case_id:
+        test_case = await evaluation_repository.get_test_case(
+            session, test_case_id
+        )
+        if not test_case or test_case.deleted_at:
+            raise HTTPException(
+                status_code=HTTPStatus.NOT_FOUND,
+                detail='Test case not found',
+            )
+
     test_runs = await evaluation_repository.get_test_runs(
-        session, test_case_id, filters.offset, filters.limit
+        session,
+        test_collection_id=test_collection_id,
+        test_case_id=test_case_id,
+        status=status,
+        offset=filters.offset,
+        limit=filters.limit,
+        sort_by=sort_by.value,
+        sort_order=sort_order.value,
     )
     return {'test_runs': test_runs}
 

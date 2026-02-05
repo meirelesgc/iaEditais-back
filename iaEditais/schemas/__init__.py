@@ -21,7 +21,7 @@ from .branch import (
     BranchSchema,
     BranchUpdate,
 )
-from .common import FilterPage, Message, Token, WSMessage
+from .common import FilterPage, Message, SortBy, SortOrder, Token, WSMessage
 from .document import (
     DocumentCreate,
     DocumentFilter,
@@ -128,6 +128,8 @@ __all__ = [
     # Módulo common
     'FilterPage',
     'Message',
+    'SortBy',
+    'SortOrder',
     'Token',
     'WSMessage',
     # Módulo document

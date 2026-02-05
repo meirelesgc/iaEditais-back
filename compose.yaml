@@ -20,6 +20,7 @@ services:
   iaeditais_api:
     # image: gleidsoncosta/fiotec-iaeditais:latest
     image: joaovitorcafe/fiotec-iaeditais:feature-deepeval
+    # build: .
     entrypoint: ./entrypoint.sh
     ports:
       - "8000:8000"

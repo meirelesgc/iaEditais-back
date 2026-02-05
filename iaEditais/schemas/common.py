@@ -1,6 +1,17 @@
+from enum import Enum
 from typing import Optional
 
 from pydantic import BaseModel, Field
+
+
+class SortBy(str, Enum):
+    CREATED_AT = 'created_at'
+    UPDATED_AT = 'updated_at'
+
+
+class SortOrder(str, Enum):
+    ASC = 'asc'
+    DESC = 'desc'
 
 
 class Token(BaseModel):

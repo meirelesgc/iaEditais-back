@@ -406,21 +406,27 @@ async def get_test_run(session: AsyncSession, test_run_id: UUID):
 
 async def get_test_runs(
     session: AsyncSession,
+    test_collection_id: Optional[UUID] = None,
     test_case_id: Optional[UUID] = None,
+    status: Optional[str] = None,
     offset: int = 0,
     limit: int = 100,
+    sort_by: str = 'created_at',
+    sort_order: str = 'desc',
 ):
     """Lista todas as execuções de teste."""
-    query = (
-        select(TestRun)
-        .where(TestRun.deleted_at.is_(None))
-    )
+    query = select(TestRun).where(TestRun.deleted_at.is_(None))
 
+    if test_collection_id:
+        query = query.where(TestRun.test_collection_id == test_collection_id)
     if test_case_id:
         query = query.where(TestRun.test_case_id == test_case_id)
+    if status:
+        query = query.where(TestRun.status == status)
 
-    query = (
-        query.offset(offset).limit(limit).order_by(TestRun.created_at.desc())
+    order_col = getattr(TestRun, sort_by)
+    query = query.offset(offset).limit(limit).order_by(
+        order_col.asc() if sort_order == 'asc' else order_col.desc()
     )
     result = await session.scalars(query)
     return result.all()
@@ -479,8 +485,13 @@ async def get_test_result(session: AsyncSession, test_result_id: UUID):
 async def get_test_results(
     session: AsyncSession,
     test_run_id: Optional[UUID] = None,
+    test_case_id: Optional[UUID] = None,
+    metric_id: Optional[UUID] = None,
+    model_id: Optional[UUID] = None,
     offset: int = 0,
     limit: int = 100,
+    sort_by: str = 'created_at',
+    sort_order: str = 'desc',
 ):
     """Lista todos os resultados de teste."""
     from sqlalchemy.orm import selectinload
@@ -493,9 +504,16 @@ async def get_test_results(
 
     if test_run_id:
         query = query.where(TestResult.test_run_id == test_run_id)
+    if test_case_id:
+        query = query.where(TestResult.test_case_id == test_case_id)
+    if metric_id:
+        query = query.where(TestResult.metric_id == metric_id)
+    if model_id:
+        query = query.where(TestResult.model_id == model_id)
 
-    query = (
-        query.offset(offset).limit(limit).order_by(TestResult.created_at.desc())
+    order_col = getattr(TestResult, sort_by)
+    query = query.offset(offset).limit(limit).order_by(
+        order_col.asc() if sort_order == 'asc' else order_col.desc()
     )
     result = await session.scalars(query)
     test_results = result.all()
