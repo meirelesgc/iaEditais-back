@@ -1,4 +1,5 @@
 import json
+import os
 from uuid import UUID
 
 from fastapi import Depends
@@ -27,7 +28,7 @@ router = RabbitRouter()
 
 
 @router.subscriber('release_pipeline')
-@router.publisher('send_message')
+# @router.publisher('send_message')
 async def release_pipeline(
     release_id: UUID,
     session: Session,
@@ -35,6 +36,7 @@ async def release_pipeline(
     vstore: VStore,
     redis: Redis = Depends(get_redis),
 ):
+    os.system('clear')
     result = await session.execute(
         select(DocumentRelease)
         .where(DocumentRelease.id == release_id)
@@ -50,18 +52,23 @@ async def release_pipeline(
     db_doc = db_release.history.document
     await releases_service.ws_update(redis, db_release, 'creating_vectors')
     await vstore_service.create_vectors(db_release.file_path, vstore)
-    await releases_service.ws_update(redis, db_release, 'evaluating')
-    tree = await tree_service.get_tree_by_release(session, db_release)
-    args = await releases_service.get_eval_args(vstore, tree, db_release)
-    eval_args = await releases_service.simplify_eval_args(args)
-    chain = releases_service.get_chain(model)
-    await releases_service.apply_tree(chain, eval_args)
-    await releases_service.save_eval(session, eval_args, db_release.id, None)
-    await releases_service.create_desc(session, eval_args, model, db_release)
-    await releases_service.ws_update(redis, db_release, 'complete')
-    message_text = notification_service.format_release_message(db_release)
-    user_ids = {editor.id for editor in db_doc.editors if editor.id}
-    log_path = f'iaEditais/storage/temp/{db_doc.id}_{db_release.id}.json'
-    with open(log_path, 'w', encoding='utf-8') as f:
-        json.dump(eval_args, f, ensure_ascii=False, indent=4)
-    return {'user_ids': user_ids, 'message_text': message_text}
+    if False:
+        await releases_service.ws_update(redis, db_release, 'evaluating')
+        tree = await tree_service.get_tree_by_release(session, db_release)
+        args = await releases_service.get_eval_args(vstore, tree, db_release)
+        eval_args = await releases_service.simplify_eval_args(args)
+        chain = releases_service.get_chain(model)
+        await releases_service.apply_tree(chain, eval_args)
+        await releases_service.save_eval(
+            session, eval_args, db_release.id, None
+        )
+        await releases_service.create_desc(
+            session, eval_args, model, db_release
+        )
+        await releases_service.ws_update(redis, db_release, 'complete')
+        message_text = notification_service.format_release_message(db_release)
+        user_ids = {editor.id for editor in db_doc.editors if editor.id}
+        log_path = f'iaEditais/storage/temp/{db_doc.id}_{db_release.id}.json'
+        with open(log_path, 'w', encoding='utf-8') as f:
+            json.dump(eval_args, f, ensure_ascii=False, indent=4)
+        return {'user_ids': user_ids, 'message_text': message_text}
