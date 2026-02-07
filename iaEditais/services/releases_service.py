@@ -152,10 +152,12 @@ def get_chain(model: Model):
 
 async def apply_tree(chain: RunnableLambda, eval_args):
     last_exception = None
+    PROMPT = PROMPTS.DOCUMENT_ANALYSIS_PROMPT
     for _ in range(3):
         try:
             response = await chain.abatch(eval_args)
             for item, result in zip(eval_args, response):
+                item['prompt'] = PROMPT.format(**item, format_instructions='')
                 item.update(result)
             return eval_args
         except Exception as e:

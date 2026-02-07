@@ -1,3 +1,4 @@
+import json
 from uuid import UUID
 
 from fastapi import Depends
@@ -60,4 +61,7 @@ async def release_pipeline(
     await releases_service.ws_update(redis, db_release, 'complete')
     message_text = notification_service.format_release_message(db_release)
     user_ids = {editor.id for editor in db_doc.editors if editor.id}
+    log_path = f'iaEditais/storage/temp/{db_doc.id}_{db_release.id}.json'
+    with open(log_path, 'w', encoding='utf-8') as f:
+        json.dump(eval_args, f, ensure_ascii=False, indent=4)
     return {'user_ids': user_ids, 'message_text': message_text}
