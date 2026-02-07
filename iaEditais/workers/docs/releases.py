@@ -11,8 +11,6 @@ from iaEditais.core.cache import get_redis
 from iaEditais.core.dependencies import Model, Session, VStore
 from iaEditais.core.settings import Settings
 from iaEditais.models import Document, DocumentHistory, DocumentRelease
-from iaEditais.schemas.common import WSMessage
-from iaEditais.schemas.document_release import DocumentReleasePublic
 from iaEditais.services import (
     notification_service,
     releases_service,
@@ -49,42 +47,17 @@ async def release_pipeline(
     if not db_release:
         raise AckMessage(f'DocumentRelease {release_id} not found.')
     db_doc = db_release.history.document
-    release_public = DocumentReleasePublic.model_validate(db_release)
-    payload = release_public.model_dump(mode='json')
-    ws_message = WSMessage(
-        event='doc.release.update', message='creating_vectors', payload=payload
-    )
-    await redis.publish('ws:broadcast', ws_message.model_dump_json())
-
-    if False:
-        await vstore_service.create_vectors(db_release.file_path, vstore)
-
-        release_public = DocumentReleasePublic.model_validate(db_release)
-        payload = release_public.model_dump(mode='json')
-        ws_message = WSMessage(
-            event='doc.release.update', message='evaluating', payload=payload
-        )
-        await redis.publish('ws:broadcast', ws_message.model_dump_json())
-
-        tree = await tree_service.get_tree_by_release(session, db_release)
-        args = await releases_service.get_eval_args(vstore, tree, db_release)
-        eval_args = await releases_service.simplify_eval_args(args)
-        chain = releases_service.get_chain(model)
-        await releases_service.apply_tree(chain, eval_args)
-        await releases_service.save_eval(
-            session, eval_args, db_release.id, None
-        )
-        await releases_service.create_desc(
-            session, eval_args, model, db_release
-        )
-
-    release_public = DocumentReleasePublic.model_validate(db_release)
-    payload = release_public.model_dump(mode='json')
-    ws_message = WSMessage(
-        event='doc.release.update', message='complete', payload=payload
-    )
-    await redis.publish('ws:broadcast', ws_message.model_dump_json())
-
+    await releases_service.ws_update(redis, db_release, 'creating_vectors')
+    await vstore_service.create_vectors(db_release.file_path, vstore)
+    await releases_service.ws_update(redis, db_release, 'evaluating')
+    tree = await tree_service.get_tree_by_release(session, db_release)
+    args = await releases_service.get_eval_args(vstore, tree, db_release)
+    eval_args = await releases_service.simplify_eval_args(args)
+    chain = releases_service.get_chain(model)
+    await releases_service.apply_tree(chain, eval_args)
+    await releases_service.save_eval(session, eval_args, db_release.id, None)
+    await releases_service.create_desc(session, eval_args, model, db_release)
+    await releases_service.ws_update(redis, db_release, 'complete')
     message_text = notification_service.format_release_message(db_release)
     user_ids = {editor.id for editor in db_doc.editors if editor.id}
     return {'user_ids': user_ids, 'message_text': message_text}

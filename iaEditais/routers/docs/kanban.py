@@ -158,7 +158,7 @@ async def _queue_notification_if_needed(
         f'foi atualizado para: {status_traduzido}'
     )
     payload = {'user_ids': user_ids, 'message_text': message_text}
-    # await broker.publish(payload, 'notifications_send_message')
+    await broker.publish(payload, 'send_message')
 
 
 @router.put('/pending', response_model=DocumentPublic)

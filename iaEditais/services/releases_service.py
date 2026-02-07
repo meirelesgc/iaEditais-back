@@ -21,9 +21,22 @@ from iaEditais.models import (
     Typification,
 )
 from iaEditais.schemas import DocumentReleaseFeedback
+from iaEditais.schemas.common import WSMessage
+from iaEditais.schemas.document_release import DocumentReleasePublic
 from iaEditais.schemas.typification import TypificationList
 
 MAX_CHUNKS = 5
+
+
+async def ws_update(redis, db_release, message: str):
+    release_public = DocumentReleasePublic.model_validate(db_release)
+    payload = release_public.model_dump(mode='json')
+    ws_message = WSMessage(
+        event='doc.release.update',
+        message=message,
+        payload=payload,
+    )
+    await redis.publish('ws:broadcast', ws_message.model_dump_json())
 
 
 def get_base_filter(db_release: DocumentRelease) -> dict:

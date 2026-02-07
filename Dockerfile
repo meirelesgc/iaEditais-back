@@ -36,10 +36,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
     libglib2.0-0 \
     libgomp1 \
-    libreoffice-writer \
-    libreoffice-core \
-    fonts-dejavu-core \
-    fonts-liberation \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/.venv /app/.venv
