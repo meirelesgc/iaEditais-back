@@ -3,16 +3,12 @@ import os
 import re
 from pathlib import Path
 
-from docling.datamodel.base_models import InputFormat
-from docling.datamodel.pipeline_options import (
-    AcceleratorDevice,
-    AcceleratorOptions,
-    PdfPipelineOptions,
+from langchain_community.document_loaders import (
+    Docx2txtLoader,
+    PyMuPDFLoader,
+    TextLoader,
 )
-from docling.document_converter import DocumentConverter, PdfFormatOption
-from langchain_community.document_loaders import TextLoader
 from langchain_core.documents import Document
-from langchain_docling.loader import DoclingLoader, ExportType
 
 from iaEditais.core.dependencies import VStore
 from iaEditais.core.settings import Settings
@@ -21,35 +17,18 @@ from iaEditais.utils.PresidioAnonymizer import PresidioAnonymizer
 SETTINGS = Settings()
 
 
-def _load_document_sync(file_path: Path):
-    if str(file_path).endswith('.txt'):
-        loader = TextLoader(str(file_path), encoding='utf-8')
-        return loader.load()
-
-    pipeline_options = PdfPipelineOptions()
-    pipeline_options.do_ocr = False
-    pipeline_options.do_table_structure = True
-    pipeline_options.accelerator_options = AcceleratorOptions(
-        num_threads=4, device=AcceleratorDevice.CPU
-    )
-
-    converter = DocumentConverter(
-        format_options={
-            InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
-        }
-    )
-
-    loader = DoclingLoader(
-        file_path=str(file_path),
-        export_type=ExportType.MARKDOWN,
-        converter=converter,
-    )
+async def load_document(file_path: Path):
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext == '.pdf':
+        loader = PyMuPDFLoader(file_path, mode='single')
+    elif ext == '.docx':
+        loader = Docx2txtLoader(file_path, mode='single')
+    elif ext == '.txt':
+        loader = TextLoader(file_path, encoding='utf-8')
+    else:
+        raise ValueError(f'Tipo de arquivo não suportado: {ext}')
 
     return loader.load()
-
-
-async def load_document(file_path: Path):
-    return await asyncio.to_thread(_load_document_sync, file_path)
 
 
 def split_documents(documents: list):

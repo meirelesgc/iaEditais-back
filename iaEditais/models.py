@@ -495,12 +495,6 @@ class Document(AuditMixin):
 
     __table_args__ = (
         Index(
-            'ix_uq_documents_name_active',
-            'name',
-            unique=True,
-            postgresql_where=(column('deleted_at').is_(None)),
-        ),
-        Index(
             'ix_uq_documents_identifier_active',
             'identifier',
             unique=True,
