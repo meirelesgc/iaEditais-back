@@ -1,4 +1,5 @@
 import os
+import uuid
 from pathlib import Path
 from typing import List
 
@@ -16,61 +17,75 @@ from iaEditais.utils.PresidioAnonymizer import PresidioAnonymizer
 
 SETTINGS = Settings()
 
+SPLITTER = RecursiveCharacterTextSplitter(
+    chunk_size=2000,
+    chunk_overlap=200,
+)
 
-def _simple_split(documents: List[Document]) -> List[Document]:
-    if not documents:
-        return []
 
-    full_text = '\n'.join([d.page_content for d in documents])
-    base_metadata = documents[0].metadata.copy()
-    base_metadata['session'] = 'Preambulo'
-    splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000, chunk_overlap=100, separators=['\n\n', '\n', ' ', '']
-    )
-    text_chunks = splitter.split_text(full_text)
-    final_chunks = []
-    for content in text_chunks:
-        doc = Document(page_content=content, metadata=base_metadata)
-        final_chunks.append(doc)
-    return final_chunks
+def _with_chunk_ids(chunks: List[Document], source_id: str) -> List[Document]:
+    total = len(chunks)
+    chunk_ids = [f'{source_id}:{i:06d}' for i in range(total)]
+
+    for i, d in enumerate(chunks):
+        md = dict(d.metadata or {})
+        md['source_id'] = source_id
+        md['chunk_index'] = i
+        md['chunk_total'] = total
+        md['chunk_id'] = chunk_ids[i]
+        md['prev_chunk_id'] = chunk_ids[i - 1] if i > 0 else None
+        md['next_chunk_id'] = chunk_ids[i + 1] if i + 1 < total else None
+        d.metadata = md
+
+    return chunks
+
+
+def _split_documents(documents: List[Document], source_id: str):
+    chunks: List[Document] = SPLITTER.split_documents(documents)
+    return _with_chunk_ids(chunks, source_id)
 
 
 async def _anonymize_and_vectorize(chunks: List[Document], vstore: VStore):
     if not chunks:
         return
 
-    for i, chunk in enumerate(chunks[:3]):
-        preview = chunk.page_content[:150].replace('\n', ' ')
+    for i, chunk in enumerate(chunks[:5]):
+        preview = (chunk.page_content or '')[:300].replace('\n', ' ')
         print(f'[CHUNK {i + 1}]')
         print(f'Sessão: {chunk.metadata.get("session")}')
+        print(f'Source: {chunk.metadata.get("source_id")}')
+        print(f'Index: {chunk.metadata.get("chunk_index")}/{chunk.metadata.get("chunk_total")}')  # fmt: skip  # noqa: E501
+        print(f'ID: {chunk.metadata.get("chunk_id")}')
         print(f'{preview}...')
 
-    presidio_anonymizer = PresidioAnonymizer()
-    anonymized_chunks = presidio_anonymizer.anonymize_chunks(chunks)
+    anonymizer = PresidioAnonymizer()
+    anonymized_chunks = anonymizer.anonymize_chunks(chunks)
     await vstore.aadd_documents(anonymized_chunks)
 
 
-async def process_generic_pipeline(loader, vstore: VStore):
+async def process_file(full_path: str, vstore: VStore) -> None:
+    ext = os.path.splitext(full_path)[1].lower()
+
+    if ext == '.pdf':
+        loader = PyMuPDFLoader(full_path, mode='single')
+    elif ext == '.docx':
+        loader = Docx2txtLoader(full_path)
+    elif ext == '.txt':
+        loader = TextLoader(full_path, encoding='utf-8')
+    else:
+        raise ValueError(f'Tipo de arquivo não suportado: {ext}')
+
     documents = loader.load()
-    chunks = _simple_split(documents)
+    unique = uuid.uuid5(uuid.NAMESPACE_URL, os.path.abspath(full_path)).hex
+    source_id = f'{Path(full_path).name}:{unique}'
+
+    chunks = _split_documents(documents, source_id)
     await _anonymize_and_vectorize(chunks, vstore)
 
 
-async def create_vectors(file_path: Path, vstore: VStore):
+async def create_vectors(file_path: Path, vstore: VStore) -> None:
     unique_filename = str(file_path).split('/')[-1]
     full_path = os.path.join(SETTINGS.UPLOAD_DIRECTORY, unique_filename)
     if not os.path.exists(full_path):
         return
-    ext = os.path.splitext(full_path)[1].lower()
-
-    match ext:
-        case '.pdf':
-            loader = PyMuPDFLoader(full_path)
-        case '.docx':
-            loader = Docx2txtLoader(full_path)
-        case '.txt':
-            loader = TextLoader(full_path, encoding='utf-8')
-        case _:
-            raise ValueError(f'Tipo de arquivo não suportado: {ext}')
-
-    await process_generic_pipeline(loader, vstore)
+    await process_file(full_path, vstore)
