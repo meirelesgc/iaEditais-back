@@ -11,6 +11,11 @@ from fastapi.testclient import TestClient
 from faststream.rabbit import TestRabbitBroker
 from langchain_community.embeddings import FakeEmbeddings
 from langchain_core.language_models.fake_chat_models import FakeChatModel
+from langchain_core.messages import AIMessage
+from langchain_core.outputs import (
+    ChatGeneration,
+    ChatResult,
+)
 from langchain_postgres import PGVector
 from redis.asyncio import Redis
 from sqlalchemy import event, select
@@ -106,8 +111,27 @@ async def client(session, engine, cache):
     async def get_model_override():
         class FakeModel(FakeChatModel):
             @override
-            def _call(self, messages, stop=None, run_manager=None, **kwargs):
+            def _call(
+                self,
+                messages,
+                stop=None,
+                run_manager=None,
+                **kwargs,
+            ):
                 return '{"feedback": "", "fulfilled": true, "score": "3"}'
+
+            @override
+            async def _agenerate(
+                self,
+                messages,
+                stop=None,
+                run_manager=None,
+                **kwargs,
+            ):
+                output = '{"feedback": "", "fulfilled": true, "score": "3"}'
+                message = AIMessage(content=output)
+                generation = ChatGeneration(message=message)
+                return ChatResult(generations=[generation])
 
         return FakeModel()
 

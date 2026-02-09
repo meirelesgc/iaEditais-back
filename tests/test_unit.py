@@ -10,7 +10,7 @@ from iaEditais.schemas import UnitPublic
 async def test_create_unit(logged_client):
     client, *_ = await logged_client()
     response = client.post(
-        '/unit,
+        '/unit',
         json={
             'name': 'Finance Department',
             'location': 'Headquarters',
@@ -26,7 +26,7 @@ async def test_create_unit(logged_client):
 
 
 def test_read_units_empty(client):
-    response = client.get('/unit)
+    response = client.get('/unit')
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'units': []}
 
@@ -36,7 +36,7 @@ async def test_read_units_with_data(client, create_unit):
     unit = await create_unit(name='Audit Team', location='São Paulo')
     unit_schema = UnitPublic.model_validate(unit).model_dump(mode='json')
 
-    response = client.get('/unit)
+    response = client.get('/unit')
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'units': [unit_schema]}
 
@@ -57,7 +57,7 @@ async def test_update_unit(logged_client, create_unit):
     unit = await create_unit(name='Old Name', location='Rio de Janeiro')
 
     response = client.put(
-        '/unit,
+        '/unit',
         json={
             'id': str(unit.id),
             'name': 'New Name',
@@ -78,7 +78,7 @@ async def test_update_unit_conflict(logged_client, create_unit):
     unit2 = await create_unit(name='Unit B', location='RJ')
 
     response = client.put(
-        '/unit,
+        '/unit',
         json={
             'id': str(unit2.id),
             'name': 'Unit A',
@@ -107,7 +107,7 @@ def test_read_nonexistent_unit(client):
 async def test_update_nonexistent_unit(logged_client):
     client, *_ = await logged_client()
     response = client.put(
-        '/unit,
+        '/unit',
         json={
             'id': str(uuid.uuid4()),
             'name': 'Ghost Unit',

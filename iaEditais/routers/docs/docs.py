@@ -136,7 +136,7 @@ async def read_doc(doc_id: UUID, session: Session):
     if not doc or doc.deleted_at:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail='Doc not found',
+            detail='Document not found',
         )
     return doc
 
@@ -154,7 +154,7 @@ async def update_doc(
     if not db_doc or db_doc.deleted_at:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail='Doc not found',
+            detail='Document not found',
         )
 
     old_data = DocumentPublic.model_validate(db_doc).model_dump(mode='json')
@@ -264,7 +264,7 @@ async def delete_doc(
     if not db_doc or db_doc.deleted_at:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail='Doc not found',
+            detail='Document not found',
         )
 
     old_data = DocumentPublic.model_validate(db_doc).model_dump(mode='json')

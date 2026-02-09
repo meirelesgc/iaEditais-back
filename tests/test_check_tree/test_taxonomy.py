@@ -11,7 +11,7 @@ async def test_create_taxonomy(logged_client, create_typification):
     client, *_ = await logged_client()
     typification = await create_typification(name='Typification for Taxonomy')
     response = client.post(
-        '/taxonomy,
+        '/taxonomy',
         json={
             'title': 'New Taxonomy',
             'description': 'A detailed description.',
@@ -35,7 +35,7 @@ async def test_create_taxonomy_with_source(
     client, *_ = await logged_client()
     typification = await create_typification(name='Typification for Taxonomy')
     response = client.post(
-        '/taxonomy,
+        '/taxonomy',
         json={
             'title': 'New Taxonomy',
             'description': 'A detailed description.',
@@ -62,7 +62,7 @@ async def test_create_taxonomy_conflict(
     )
 
     response = client.post(
-        '/taxonomy,
+        '/taxonomy',
         json={
             'title': 'Existing Title',
             'description': 'Another description.',
@@ -72,14 +72,16 @@ async def test_create_taxonomy_conflict(
     )
 
     assert response.status_code == HTTPStatus.CONFLICT
-    assert response.json() == {'detail': 'Taxonomy title already exists'}
+    assert response.json() == {
+        'detail': 'Taxonomy title already exists for this typification'
+    }
 
 
 @pytest.mark.asyncio
 async def test_create_taxonomy_with_invalid_typification(logged_client):
     client, *_ = await logged_client()
     response = client.post(
-        '/taxonomy,
+        '/taxonomy',
         json={
             'title': 'Taxonomy with no Typification',
             'description': 'A description.',
@@ -93,7 +95,7 @@ async def test_create_taxonomy_with_invalid_typification(logged_client):
 
 
 def test_read_taxonomies_empty(client):
-    response = client.get('/taxonomy)
+    response = client.get('/taxonomy')
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'taxonomies': []}
 
@@ -110,7 +112,7 @@ async def test_read_taxonomies_with_data(
         mode='json'
     )
 
-    response = client.get('/taxonomy)
+    response = client.get('/taxonomy')
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'taxonomies': [taxonomy_schema]}
 
@@ -152,7 +154,7 @@ async def test_update_taxonomy(
     )
 
     response = client.put(
-        '/taxonomy,
+        '/taxonomy',
         json={
             'id': str(taxonomy.id),
             'title': 'New Title',
@@ -185,7 +187,7 @@ async def test_update_taxonomy_with_source(
     source = await create_source()
 
     response = client.put(
-        '/taxonomy,
+        '/taxonomy',
         json={
             'id': str(taxonomy.id),
             'title': 'New Title',
@@ -214,7 +216,7 @@ async def test_update_taxonomy_conflict(
     )
 
     response = client.put(
-        '/taxonomy,
+        '/taxonomy',
         json={
             'id': str(taxonomy_b.id),
             'title': 'Taxonomy A',
@@ -225,7 +227,9 @@ async def test_update_taxonomy_conflict(
     )
 
     assert response.status_code == HTTPStatus.CONFLICT
-    assert response.json() == {'detail': 'Taxonomy title already exists'}
+    assert response.json() == {
+        'detail': 'Taxonomy title already exists for this typification'
+    }
 
 
 @pytest.mark.asyncio
@@ -233,7 +237,7 @@ async def test_update_nonexistent_taxonomy(logged_client, create_typification):
     client, *_ = await logged_client()
     typification = await create_typification(name='Some typification')
     response = client.put(
-        '/taxonomy,
+        '/taxonomy',
         json={
             'id': str(uuid.uuid4()),
             'title': 'Ghost Taxonomy',
@@ -257,7 +261,7 @@ async def test_update_taxonomy_with_nonexistent_typification(
     )
 
     response = client.put(
-        '/taxonomy,
+        '/taxonomy',
         json={
             'id': str(taxonomy.id),
             'title': 'New Title',

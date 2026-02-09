@@ -49,15 +49,6 @@ async def _anonymize_and_vectorize(chunks: List[Document], vstore: VStore):
     if not chunks:
         return
 
-    for i, chunk in enumerate(chunks[:5]):
-        preview = (chunk.page_content or '')[:300].replace('\n', ' ')
-        print(f'[CHUNK {i + 1}]')
-        print(f'Sessão: {chunk.metadata.get("session")}')
-        print(f'Source: {chunk.metadata.get("source_id")}')
-        print(f'Index: {chunk.metadata.get("chunk_index")}/{chunk.metadata.get("chunk_total")}')  # fmt: skip  # noqa: E501
-        print(f'ID: {chunk.metadata.get("chunk_id")}')
-        print(f'{preview}...')
-
     anonymizer = PresidioAnonymizer()
     anonymized_chunks = anonymizer.anonymize_chunks(chunks)
     await vstore.aadd_documents(anonymized_chunks)

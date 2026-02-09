@@ -64,7 +64,7 @@ async def get_doc_or_404(doc_id: UUID, session: Session) -> Document:
 
     if not doc or doc.deleted_at:
         raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND, detail='Doc not found'
+            status_code=HTTPStatus.NOT_FOUND, detail='Document not found'
         )
     return doc
 

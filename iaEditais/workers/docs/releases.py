@@ -1,4 +1,3 @@
-import os
 from uuid import UUID
 
 from fastapi import Depends
@@ -35,7 +34,6 @@ async def release_pipeline(
     vstore: VStore,
     redis: Redis = Depends(get_redis),
 ):
-    os.system('clear')
     result = await session.execute(
         select(DocumentRelease)
         .where(DocumentRelease.id == release_id)

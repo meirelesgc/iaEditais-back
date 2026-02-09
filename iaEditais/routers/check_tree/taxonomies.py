@@ -35,15 +35,15 @@ async def create_taxonomy(
 ):
     db_taxonomy = await session.scalar(
         select(Taxonomy).where(
-            Taxonomy.deleted_at.is_(None),
             Taxonomy.title == taxonomy.title,
+            Taxonomy.typification_id == taxonomy.typification_id,
         )
     )
 
     if db_taxonomy:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
-            detail='Taxonomy title already exists',
+            detail='Taxonomy title already exists for this typification',
         )
 
     typification = await session.get(Typification, taxonomy.typification_id)
@@ -149,21 +149,27 @@ async def update_taxonomy(
         mode='json'
     )
 
-    if taxonomy.title != db_taxonomy.title:
-        db_taxonomy_same_title = await session.scalar(
+    title_changed = taxonomy.title != db_taxonomy.title
+    typification_changed = (
+        taxonomy.typification_id != db_taxonomy.typification_id
+    )
+
+    if title_changed or typification_changed:
+        db_taxonomy_conflict = await session.scalar(
             select(Taxonomy).where(
                 Taxonomy.deleted_at.is_(None),
                 Taxonomy.title == taxonomy.title,
+                Taxonomy.typification_id == taxonomy.typification_id,
                 Taxonomy.id != taxonomy.id,
             )
         )
-        if db_taxonomy_same_title:
+        if db_taxonomy_conflict:
             raise HTTPException(
                 status_code=HTTPStatus.CONFLICT,
-                detail='Taxonomy title already exists',
+                detail='Taxonomy title already exists for this typification',
             )
 
-    if taxonomy.typification_id != db_taxonomy.typification_id:
+    if typification_changed:
         typification = await session.get(
             Typification, taxonomy.typification_id
         )

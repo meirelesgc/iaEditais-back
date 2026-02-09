@@ -46,7 +46,7 @@ async def create_release(
     if not db_doc or db_doc.deleted_at:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND,
-            detail='Doc not found',
+            detail='Document not found',
         )
 
     if not db_doc.history or len(db_doc.typifications) == 0:

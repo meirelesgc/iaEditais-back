@@ -11,7 +11,7 @@ from iaEditais.schemas import DocumentPublic
 async def test_create_doc(logged_client):
     client, *_ = await logged_client()
     response = client.post(
-        '/doc,
+        '/doc',
         json={
             'name': 'New Doc',
             'description': 'A doc description',
@@ -33,7 +33,7 @@ async def test_create_doc_conflict(logged_client, create_doc):
     client, *_ = await logged_client()
     await create_doc(name='Doc A', identifier='DOC-001')
     response = client.post(
-        '/doc,
+        '/doc',
         json={
             'name': 'Doc A',
             'description': 'Another desc',
@@ -49,7 +49,7 @@ async def test_create_doc_conflict(logged_client, create_doc):
     )
 
     response = client.post(
-        '/doc,
+        '/doc',
         json={
             'name': 'Doc B',
             'description': 'Another desc',
@@ -66,7 +66,7 @@ async def test_create_doc_conflict(logged_client, create_doc):
 
 
 def test_read_docs_empty(client):
-    response = client.get('/doc)
+    response = client.get('/doc')
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'documents': []}
 
@@ -78,7 +78,7 @@ async def test_read_docs_with_data(client, create_doc):
     )
     doc_schema = DocumentPublic.model_validate(doc).model_dump(mode='json')
 
-    response = client.get('/doc)
+    response = client.get('/doc')
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'documents': [doc_schema]}
 
@@ -97,7 +97,7 @@ async def test_read_doc_by_id(client, create_doc):
 def test_read_nonexistent_doc(client):
     response = client.get(f'/doc/{uuid.uuid4()}')
     assert response.status_code == HTTPStatus.NOT_FOUND
-    assert response.json() == {'detail': 'Doc not found'}
+    assert response.json() == {'detail': 'Document not found'}
 
 
 @pytest.mark.asyncio
@@ -111,7 +111,7 @@ async def test_update_doc(logged_client, create_doc, create_typification):
     typ2 = await create_typification(name='Typ 2')
 
     response = client.put(
-        '/doc,
+        '/doc',
         json={
             'id': str(doc.id),
             'name': 'Doc Updated',
@@ -142,7 +142,7 @@ async def test_update_doc_conflict(
     typ = await create_typification(name='Typ C')
 
     response = client.put(
-        '/doc,
+        '/doc',
         json={
             'id': str(doc_b.id),
             'name': 'Doc A',
@@ -163,7 +163,7 @@ async def test_update_doc_conflict(
 async def test_update_nonexistent_doc(logged_client):
     client, *_ = await logged_client()
     response = client.put(
-        '/doc,
+        '/doc',
         json={
             'id': str(uuid.uuid4()),
             'name': 'Ghost Doc',
@@ -174,7 +174,7 @@ async def test_update_nonexistent_doc(logged_client):
         },
     )
     assert response.status_code == HTTPStatus.NOT_FOUND
-    assert response.json() == {'detail': 'Doc not found'}
+    assert response.json() == {'detail': 'Document not found'}
 
 
 @pytest.mark.asyncio
@@ -194,7 +194,7 @@ async def test_delete_nonexistent_doc(logged_client):
     client, *_ = await logged_client()
     response = client.delete(f'/doc/{uuid.uuid4()}')
     assert response.status_code == HTTPStatus.NOT_FOUND
-    assert response.json() == {'detail': 'Doc not found'}
+    assert response.json() == {'detail': 'Document not found'}
 
 
 @pytest.mark.asyncio
@@ -208,7 +208,7 @@ async def test_read_docs_archived_default_false_excludes_archived(
     r = client.put(f'/doc/{archived_doc.id}/toggle-archive')
     assert r.status_code == HTTPStatus.OK
 
-    response = client.get('/doc)
+    response = client.get('/doc')
     assert response.status_code == HTTPStatus.OK
     data = response.json()
 
@@ -327,12 +327,12 @@ async def test_full_archive_flow_archive_and_unarchive_affects_filters(
     client, *_ = await logged_client()
     doc = await create_doc(name='Flow Doc', identifier='FLOW')
 
-    r_default_0 = client.get('/doc)
+    r_default_0 = client.get('/doc')
     assert r_default_0.status_code == HTTPStatus.OK
     ids_default_0 = [d['id'] for d in r_default_0.json()['documents']]
     assert str(doc.id) in ids_default_0
 
-    r_archived_true_0 = client.get('/doc/?archived=true')
+    r_archived_true_0 = client.get('/doc?archived=true')
     assert r_archived_true_0.status_code == HTTPStatus.OK
     ids_archived_true_0 = [
         d['id'] for d in r_archived_true_0.json()['documents']
@@ -342,19 +342,19 @@ async def test_full_archive_flow_archive_and_unarchive_affects_filters(
     r_toggle_1 = client.put(f'/doc/{doc.id}/toggle-archive')
     assert r_toggle_1.status_code == HTTPStatus.OK
 
-    r_default_1 = client.get('/doc)
+    r_default_1 = client.get('/doc')
     assert r_default_1.status_code == HTTPStatus.OK
     ids_default_1 = [d['id'] for d in r_default_1.json()['documents']]
     assert str(doc.id) not in ids_default_1
 
-    r_archived_true_1 = client.get('/doc/?archived=true')
+    r_archived_true_1 = client.get('/doc?archived=true')
     assert r_archived_true_1.status_code == HTTPStatus.OK
     ids_archived_true_1 = [
         d['id'] for d in r_archived_true_1.json()['documents']
     ]
     assert str(doc.id) in ids_archived_true_1
 
-    r_archived_false_1 = client.get('/doc/?archived=false')
+    r_archived_false_1 = client.get('/doc?archived=false')
     assert r_archived_false_1.status_code == HTTPStatus.OK
     ids_archived_false_1 = [
         d['id'] for d in r_archived_false_1.json()['documents']
@@ -364,19 +364,19 @@ async def test_full_archive_flow_archive_and_unarchive_affects_filters(
     r_toggle_2 = client.put(f'/doc/{doc.id}/toggle-archive')
     assert r_toggle_2.status_code == HTTPStatus.OK
 
-    r_default_2 = client.get('/doc)
+    r_default_2 = client.get('/doc')
     assert r_default_2.status_code == HTTPStatus.OK
     ids_default_2 = [d['id'] for d in r_default_2.json()['documents']]
     assert str(doc.id) in ids_default_2
 
-    r_archived_true_2 = client.get('/doc/?archived=true')
+    r_archived_true_2 = client.get('/doc?archived=true')
     assert r_archived_true_2.status_code == HTTPStatus.OK
     ids_archived_true_2 = [
         d['id'] for d in r_archived_true_2.json()['documents']
     ]
     assert str(doc.id) not in ids_archived_true_2
 
-    r_archived_false_2 = client.get('/doc/?archived=false')
+    r_archived_false_2 = client.get('/doc?archived=false')
     assert r_archived_false_2.status_code == HTTPStatus.OK
     ids_archived_false_2 = [
         d['id'] for d in r_archived_false_2.json()['documents']
@@ -394,7 +394,7 @@ async def test_read_docs_archived_param_is_case_insensitive_truthy_values(
     assert r.status_code == HTTPStatus.OK
 
     for v in ['true', 'True', '1', 'on', 'yes']:
-        response = client.get(f'/doc/?archived={v}')
+        response = client.get(f'/doc?archived={v}')
         assert response.status_code == HTTPStatus.OK
         ids = [d['id'] for d in response.json()['documents']]
         assert str(archived.id) in ids
@@ -411,7 +411,7 @@ async def test_read_docs_archived_param_is_case_insensitive_falsy_values(
     assert r.status_code == HTTPStatus.OK
 
     for v in ['false', 'False', '0', 'off', 'no']:
-        response = client.get(f'/doc/?archived={v}')
+        response = client.get(f'/doc?archived={v}')
         assert response.status_code == HTTPStatus.OK
         ids = [d['id'] for d in response.json()['documents']]
         assert str(non_archived.id) in ids

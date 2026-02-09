@@ -10,7 +10,7 @@ from iaEditais.schemas import TypificationPublic
 async def test_create_typification(logged_client):
     client, *_ = await logged_client()
     response = client.post(
-        '/typification,
+        '/typification',
         json={'name': 'Financial Reports', 'source_ids': []},
     )
 
@@ -25,7 +25,7 @@ async def test_create_typification_with_source(logged_client, create_source):
     source = await create_source()
     client, *_ = await logged_client()
     response = client.post(
-        '/typification,
+        '/typification',
         json={'name': 'Financial Reports', 'source_ids': [str(source.id)]},
     )
 
@@ -43,7 +43,7 @@ async def test_create_typification_conflict(
     await create_typification(name='Existing Typification')
 
     response = client.post(
-        '/typification,
+        '/typification',
         json={'name': 'Existing Typification', 'source_ids': []},
     )
 
@@ -52,7 +52,7 @@ async def test_create_typification_conflict(
 
 
 def test_read_typifications_empty(client):
-    response = client.get('/typification)
+    response = client.get('/typification')
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'typifications': []}
 
@@ -64,7 +64,7 @@ async def test_read_typifications_with_data(client, create_typification):
         typification
     ).model_dump(mode='json')
 
-    response = client.get('/typification)
+    response = client.get('/typification')
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'typifications': [typification_schema]}
 
@@ -91,7 +91,7 @@ async def test_update_typification(logged_client, create_typification):
     typification = await create_typification(name='Old Name')
 
     response = client.put(
-        '/typification,
+        '/typification',
         json={
             'id': str(typification.id),
             'name': 'New Name',
@@ -113,7 +113,7 @@ async def test_update_typification_updated_at_lazy_load_error(
     source = await create_source()
 
     response = client.put(
-        '/typification,
+        '/typification',
         json={
             'id': str(typification.id),
             'name': 'New Name',
@@ -135,7 +135,7 @@ async def test_update_typification_conflict(
     typification_b = await create_typification(name='Typification B')
 
     response = client.put(
-        '/typification,
+        '/typification',
         json={
             'id': str(typification_b.id),
             'name': 'Typification A',
@@ -150,7 +150,7 @@ async def test_update_typification_conflict(
 async def test_update_nonexistent_typification(logged_client):
     client, *_ = await logged_client()
     response = client.put(
-        '/typification,
+        '/typification',
         json={
             'id': str(uuid.uuid4()),
             'name': 'Ghost Typification',
@@ -185,7 +185,7 @@ async def test_listing_taxonomies_typification(
     typification = await create_typification()
     await create_taxonomy(typification_id=typification.id)
 
-    response = client.get('/typification)
+    response = client.get('/typification')
     assert response.status_code == HTTPStatus.OK
     data = response.json()
     assert data['typifications'][0]['taxonomies'][0]['id']

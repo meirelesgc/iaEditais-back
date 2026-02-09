@@ -34,15 +34,15 @@ async def create_branch(
 ):
     db_branch = await session.scalar(
         select(Branch).where(
-            Branch.deleted_at.is_(None),
             Branch.title == branch.title,
+            Branch.taxonomy_id == branch.taxonomy_id,
         )
     )
 
     if db_branch:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
-            detail='Branch title already exists',
+            detail='Branch title already exists for this taxonomy',
         )
 
     taxonomy = await session.get(Taxonomy, branch.taxonomy_id)
@@ -131,18 +131,22 @@ async def update_branch(
 
     old_data = BranchPublic.model_validate(db_branch).model_dump(mode='json')
 
-    if branch.title != db_branch.title:
-        db_branch_same_title = await session.scalar(
+    title_changed = branch.title != db_branch.title
+    taxonomy_changed = branch.taxonomy_id != db_branch.taxonomy_id
+
+    if title_changed or taxonomy_changed:
+        db_branch_conflict = await session.scalar(
             select(Branch).where(
                 Branch.deleted_at.is_(None),
                 Branch.title == branch.title,
+                Branch.taxonomy_id == branch.taxonomy_id,
                 Branch.id != branch.id,
             )
         )
-        if db_branch_same_title:
+        if db_branch_conflict:
             raise HTTPException(
                 status_code=HTTPStatus.CONFLICT,
-                detail='Branch title already exists',
+                detail='Branch title already exists for this taxonomy',
             )
 
     if branch.taxonomy_id != db_branch.taxonomy_id:

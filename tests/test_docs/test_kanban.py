@@ -61,7 +61,7 @@ async def test_set_status_for_nonexistent_doc(logged_client):
     response = client.put(f'/doc/{nonexistent_id}/status/pending')
 
     assert response.status_code == HTTPStatus.NOT_FOUND
-    assert response.json() == {'detail': 'Doc not found'}
+    assert response.json() == {'detail': 'Document not found'}
 
 
 @pytest.mark.asyncio
@@ -76,4 +76,4 @@ async def test_set_status_on_deleted_doc(logged_client, create_doc, session):
     response = client.put(f'/doc/{doc.id}/status/pending')
 
     assert response.status_code == HTTPStatus.NOT_FOUND
-    assert response.json() == {'detail': 'Doc not found'}
+    assert response.json() == {'detail': 'Document not found'}
