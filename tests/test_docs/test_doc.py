@@ -37,7 +37,7 @@ async def test_create_doc_conflict(logged_client, create_doc):
         json={
             'name': 'Doc A',
             'description': 'Another desc',
-            'identifier': 'DOC-002',
+            'identifier': 'DOC-001',
             'typification_ids': [],
             'editors_ids': [],
         },
@@ -45,7 +45,7 @@ async def test_create_doc_conflict(logged_client, create_doc):
     assert response.status_code == HTTPStatus.CONFLICT
     assert (
         response.json()['detail']
-        == 'Doc with name "Doc A" or identifier "DOC-002" already exists.'
+        == 'Doc with identifier "DOC-001" already exists.'
     )
 
     response = client.post(
@@ -61,7 +61,7 @@ async def test_create_doc_conflict(logged_client, create_doc):
     assert response.status_code == HTTPStatus.CONFLICT
     assert (
         response.json()['detail']
-        == 'Doc with name "Doc B" or identifier "DOC-001" already exists.'
+        == 'Doc with identifier "DOC-001" already exists.'
     )
 
 
@@ -147,23 +147,6 @@ async def test_update_doc_conflict(
             'id': str(doc_b.id),
             'name': 'Doc A',
             'description': 'Some desc',
-            'identifier': 'ID-B',
-            'typification_ids': [str(typ.id)],
-            'editors_ids': [],
-        },
-    )
-    assert response.status_code == HTTPStatus.CONFLICT
-    assert (
-        response.json()['detail']
-        == 'Doc with name "Doc A" or identifier "ID-B" already exists.'
-    )
-
-    response = client.put(
-        '/doc/',
-        json={
-            'id': str(doc_b.id),
-            'name': 'Doc B',
-            'description': 'Some desc',
             'identifier': 'ID-A',
             'typification_ids': [str(typ.id)],
             'editors_ids': [],
@@ -172,7 +155,7 @@ async def test_update_doc_conflict(
     assert response.status_code == HTTPStatus.CONFLICT
     assert (
         response.json()['detail']
-        == 'Doc with name "Doc B" or identifier "ID-A" already exists.'
+        == 'Doc with identifier "ID-A" already exists.'
     )
 
 

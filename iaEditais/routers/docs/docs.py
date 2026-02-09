@@ -42,9 +42,7 @@ async def create_doc(
     if db_doc:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
-            detail=(
-                f'Doc with name "{doc.name}" or identifier "{doc.identifier}" already exists.'
-            ),
+            detail=(f'Doc with identifier "{doc.identifier}" already exists.'),
         )
 
     db_doc = Document(
@@ -165,20 +163,13 @@ async def update_doc(
 
     db_doc_conflict = await session.scalar(
         select(Document).where(
-            Document.deleted_at.is_(None),
-            Document.id != doc.id,
-            or_(
-                Document.name == doc.name,
-                Document.identifier == doc.identifier,
-            ),
+            Document.id != doc.id, or_(Document.identifier == doc.identifier)
         )
     )
     if db_doc_conflict:
         raise HTTPException(
             status_code=HTTPStatus.CONFLICT,
-            detail=(
-                f'Doc with name "{doc.name}" or identifier "{doc.identifier}" already exists.'
-            ),
+            detail=(f'Doc with identifier "{doc.identifier}" already exists.'),
         )
 
     db_doc.name = doc.name

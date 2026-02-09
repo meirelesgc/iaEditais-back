@@ -18,8 +18,8 @@ from iaEditais.utils.PresidioAnonymizer import PresidioAnonymizer
 SETTINGS = Settings()
 
 SPLITTER = RecursiveCharacterTextSplitter(
-    chunk_size=2000,
-    chunk_overlap=200,
+    chunk_size=750,
+    chunk_overlap=50,
 )
 
 

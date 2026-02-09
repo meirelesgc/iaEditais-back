@@ -26,6 +26,7 @@ from iaEditais.schemas.document_release import DocumentReleasePublic
 from iaEditais.schemas.typification import TypificationList
 
 MAX_CHUNKS = 5
+MARGIN_SIZE = 1
 
 
 async def ws_update(redis, db_release, message: str):
@@ -45,9 +46,9 @@ def get_base_filter(db_release: DocumentRelease) -> dict:
     return {'source': allowed_source}
 
 
-def get_query_from_taxonomy(taxonomy: dict) -> str:
-    title = (taxonomy.get('title') or '').strip()
-    description = (taxonomy.get('description') or '').strip()
+def get_query_from_branch(branch: dict) -> str:
+    title = (branch.get('title') or '').strip()
+    description = (branch.get('description') or '').strip()
     if title and description:
         return f'{title}: {description}'
     return title or description
@@ -68,20 +69,46 @@ def iter_branches(taxonomy: dict):
         yield branch
 
 
-def _chunk_key(chunk):
-    metadata = getattr(chunk, 'metadata', None) or {}
-    for k in ('id', 'chunk_id', 'uuid', 'pk'):
-        if metadata.get(k) is not None:
-            return f'{k}:{metadata[k]}'
-    src = metadata.get('source', '')
-    loc = metadata.get('loc', '')
-    content = (
-        getattr(chunk, 'page_content', None)
-        or getattr(chunk, 'content', None)
-        or ''
-    )
-    content = content[:80]
-    return f'src:{src}|loc:{loc}|c:{content}'
+async def expand_branch_sessions(vstore: VStore, eval_args: dict):
+    for typification in iter_typifications(eval_args):
+        for taxonomy in iter_taxonomies(typification):
+            for branch in iter_branches(taxonomy):
+                original_chunks = branch.get('sessions', [])
+                if not original_chunks:
+                    continue
+
+                docs_indices_map = {}
+                for chunk in original_chunks:
+                    source = chunk.metadata.get('source')
+                    current_idx = chunk.metadata.get('chunk_index')
+                    if source is None or current_idx is None:
+                        continue
+                    if source not in docs_indices_map:
+                        docs_indices_map[source] = set()
+                    start = max(0, current_idx - MARGIN_SIZE)
+                    end = current_idx + MARGIN_SIZE + 1
+                    for i in range(start, end):
+                        docs_indices_map[source].add(i)
+                expanded_chunks = []
+
+                for source, indices_set in docs_indices_map.items():
+                    indices_list = list(indices_set)
+
+                    filter_dict = {
+                        'source': source,
+                        'chunk_index': {'$in': indices_list},
+                    }
+                    found_chunks = await vstore.asimilarity_search(
+                        '',
+                        k=len(indices_list),
+                        filter=filter_dict,
+                    )
+                    expanded_chunks.extend(found_chunks)
+                if expanded_chunks:
+                    expanded_chunks.sort(
+                        key=lambda x: x.metadata.get('chunk_index', 0)
+                    )
+                    branch['sessions'] = expanded_chunks
 
 
 async def get_branch_sessions(
@@ -92,31 +119,19 @@ async def get_branch_sessions(
 ):
     for typification in iter_typifications(eval_args):
         for taxonomy in iter_taxonomies(typification):
-            query = get_query_from_taxonomy(taxonomy)
             for branch in iter_branches(taxonomy):
+                query = get_query_from_branch(branch)
                 chunks = await vstore.asimilarity_search(
                     query, k=max_chunks, filter=base_filter
                 )
                 branch['sessions'] = chunks
 
 
-def get_taxonomy_session_hits(eval_args: dict):
-    for typification in iter_typifications(eval_args):
-        for taxonomy in iter_taxonomies(typification):
-            seen = {}
-            for branch in iter_branches(taxonomy):
-                for chunk in branch.get('sessions') or []:
-                    seen[_chunk_key(chunk)] = chunk
-            taxonomy['session_hits'] = [
-                chunk.metadata.get('session') for chunk in seen.values()
-            ]
-
-
 async def get_documents_args(
     vstore: VStore, eval_args: dict, base_filter: dict
 ):
     await get_branch_sessions(vstore, eval_args, base_filter)
-    get_taxonomy_session_hits(eval_args)
+    await expand_branch_sessions(vstore, eval_args)
 
 
 def get_eval_args_payload(tree: list[Typification]):

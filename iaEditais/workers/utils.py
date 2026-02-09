@@ -1,5 +1,4 @@
 import httpx
-from faststream.exceptions import AckMessage
 from faststream.rabbit import RabbitRouter
 from sqlalchemy import select
 
@@ -27,7 +26,7 @@ async def send_message(payload: dict, session: Session):
     message_text = payload.get('message_text')
 
     if not user_ids or not message_text:
-        raise AckMessage('Payload inválido')
+        pass  # WIP
 
     statement = select(User).where(User.id.in_(user_ids))
     query = await session.scalars(statement)
