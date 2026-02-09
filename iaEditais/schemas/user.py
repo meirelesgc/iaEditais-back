@@ -51,6 +51,7 @@ class UserList(BaseModel):
 
 class UserFilter(FilterPage):
     unit_id: Optional[UUID] = None
+    q: Optional[str] = None
 
 
 class UserPublicMessage(BaseModel):

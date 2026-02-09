@@ -9,6 +9,7 @@ from iaEditais.schemas.common import FilterPage
 
 class BranchFilter(FilterPage):
     taxonomy_id: Optional[UUID] = None
+    q: Optional[str] = None
 
 
 class BranchSchema(BaseModel):

@@ -1,3 +1,4 @@
+import re
 import secrets
 from datetime import datetime, timedelta
 from http import HTTPStatus
@@ -13,6 +14,7 @@ from iaEditais.core.dependencies import CurrentUser, Session, Storage
 from iaEditais.core.security import get_password_hash, verify_password
 from iaEditais.core.settings import Settings
 from iaEditais.models import AccessType, PasswordReset, User, UserImage
+from iaEditais.repositories import util
 from iaEditais.schemas import (
     UserCreate,
     UserFilter,
@@ -39,14 +41,22 @@ router = APIRouter(
 )
 
 
+def normalize_phone(phone):
+    if not phone:
+        return None
+    digits = re.sub(r'\D', '', phone)
+    if digits.startswith('55'):
+        return digits
+    return f'55{digits}'
+
+
 @router.post('', status_code=HTTPStatus.CREATED, response_model=UserPublic)
 async def create_user(user: UserCreate, session: Session):
     db_user = await session.scalar(
         select(User).where(
-            User.deleted_at.is_(None),
             or_(
                 User.email == user.email,
-                User.phone_number == user.phone_number,
+                User.phone_number == normalize_phone(user.phone_number),
             ),
         )
     )
@@ -55,6 +65,15 @@ async def create_user(user: UserCreate, session: Session):
             status_code=HTTPStatus.CONFLICT,
             detail='Email or phone number already registered',
         )
+
+    # if user.unit_id:
+    #     db_unit = await session.get(Unit, user.unit_id)
+    #     if not db_unit:
+    #         raise HTTPException(
+    #             status_code=HTTPStatus.NOT_FOUND,
+    #             detail='The specified Unit ID does not exist',
+    #         )
+
     password_was_generated = False
     temp_password = user.password
 
@@ -67,7 +86,7 @@ async def create_user(user: UserCreate, session: Session):
     db_user = User(
         username=user.username,
         email=user.email,
-        phone_number=user.phone_number,
+        phone_number=normalize_phone(user.phone_number),
         password=hashed_password,
         access_level=user.access_level,
         unit_id=user.unit_id,
@@ -76,7 +95,6 @@ async def create_user(user: UserCreate, session: Session):
     session.add(db_user)
 
     await session.flush()
-
     db_user.set_creation_audit(db_user.id)
 
     await audit_service.register_action(
@@ -175,14 +193,13 @@ async def add_icon(
 async def read_users(
     session: Session, filters: Annotated[UserFilter, Depends()]
 ):
-    query = (
-        select(User)
-        .where(User.deleted_at.is_(None))
-        .order_by(User.created_at.desc())
-    )
+    query = select(User).order_by(User.created_at.desc())
 
     if filters.unit_id:
         query = query.where(User.unit_id == filters.unit_id)
+
+    if filters.q:
+        query = util.apply_text_search(query, User, filters.q, config='simple')
 
     query = query.offset(filters.offset).limit(filters.limit)
 

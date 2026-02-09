@@ -12,9 +12,10 @@ from iaEditais.models import (
     Typification,
     TypificationSource,
 )
+from iaEditais.repositories import util
 from iaEditais.schemas import (
-    FilterPage,
     TypificationCreate,
+    TypificationFilter,
     TypificationList,
     TypificationPublic,
     TypificationUpdate,
@@ -99,16 +100,18 @@ async def create_typification(
 
 @router.get('', response_model=TypificationList)
 async def read_typifications(
-    session: Session, filters: Annotated[FilterPage, Depends()]
+    session: Session, filters: Annotated[TypificationFilter, Depends()]
 ):
-    query = await session.scalars(
-        select(Typification)
-        .where(Typification.deleted_at.is_(None))
-        .order_by(Typification.created_at.desc())
-        .offset(filters.offset)
-        .limit(filters.limit)
-    )
-    typifications = query.all()
+    query = select(Typification).order_by(Typification.created_at.desc())
+
+    if filters.q:
+        query = util.apply_text_search(query, Typification, filters.q)
+
+    query = query.offset(filters.offset).limit(filters.limit)
+
+    result = await session.scalars(query)
+    typifications = result.all()
+
     return {'typifications': typifications}
 
 
@@ -145,7 +148,6 @@ async def update_typification(
 
     db_typification_same_name = await session.scalar(
         select(Typification).where(
-            Typification.deleted_at.is_(None),
             Typification.name == typification.name,
             Typification.id != typification.id,
         )

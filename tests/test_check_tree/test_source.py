@@ -102,6 +102,31 @@ async def test_update_source(logged_client, create_source):
 
 
 @pytest.mark.asyncio
+async def test_update_source_description_conflict(
+    logged_client, create_source
+):
+    client, *_ = await logged_client()
+    await create_source(name='Source A', description='First source')
+    source_b = await create_source(
+        name='Source B', description='Second source'
+    )
+
+    response = client.put(
+        '/source',
+        json={
+            'id': str(source_b.id),
+            'name': 'Source B',
+            'description': 'Updated description',
+        },
+    )
+    assert response.status_code == HTTPStatus.OK
+    data = response.json()
+    assert data['id'] == str(source_b.id)
+    assert data['name'] == 'Source B'
+    assert data['description'] == 'Updated description'
+
+
+@pytest.mark.asyncio
 async def test_update_source_conflict(logged_client, create_source):
     client, *_ = await logged_client()
     await create_source(name='Source A', description='First source')

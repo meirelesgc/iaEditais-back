@@ -12,13 +12,14 @@ from iaEditais.models import (
     TaxonomySource,
     Typification,
 )
+from iaEditais.repositories import util
 from iaEditais.schemas import (
-    FilterPage,
     TaxonomyCreate,
     TaxonomyList,
     TaxonomyPublic,
     TaxonomyUpdate,
 )
+from iaEditais.schemas.taxonomy import TaxonomyFilter
 from iaEditais.services import audit_service
 
 router = APIRouter(
@@ -102,16 +103,17 @@ async def create_taxonomy(
 
 @router.get('', response_model=TaxonomyList)
 async def read_taxonomies(
-    session: Session, filters: Annotated[FilterPage, Depends()]
+    session: Session, filters: Annotated[TaxonomyFilter, Depends()]
 ):
-    query = await session.scalars(
-        select(Taxonomy)
-        .where(Taxonomy.deleted_at.is_(None))
-        .order_by(Taxonomy.created_at.desc())
-        .offset(filters.offset)
-        .limit(filters.limit)
-    )
-    taxonomies = query.all()
+    query = select(Taxonomy).order_by(Taxonomy.created_at.desc())
+
+    if filters.q:
+        query = util.apply_text_search(query, Taxonomy, filters.q)
+
+    query = query.offset(filters.offset).limit(filters.limit)
+
+    result = await session.scalars(query)
+    taxonomies = result.all()
     return {'taxonomies': taxonomies}
 
 
@@ -157,7 +159,6 @@ async def update_taxonomy(
     if title_changed or typification_changed:
         db_taxonomy_conflict = await session.scalar(
             select(Taxonomy).where(
-                Taxonomy.deleted_at.is_(None),
                 Taxonomy.title == taxonomy.title,
                 Taxonomy.typification_id == taxonomy.typification_id,
                 Taxonomy.id != taxonomy.id,

@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from iaEditais.schemas.common import FilterPage
+
 
 class UnitSchema(BaseModel):
     name: str
@@ -28,3 +30,7 @@ class UnitPublic(UnitSchema):
 
 class UnitList(BaseModel):
     units: list[UnitPublic]
+
+
+class UnitFilter(FilterPage):
+    q: Optional[str] = None

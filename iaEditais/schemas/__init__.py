@@ -46,6 +46,7 @@ from .source import (
 )
 from .taxonomy import (
     TaxonomyCreate,
+    TaxonomyFilter,
     TaxonomyList,
     TaxonomyPublic,
     TaxonomySchema,
@@ -53,6 +54,7 @@ from .taxonomy import (
 )
 from .typification import (
     TypificationCreate,
+    TypificationFilter,
     TypificationList,
     TypificationPublic,
     TypificationSchema,
@@ -60,6 +62,7 @@ from .typification import (
 )
 from .unit import (
     UnitCreate,
+    UnitFilter,
     UnitList,
     UnitPublic,
     UnitSchema,
@@ -147,4 +150,8 @@ __all__ = [
     'AuditLogPublic',
     'ForgotPasswordRequest',
     'ResetPasswordRequest',
+    'UnitFilter',
+    'TypificationFilter',
+    'TaxonomyFilter',
+    'BranchFilter',
 ]

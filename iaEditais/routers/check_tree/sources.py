@@ -1,6 +1,6 @@
 from http import HTTPStatus
 from typing import Annotated
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import Depends, File, HTTPException, UploadFile
 from faststream.rabbit.fastapi import RabbitRouter as APIRouter
@@ -9,13 +9,14 @@ from sqlalchemy import select
 from iaEditais.core.dependencies import CurrentUser, Session, Storage
 from iaEditais.core.settings import Settings
 from iaEditais.models import Source
+from iaEditais.repositories import util
 from iaEditais.schemas import (
-    FilterPage,
     SourceCreate,
     SourceList,
     SourcePublic,
     SourceUpdate,
 )
+from iaEditais.schemas.source import SourceFilter
 from iaEditais.services import audit_service
 
 SETTINGS = Settings()
@@ -36,9 +37,7 @@ async def create_source(
     current_user: CurrentUser,
 ):
     db_source = await session.scalar(
-        select(Source).where(
-            Source.deleted_at.is_(None), Source.name == source.name
-        )
+        select(Source).where(Source.name == source.name)
     )
 
     if db_source:
@@ -75,21 +74,19 @@ async def create_source(
 
 @router.get('', response_model=SourceList)
 async def read_sources(
-    session: Session, filters: Annotated[FilterPage, Depends()]
+    session: Session, filters: Annotated[SourceFilter, Depends()]
 ):
-    query = await session.scalars(
-        select(Source)
-        .where(Source.deleted_at.is_(None))
-        .order_by(Source.created_at.desc())
-        .offset(filters.offset)
-        .limit(filters.limit)
-    )
+    query = select(Source).order_by(Source.created_at.desc())
 
-    sources = query.all()
+    if filters.q:
+        query = util.apply_text_search(query, Source, filters.q)
+
+    query = query.offset(filters.offset).limit(filters.limit)
+
+    result = await session.scalars(query)
+    sources = result.all()
+
     return {'sources': sources}
-
-
-from uuid import uuid4
 
 
 @router.post(
@@ -174,7 +171,7 @@ async def update_source(
 
     db_source_same_name = await session.scalar(
         select(Source).where(
-            Source.deleted_at.is_(None), Source.name == source.name
+            Source.name == source.name, Source.id != source.id
         )
     )
 
