@@ -10,7 +10,7 @@ from iaEditais.schemas import AuditLogFilter, AuditLogList
 router = APIRouter(prefix='/audit-log', tags=['auditoria'])
 
 
-@router.get('/', response_model=AuditLogList)
+@router.get('', response_model=AuditLogList)
 async def read_audit_logs(
     session: Session, filters: Annotated[AuditLogFilter, Depends()]
 ):

@@ -39,7 +39,7 @@ router = APIRouter(
 )
 
 
-@router.post('/', status_code=HTTPStatus.CREATED, response_model=UserPublic)
+@router.post('', status_code=HTTPStatus.CREATED, response_model=UserPublic)
 async def create_user(user: UserCreate, session: Session):
     db_user = await session.scalar(
         select(User).where(
@@ -171,7 +171,7 @@ async def add_icon(
     return Message(message='Icon updated successfully')
 
 
-@router.get('/', response_model=UserList)
+@router.get('', response_model=UserList)
 async def read_users(
     session: Session, filters: Annotated[UserFilter, Depends()]
 ):
@@ -197,7 +197,7 @@ async def read_me(current_user: CurrentUser):
     return current_user
 
 
-@router.get('/{user_id}/', response_model=UserPublic)
+@router.get('/{user_id}', response_model=UserPublic)
 async def read_user(user_id: UUID, session: Session):
     db_user = await session.get(User, user_id)
     if not db_user or db_user.deleted_at:
@@ -207,7 +207,7 @@ async def read_user(user_id: UUID, session: Session):
     return db_user
 
 
-@router.put('/', response_model=UserPublic)
+@router.put('', response_model=UserPublic)
 async def update_user(
     user_update: UserUpdate,
     session: Session,
@@ -361,7 +361,7 @@ async def change_password(
 
 
 @router.delete(
-    '/{user_id}/',
+    '/{user_id}',
     status_code=HTTPStatus.NO_CONTENT,
 )
 async def delete_user(

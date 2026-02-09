@@ -21,7 +21,7 @@ async def test_create_user(client, create_unit):
         'access_level': AccessType.DEFAULT,
         'unit_id': str(unit.id),
     }
-    response = client.post('/user/', json=payload)
+    response = client.post('/user, json=payload)
     assert response.status_code == HTTPStatus.CREATED
     data = response.json()
     assert data['username'] == 'joao'
@@ -46,7 +46,7 @@ async def test_create_user_conflict(client, create_user, create_unit):
         'access_level': AccessType.DEFAULT,
         'unit_id': str(unit.id),
     }
-    response = client.post('/user/', json=payload)
+    response = client.post('/user, json=payload)
     assert response.status_code == HTTPStatus.CONFLICT
     assert (
         response.json()['detail'] == 'Email or phone number already registered'
@@ -112,7 +112,7 @@ async def test_update_user_not_found(logged_client):
         'access_level': AccessType.DEFAULT,
         'unit_id': str(uuid4()),
     }
-    response = client.put('/user/', json=payload)
+    response = client.put('/user, json=payload)
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json()['detail'] == 'User not found'
 
@@ -131,7 +131,7 @@ async def test_update_user_self(logged_client, create_unit):
         'unit_id': str(unit.id),
     }
 
-    response = client.put('/user/', json=payload)
+    response = client.put('/user, json=payload)
 
     assert response.status_code == HTTPStatus.OK
     data = response.json()
@@ -160,7 +160,7 @@ async def test_update_user_conflict(logged_client, create_user, create_unit):
         'unit_id': str(unit.id),
     }
 
-    response = client.put('/user/', json=payload)
+    response = client.put('/user, json=payload)
     assert response.status_code == HTTPStatus.CONFLICT
     assert (
         response.json()['detail'] == 'Email or phone number already registered'
@@ -286,7 +286,7 @@ async def test_update_other_user_forbidden(
         'unit_id': str(unit.id),
     }
 
-    response = client.put('/user/', json=payload)
+    response = client.put('/user, json=payload)
 
     assert response.status_code == HTTPStatus.FORBIDDEN
     assert (
@@ -311,7 +311,7 @@ async def test_update_user_cannot_change_access_level(
         'unit_id': str(unit.id),
     }
 
-    response = client.put('/user/', json=payload)
+    response = client.put('/user, json=payload)
 
     assert response.status_code == HTTPStatus.OK
     data = response.json()
@@ -347,7 +347,7 @@ async def test_admin_can_update_other_user_and_access_level(
         'access_level': AccessType.ANALYST,
     }
 
-    response = client.put('/user/', json=payload)
+    response = client.put('/user, json=payload)
 
     assert response.status_code == HTTPStatus.OK
     data = response.json()
@@ -370,7 +370,7 @@ async def test_update_user_rejects_password_field(logged_client, create_unit):
         'unit_id': str(unit.id),
     }
 
-    response = client.put('/user/', json=payload)
+    response = client.put('/user, json=payload)
     assert response.status_code == HTTPStatus.OK
 
 

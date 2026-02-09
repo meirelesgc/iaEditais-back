@@ -25,7 +25,7 @@ async def create_audit_log(session, user, **kwargs):
 @pytest.mark.asyncio
 async def test_read_audit_logs_empty(logged_client):
     client, *_ = await logged_client()
-    response = client.get('/audit-log/')
+    response = client.get('/audit-log)
 
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'audit_logs': []}
@@ -42,7 +42,7 @@ async def test_read_audit_logs_basic_list(logged_client, session):
         session, user, action='UPDATE', table_name='documents'
     )
 
-    response = client.get('/audit-log/')
+    response = client.get('/audit-log)
 
     assert response.status_code == HTTPStatus.OK
     data = response.json()
@@ -60,7 +60,7 @@ async def test_read_audit_logs_filter_by_table_name(logged_client, session):
     await create_audit_log(session, user, table_name='target_table')
     await create_audit_log(session, user, table_name='other_table')
 
-    response = client.get('/audit-log/', params={'table_name': 'target'})
+    response = client.get('/audit-log, params={'table_name': 'target'})
 
     assert response.status_code == HTTPStatus.OK
     data = response.json()
@@ -75,7 +75,7 @@ async def test_read_audit_logs_filter_by_action(logged_client, session):
     await create_audit_log(session, user, action='DELETE')
     await create_audit_log(session, user, action='UPDATE')
 
-    response = client.get('/audit-log/', params={'action': 'DELETE'})
+    response = client.get('/audit-log, params={'action': 'DELETE'})
 
     assert response.status_code == HTTPStatus.OK
     data = response.json()
@@ -91,7 +91,7 @@ async def test_read_audit_logs_filter_by_record_id(logged_client, session):
     await create_audit_log(session, user, record_id=target_id)
     await create_audit_log(session, user, record_id=uuid.uuid4())
 
-    response = client.get('/audit-log/', params={'record_id': str(target_id)})
+    response = client.get('/audit-log, params={'record_id': str(target_id)})
 
     assert response.status_code == HTTPStatus.OK
     data = response.json()
@@ -109,7 +109,7 @@ async def test_read_audit_logs_filter_by_user_id(
     await create_audit_log(session, user1, action='U1_ACTION')
     await create_audit_log(session, user2, action='U2_ACTION')
 
-    response = client.get('/audit-log/', params={'user_id': str(user1.id)})
+    response = client.get('/audit-log, params={'user_id': str(user1.id)})
 
     assert response.status_code == HTTPStatus.OK
     data = response.json()
@@ -133,14 +133,14 @@ async def test_read_audit_logs_date_filter(
         log_future = await create_audit_log(session, user, action='FUTURE')
 
     response = client.get(
-        '/audit-log/', params={'created_from': '2024-01-01T00:00:00'}
+        '/audit-log, params={'created_from': '2024-01-01T00:00:00'}
     )
     data = response.json()
     assert len(data['audit_logs']) == 1
     assert data['audit_logs'][0]['id'] == str(log_future.id)
 
     response = client.get(
-        '/audit-log/', params={'created_to': '2024-01-01T00:00:00'}
+        '/audit-log, params={'created_to': '2024-01-01T00:00:00'}
     )
     data = response.json()
     assert len(data['audit_logs']) == 1
@@ -154,11 +154,11 @@ async def test_read_audit_logs_pagination(logged_client, session):
     for i in range(15):
         await create_audit_log(session, user, action=f'ACTION_{i}')
 
-    response = client.get('/audit-log/', params={'limit': 10, 'offset': 0})
+    response = client.get('/audit-log, params={'limit': 10, 'offset': 0})
     data = response.json()
     assert len(data['audit_logs']) == 10
 
-    response = client.get('/audit-log/', params={'limit': 10, 'offset': 10})
+    response = client.get('/audit-log, params={'limit': 10, 'offset': 10})
     data = response.json()
     assert len(data['audit_logs']) == 5
 
@@ -176,12 +176,12 @@ async def test_read_audit_logs_ordering(logged_client, session, mock_db_time):
     with mock_db_time(model=AuditLog, time=t2):
         log_new = await create_audit_log(session, user, action='NEW')
 
-    response = client.get('/audit-log/', params={'order': 'desc'})
+    response = client.get('/audit-log, params={'order': 'desc'})
     data = response.json()
     assert data['audit_logs'][0]['id'] == str(log_new.id)
     assert data['audit_logs'][1]['id'] == str(log_old.id)
 
-    response = client.get('/audit-log/', params={'order': 'asc'})
+    response = client.get('/audit-log, params={'order': 'asc'})
     data = response.json()
     assert data['audit_logs'][0]['id'] == str(log_old.id)
     assert data['audit_logs'][1]['id'] == str(log_new.id)

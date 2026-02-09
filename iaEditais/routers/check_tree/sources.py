@@ -29,7 +29,7 @@ router = APIRouter(
 UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
 
 
-@router.post('/', status_code=HTTPStatus.CREATED, response_model=SourcePublic)
+@router.post('', status_code=HTTPStatus.CREATED, response_model=SourcePublic)
 async def create_source(
     source: SourceCreate,
     session: Session,
@@ -73,7 +73,7 @@ async def create_source(
     return db_source
 
 
-@router.get('/', response_model=SourceList)
+@router.get('', response_model=SourceList)
 async def read_sources(
     session: Session, filters: Annotated[FilterPage, Depends()]
 ):
@@ -156,7 +156,7 @@ async def read_source(source_id: UUID, session: Session):
     return source
 
 
-@router.put('/', response_model=SourcePublic)
+@router.put('', response_model=SourcePublic)
 async def update_source(
     source: SourceUpdate,
     session: Session,

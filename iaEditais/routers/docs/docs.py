@@ -28,9 +28,7 @@ from iaEditais.services import audit_service
 router = APIRouter(prefix='/doc', tags=['verificação dos documentos, editais'])
 
 
-@router.post(
-    '/', status_code=HTTPStatus.CREATED, response_model=DocumentPublic
-)
+@router.post('', status_code=HTTPStatus.CREATED, response_model=DocumentPublic)
 async def create_doc(
     doc: DocumentCreate, session: Session, current_user: CurrentUser
 ):
@@ -94,7 +92,7 @@ async def create_doc(
     return db_doc
 
 
-@router.get('/', response_model=DocumentList)
+@router.get('', response_model=DocumentList)
 async def read_docs(
     session: Session, filters: Annotated[DocumentFilter, Depends()]
 ):
@@ -143,7 +141,7 @@ async def read_doc(doc_id: UUID, session: Session):
     return doc
 
 
-@router.put('/', response_model=DocumentPublic)
+@router.put('', response_model=DocumentPublic)
 async def update_doc(
     doc: DocumentUpdate, session: Session, current_user: CurrentUser
 ):

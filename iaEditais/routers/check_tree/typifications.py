@@ -30,7 +30,7 @@ router = APIRouter(
 
 
 @router.post(
-    '/',
+    '',
     status_code=HTTPStatus.CREATED,
     response_model=TypificationPublic,
 )
@@ -97,7 +97,7 @@ async def create_typification(
     return db_typification
 
 
-@router.get('/', response_model=TypificationList)
+@router.get('', response_model=TypificationList)
 async def read_typifications(
     session: Session, filters: Annotated[FilterPage, Depends()]
 ):
@@ -125,7 +125,7 @@ async def read_typification(typification_id: UUID, session: Session):
     return typification
 
 
-@router.put('/', response_model=TypificationPublic)
+@router.put('', response_model=TypificationPublic)
 async def update_typification(
     typification: TypificationUpdate,
     session: Session,

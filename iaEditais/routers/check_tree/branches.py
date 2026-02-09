@@ -23,7 +23,7 @@ router = APIRouter(
 
 
 @router.post(
-    '/',
+    '',
     status_code=HTTPStatus.CREATED,
     response_model=BranchPublic,
 )
@@ -78,7 +78,7 @@ async def create_branch(
     return db_branch
 
 
-@router.get('/', response_model=BranchList)
+@router.get('', response_model=BranchList)
 async def read_branches(
     session: Session, filters: Annotated[BranchFilter, Depends()]
 ):
@@ -115,7 +115,7 @@ async def read_branch(branch_id: UUID, session: Session):
     return branch
 
 
-@router.put('/', response_model=BranchPublic)
+@router.put('', response_model=BranchPublic)
 async def update_branch(
     branch: BranchUpdate,
     session: Session,

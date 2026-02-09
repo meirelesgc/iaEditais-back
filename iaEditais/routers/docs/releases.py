@@ -28,7 +28,7 @@ router = APIRouter(
 
 
 @router.post(
-    '/',
+    '',
     status_code=HTTPStatus.CREATED,
     response_model=DocumentReleasePublic,
 )
@@ -82,7 +82,7 @@ async def create_release(
     return db_release
 
 
-@router.get('/', response_model=DocumentReleaseList)
+@router.get('', response_model=DocumentReleaseList)
 async def read_releases(doc_id: UUID, session: Session):
     query = (
         select(DocumentRelease)

@@ -27,9 +27,7 @@ router = APIRouter(
 )
 
 
-@router.post(
-    '/', status_code=HTTPStatus.CREATED, response_model=TaxonomyPublic
-)
+@router.post('', status_code=HTTPStatus.CREATED, response_model=TaxonomyPublic)
 async def create_taxonomy(
     taxonomy: TaxonomyCreate,
     session: Session,
@@ -102,7 +100,7 @@ async def create_taxonomy(
     return db_taxonomy
 
 
-@router.get('/', response_model=TaxonomyList)
+@router.get('', response_model=TaxonomyList)
 async def read_taxonomies(
     session: Session, filters: Annotated[FilterPage, Depends()]
 ):
@@ -133,7 +131,7 @@ async def read_taxonomy(taxonomy_id: UUID, session: Session):
     return taxonomy
 
 
-@router.put('/', response_model=TaxonomyPublic)
+@router.put('', response_model=TaxonomyPublic)
 async def update_taxonomy(
     taxonomy: TaxonomyUpdate,
     session: Session,

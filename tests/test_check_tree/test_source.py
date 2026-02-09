@@ -11,7 +11,7 @@ from iaEditais.schemas import SourcePublic
 async def test_create_source(logged_client):
     client, *_ = await logged_client()
     response = client.post(
-        '/source/',
+        '/source,
         json={
             'name': 'Official Government Gazette',
             'description': 'Primary source for official announcements.',
@@ -32,7 +32,7 @@ async def test_create_source_conflict(logged_client, create_source):
     await create_source(name='Existing Source')
 
     response = client.post(
-        '/source/',
+        '/source,
         json={
             'name': 'Existing Source',
             'description': 'A duplicate entry.',
@@ -44,7 +44,7 @@ async def test_create_source_conflict(logged_client, create_source):
 
 
 def test_read_sources_empty(client):
-    response = client.get('/source/')
+    response = client.get('/source)
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'sources': []}
 
@@ -56,7 +56,7 @@ async def test_read_sources_with_data(client, create_source):
     )
     source_schema = SourcePublic.model_validate(source).model_dump(mode='json')
 
-    response = client.get('/source/')
+    response = client.get('/source)
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'sources': [source_schema]}
 
@@ -87,7 +87,7 @@ async def test_update_source(logged_client, create_source):
     )
 
     response = client.put(
-        '/source/',
+        '/source,
         json={
             'id': str(source.id),
             'name': 'New Name',
@@ -110,7 +110,7 @@ async def test_update_source_conflict(logged_client, create_source):
     )
 
     response = client.put(
-        '/source/',
+        '/source,
         json={
             'id': str(source_b.id),
             'name': 'Source A',
@@ -125,7 +125,7 @@ async def test_update_source_conflict(logged_client, create_source):
 async def test_update_nonexistent_source(logged_client):
     client, *_ = await logged_client()
     response = client.put(
-        '/source/',
+        '/source,
         json={
             'id': str(uuid.uuid4()),
             'name': 'Ghost Source',

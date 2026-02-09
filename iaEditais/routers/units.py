@@ -21,7 +21,7 @@ from iaEditais.services import (
 router = APIRouter(prefix='/unit', tags=['operações de sistema, unidades'])
 
 
-@router.post('/', status_code=HTTPStatus.CREATED, response_model=UnitPublic)
+@router.post('', status_code=HTTPStatus.CREATED, response_model=UnitPublic)
 async def create_unit(
     unit: UnitCreate,
     session: Session,
@@ -63,7 +63,7 @@ async def create_unit(
     return db_unit
 
 
-@router.get('/', response_model=UnitList)
+@router.get('', response_model=UnitList)
 async def read_units(
     session: Session, filter_units: Annotated[FilterPage, Depends()]
 ):
@@ -94,7 +94,7 @@ async def read_unit(unit_id: UUID, session: Session):
     return unit
 
 
-@router.put('/', response_model=UnitPublic)
+@router.put('', response_model=UnitPublic)
 async def update_unit(
     unit: UnitUpdate,
     session: Session,
