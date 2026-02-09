@@ -20,7 +20,7 @@ async def publish_password_reset_notification(
 
     payload = {'user_ids': [user.id], 'message_text': message_text}
 
-    await broker.publish(payload, 'notifications_send_message')
+    await broker.publish(payload, 'send_message')
 
     return {'status': 'published'}
 
@@ -44,7 +44,7 @@ async def publish_user_welcome_notification(
 
     payload = {'user_ids': [user.id], 'message_text': message_text}
 
-    await broker.publish(payload, 'notifications_send_message')
+    await broker.publish(payload, 'send_message')
 
     return {'status': 'published'}
 
@@ -85,6 +85,6 @@ async def publish_test_whatsapp_notification(user: User, broker: RabbitBroker):
 
     payload = {'user_ids': [user.id], 'message_text': message_text}
 
-    await broker.publish(payload, 'notifications_send_message')
+    await broker.publish(payload, 'send_message')
 
     return {'status': 'published', 'detail': 'Test message queued'}
