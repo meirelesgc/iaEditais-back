@@ -11,9 +11,6 @@ from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
 
 
 def get_custom_styles():
-    """
-    Define estilos personalizados com alinhamento justificado onde aplicável.
-    """
     styles = getSampleStyleSheet()
 
     styles.add(
@@ -261,4 +258,164 @@ def typification_report(
         return str(filepath)
     except Exception as e:
         print(f'Erro ao gerar PDF: {e}')
+        return None
+
+
+def create_release_header_info(data, styles):
+    elements = []
+
+    elements.append(
+        Paragraph(
+            'Relatório de Avaliação do Edital (Check Tree)',
+            styles['MainTitle'],
+        )
+    )
+
+    elements.append(
+        Paragraph('Informações do Documento:', styles['SectionHeader'])
+    )
+
+    description = data.get('description')
+    if description:
+        desc_style = ParagraphStyle(
+            name='ReleaseDesc',
+            parent=styles['CustomNormal'],
+            leftIndent=15,
+            alignment=TA_JUSTIFY,
+        )
+        elements.append(
+            Paragraph(f'<b>Descrição:</b> {description}', desc_style)
+        )
+        elements.append(Spacer(1, 6))
+
+    created_at = data.get('created_at', str(datetime.now()))
+    if 'T' in str(created_at):
+        created_at = str(created_at).split('T')[0]
+
+    elements.append(
+        Paragraph(
+            f'<bullet>&bull;</bullet> <b>Criado em:</b> {created_at}',
+            styles['BulletItem'],
+        )
+    )
+
+    elements.append(Spacer(1, 12))
+    elements.append(draw_horizontal_line())
+    elements.append(Spacer(1, 12))
+
+    return elements
+
+
+def create_evaluation_item(branch, styles):
+    elements = []
+
+    title = branch.get('title', 'Sem título')
+    evaluation = branch.get('evaluation') or {}
+    fulfilled = evaluation.get('fulfilled')
+    score = evaluation.get('score', '-')
+    feedback = evaluation.get('feedback', '')
+
+    status = (
+        'Cumprido'
+        if fulfilled is True
+        else 'Não cumprido'
+        if fulfilled is False
+        else 'Indefinido'
+    )
+
+    elements.append(
+        Paragraph(
+            f'<bullet>&bull;</bullet> <b>{title}</b> — <b>Status:</b> {status} — <b>Nota:</b> {score}',
+            styles['BulletItem'],
+        )
+    )
+
+    if feedback:
+        feedback_style = ParagraphStyle(
+            name='FeedbackItem',
+            parent=styles['CustomNormal'],
+            leftIndent=30,
+            alignment=TA_JUSTIFY,
+        )
+        elements.append(
+            Paragraph(f'<i>Parecer:</i> {feedback}', feedback_style)
+        )
+
+    elements.append(Spacer(1, 6))
+    return elements
+
+
+def create_release_check_tree_section(check_tree, styles):
+    elements = []
+
+    if not check_tree:
+        return elements
+
+    elements.append(
+        Paragraph('Resultados do Check Tree:', styles['SectionHeader'])
+    )
+
+    for idx_tip, tip in enumerate(check_tree):
+        tip_name = tip.get('name', 'Tipificação sem nome')
+        elements.append(Paragraph(tip_name, styles['TaxonomyTitle']))
+
+        tip_sources = tip.get('sources') or []
+        if tip_sources:
+            elements.extend(create_sources_section(tip_sources, styles))
+
+        taxonomies = tip.get('taxonomies') or []
+        for tax in taxonomies:
+            title = tax.get('title', 'Sem título')
+            description = tax.get('description', '')
+
+            elements.append(Paragraph(title, styles['SectionHeader']))
+            if description:
+                elements.append(
+                    Paragraph(description, styles['ItalicDescription'])
+                )
+
+            tax_sources = tax.get('sources') or []
+            if tax_sources:
+                elements.extend(create_sources_section(tax_sources, styles))
+
+            branches = tax.get('branches') or []
+            for b in branches:
+                elements.extend(create_evaluation_item(b, styles))
+
+        if idx_tip < len(check_tree) - 1:
+            elements.append(PageBreak())
+
+    return elements
+
+
+def document_release_report(
+    data: dict, output_dir: str = 'iaEditais/storage/temp'
+):
+    Path(output_dir).mkdir(parents=True, exist_ok=True)
+
+    today = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f'iaeditais_document_release_{today}.pdf'
+    filepath = Path(output_dir) / filename
+
+    pdf = SimpleDocTemplate(
+        str(filepath),
+        pagesize=A4,
+        topMargin=2 * cm,
+        leftMargin=2 * cm,
+        rightMargin=3 * cm,
+        bottomMargin=3 * cm,
+    )
+
+    styles = get_custom_styles()
+    content = []
+
+    content.extend(create_release_header_info(data, styles))
+    content.extend(
+        create_release_check_tree_section(data.get('check_tree', []), styles)
+    )
+
+    try:
+        pdf.build(content)
+        return str(filepath)
+    except Exception:
         return None

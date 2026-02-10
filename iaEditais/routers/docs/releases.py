@@ -2,6 +2,7 @@ from http import HTTPStatus
 from uuid import UUID, uuid4
 
 from fastapi import File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from faststream.rabbit.fastapi import RabbitRouter as APIRouter
 from sqlalchemy import select
 
@@ -17,6 +18,7 @@ from iaEditais.schemas import (
     DocumentReleasePublic,
 )
 from iaEditais.services import audit_service
+from iaEditais.services.report_service import document_release_report
 
 SETTINGS = Settings()
 BROKER_URL = SETTINGS.BROKER_URL
@@ -141,3 +143,33 @@ async def delete_release(
     await session.commit()
 
     return {'message': 'File deleted successfully'}
+
+
+@router.get('/{document_release_id}/export/pdf')
+async def exportar_document_release_pdf(
+    session: Session,
+    document_release_id: UUID,
+):
+    stmt = select(DocumentRelease).where(
+        DocumentRelease.id == document_release_id
+    )
+
+    obj = await session.scalar(stmt)
+
+    if not obj:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Document release not found',
+        )
+
+    payload = DocumentReleasePublic.model_validate(obj).model_dump()
+
+    report_path = document_release_report(payload)
+
+    if not report_path:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail='Could not generate PDF',
+        )
+
+    return FileResponse(report_path, filename=report_path.split('/')[-1])
