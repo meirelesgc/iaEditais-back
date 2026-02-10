@@ -297,3 +297,24 @@ async def test_delete_nonexistent_taxonomy(logged_client):
     response = client.delete(f'/taxonomy/{uuid.uuid4()}')
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == {'detail': 'Taxonomy not found'}
+
+
+@pytest.mark.asyncio
+async def test_read_taxonomies_with_typification_filter(
+    client, create_typification, create_taxonomy
+):
+    typification_a = await create_typification(name='Typification A')
+    taxonomy = await create_taxonomy(
+        title='Taxonomy A', typification_id=typification_a.id
+    )
+    typification_b = await create_typification(name='Typification B')
+    taxonomy = await create_taxonomy(
+        title='Taxonomy B', typification_id=typification_b.id
+    )
+    taxonomy_schema = TaxonomyPublic.model_validate(taxonomy).model_dump(
+        mode='json'
+    )
+    params = {'typification_id': typification_b.id}
+    response = client.get('/taxonomy', params=params)
+    assert response.status_code == HTTPStatus.OK
+    assert response.json() == {'taxonomies': [taxonomy_schema]}

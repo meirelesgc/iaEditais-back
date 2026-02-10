@@ -43,3 +43,4 @@ class TaxonomyList(BaseModel):
 
 class TaxonomyFilter(FilterPage):
     q: Optional[str] = None
+    typification_id: Optional[UUID] = None

@@ -107,6 +107,11 @@ async def read_taxonomies(
 ):
     query = select(Taxonomy).order_by(Taxonomy.created_at.desc())
 
+    if filters.typification_id:
+        query = query.where(
+            Taxonomy.typification_id == filters.typification_id
+        )
+
     if filters.q:
         query = util.apply_text_search(query, Taxonomy, filters.q)
 
