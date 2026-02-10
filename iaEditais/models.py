@@ -3,8 +3,18 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import ForeignKey, Index, Text, column, func
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import (  # Adicionar Computed
+    Computed,
+    ForeignKey,
+    Index,
+    Text,
+    column,
+    func,
+)
+from sqlalchemy.dialects.postgresql import (
+    JSONB,
+    TSVECTOR,
+)
 from sqlalchemy.orm import (
     Mapped,
     declared_attr,
@@ -94,6 +104,17 @@ class Unit(AuditMixin):
     name: Mapped[str] = mapped_column(nullable=False)
     location: Mapped[Optional[str]] = mapped_column(default=None)
 
+    tsv: Mapped[TSVECTOR] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "setweight(to_tsvector('portuguese', name), 'A') || "
+            "setweight(to_tsvector('portuguese', coalesce(location, '')), 'B')",
+            persisted=True,
+        ),
+        init=False,
+        deferred=True,
+    )
+
     users: Mapped[List['User']] = relationship(
         back_populates='unit',
         default_factory=list,
@@ -116,6 +137,11 @@ class Unit(AuditMixin):
             unique=True,
             postgresql_where=(column('deleted_at').is_(None)),
         ),
+        Index(
+            'ix_units_tsv',
+            'tsv',
+            postgresql_using='gin',
+        ),
     )
 
 
@@ -135,6 +161,16 @@ class User(AuditMixin):
     email: Mapped[str] = mapped_column()
     password: Mapped[str]
     access_level: Mapped[str] = mapped_column(default=AccessType.DEFAULT)
+
+    tsv: Mapped[TSVECTOR] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "setweight(to_tsvector('simple', username), 'A')",
+            persisted=True,
+        ),
+        init=False,
+        deferred=True,
+    )
 
     unit_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey('units.id', name='fk_user_unit_id'),
@@ -179,6 +215,11 @@ class User(AuditMixin):
             unique=True,
             postgresql_where=(column('deleted_at').is_(None)),
         ),
+        Index(
+            'ix_users_tsv',
+            'tsv',
+            postgresql_using='gin',
+        ),
     )
 
 
@@ -218,6 +259,18 @@ class Source(AuditMixin):
     name: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str]
     file_path: Mapped[str] = mapped_column(nullable=True, init=False)
+
+    tsv: Mapped[TSVECTOR] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('portuguese', name) || "
+            "to_tsvector('portuguese', coalesce(description, ''))",
+            persisted=True,
+        ),
+        init=False,
+        deferred=True,
+    )
+
     typifications: Mapped[List['Typification']] = relationship(
         'Typification',
         lazy='noload',
@@ -242,6 +295,11 @@ class Source(AuditMixin):
             unique=True,
             postgresql_where=(column('deleted_at').is_(None)),
         ),
+        Index(
+            'ix_sources_tsv',
+            'tsv',
+            postgresql_using='gin',
+        ),
     )
 
 
@@ -255,6 +313,16 @@ class Typification(AuditMixin):
         default_factory=uuid4,
     )
     name: Mapped[str] = mapped_column(nullable=False)
+
+    tsv: Mapped[TSVECTOR] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('portuguese', name)",
+            persisted=True,
+        ),
+        init=False,
+        deferred=True,
+    )
 
     sources: Mapped[List[Source]] = relationship(
         'Source',
@@ -285,6 +353,11 @@ class Typification(AuditMixin):
             'name',
             unique=True,
             postgresql_where=(column('deleted_at').is_(None)),
+        ),
+        Index(
+            'ix_typifications_tsv',
+            'tsv',
+            postgresql_using='gin',
         ),
     )
 
@@ -325,6 +398,17 @@ class Taxonomy(AuditMixin):
     title: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str] = mapped_column()
 
+    tsv: Mapped[TSVECTOR] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('portuguese', title) || "
+            "to_tsvector('portuguese', coalesce(description, ''))",
+            persisted=True,
+        ),
+        init=False,
+        deferred=True,
+    )
+
     typification_id: Mapped[UUID] = mapped_column(
         ForeignKey('typifications.id', name='fk_taxonomy_typification_id'),
         nullable=False,
@@ -355,6 +439,11 @@ class Taxonomy(AuditMixin):
             unique=True,
             postgresql_where=(column('deleted_at').is_(None)),
         ),
+        Index(
+            'ix_taxonomies_tsv',
+            'tsv',
+            postgresql_using='gin',
+        ),
     )
 
 
@@ -371,6 +460,17 @@ class Branch(AuditMixin):
     title: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str]
 
+    tsv: Mapped[TSVECTOR] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('portuguese', title) || "
+            "to_tsvector('portuguese', coalesce(description, ''))",
+            persisted=True,
+        ),
+        init=False,
+        deferred=True,
+    )
+
     taxonomy_id: Mapped[UUID] = mapped_column(
         ForeignKey('taxonomies.id', name='fk_branch_taxonomy_id'),
         nullable=False,
@@ -385,6 +485,11 @@ class Branch(AuditMixin):
             'title',
             unique=True,
             postgresql_where=(column('deleted_at').is_(None)),
+        ),
+        Index(
+            'ix_branches_tsv',
+            'tsv',
+            postgresql_using='gin',
         ),
     )
 
@@ -447,6 +552,18 @@ class Document(AuditMixin):
     identifier: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str]
 
+    tsv: Mapped[TSVECTOR] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('portuguese', name) || "
+            "to_tsvector('portuguese', identifier) || "
+            "to_tsvector('portuguese', coalesce(description, ''))",
+            persisted=True,
+        ),
+        init=False,
+        deferred=True,
+    )
+
     unit_id: Mapped[UUID] = mapped_column(
         ForeignKey('units.id'), nullable=False
     )
@@ -499,6 +616,11 @@ class Document(AuditMixin):
             'identifier',
             unique=True,
             postgresql_where=(column('deleted_at').is_(None)),
+        ),
+        Index(
+            'ix_documents_tsv',
+            'tsv',
+            postgresql_using='gin',
         ),
     )
 

@@ -35,6 +35,10 @@ class NotifyTarget(str, Enum):
 NOTIFICATION_RULES: dict[
     DocumentStatus, dict[str, bool | NotifyTarget | list[NotifyTarget]]
 ] = {
+    DocumentStatus.PENDING: {
+        'enabled': False,
+        'targets': [],
+    },
     DocumentStatus.UNDER_CONSTRUCTION: {
         'enabled': True,
         'targets': [NotifyTarget.EDITORS],
@@ -43,13 +47,9 @@ NOTIFICATION_RULES: dict[
         'enabled': True,
         'targets': [NotifyTarget.CREATOR, NotifyTarget.UNIT_AUDITORS],
     },
-    DocumentStatus.PENDING: {
-        'enabled': False,
-        'targets': [],
-    },
     DocumentStatus.COMPLETED: {
-        'enabled': False,
-        'targets': [],
+        'enabled': True,
+        'targets': [NotifyTarget.EDITORS],
     },
 }
 

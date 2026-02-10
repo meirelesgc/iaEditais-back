@@ -4,6 +4,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from iaEditais.schemas.common import FilterPage
 from iaEditais.schemas.source import SourcePublic
 from iaEditais.schemas.taxonomy import TaxonomyPublic
 
@@ -34,3 +35,7 @@ class TypificationPublic(TypificationSchema):
 
 class TypificationList(BaseModel):
     typifications: list[TypificationPublic]
+
+
+class TypificationFilter(FilterPage):
+    q: Optional[str] = None

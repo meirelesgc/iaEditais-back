@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
 
+from iaEditais.schemas.common import FilterPage
+
 
 class SourceSchema(BaseModel):
     name: str
@@ -30,3 +32,7 @@ class SourcePublic(SourceSchema):
 
 class SourceList(BaseModel):
     sources: list[SourcePublic]
+
+
+class SourceFilter(FilterPage):
+    q: Optional[str] = None

@@ -13,6 +13,7 @@ from iaEditais.models import (
     Typification,
     User,
 )
+from iaEditais.repositories import util
 from iaEditais.schemas import (
     DocumentCreate,
     DocumentFilter,
@@ -118,6 +119,9 @@ async def read_docs(
 
     if filters.archived is not None:
         query = query.where(Document.is_archived == filters.archived)
+
+    if filters.q:
+        query = util.apply_text_search(query, Document, filters.q)
 
     query = query.offset(filters.offset).limit(filters.limit)
 

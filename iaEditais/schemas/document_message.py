@@ -13,7 +13,6 @@ class MessageEntityType(str, Enum):
     USER = 'USER'
     MESSAGE = 'MESSAGE'
     SOURCE = 'SOURCE'
-
     TYPIFICATION = 'TYPIFICATION'
     TAXONOMY = 'TAXONOMY'
     BRANCH = 'BRANCH'

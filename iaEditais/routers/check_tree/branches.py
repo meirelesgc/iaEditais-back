@@ -7,6 +7,7 @@ from sqlalchemy import select
 
 from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import Branch, Taxonomy
+from iaEditais.repositories import util
 from iaEditais.schemas import (
     BranchCreate,
     BranchFilter,
@@ -82,14 +83,13 @@ async def create_branch(
 async def read_branches(
     session: Session, filters: Annotated[BranchFilter, Depends()]
 ):
-    query = (
-        select(Branch)
-        .where(Branch.deleted_at.is_(None))
-        .order_by(Branch.created_at.desc())
-    )
+    query = select(Branch).order_by(Branch.created_at.desc())
 
     if filters.taxonomy_id:
         query = query.where(Branch.taxonomy_id == filters.taxonomy_id)
+
+    if filters.q:
+        query = util.apply_text_search(query, Branch, filters.q)
 
     query = query.offset(filters.offset).limit(filters.limit)
 
@@ -137,7 +137,6 @@ async def update_branch(
     if title_changed or taxonomy_changed:
         db_branch_conflict = await session.scalar(
             select(Branch).where(
-                Branch.deleted_at.is_(None),
                 Branch.title == branch.title,
                 Branch.taxonomy_id == branch.taxonomy_id,
                 Branch.id != branch.id,

@@ -7,9 +7,10 @@ from sqlalchemy import select
 
 from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.models import Unit
+from iaEditais.repositories import util
 from iaEditais.schemas import (
-    FilterPage,
     UnitCreate,
+    UnitFilter,
     UnitList,
     UnitPublic,
     UnitUpdate,
@@ -65,17 +66,18 @@ async def create_unit(
 
 @router.get('', response_model=UnitList)
 async def read_units(
-    session: Session, filter_units: Annotated[FilterPage, Depends()]
+    session: Session, filters: Annotated[UnitFilter, Depends()]
 ):
-    query = await session.scalars(
-        select(Unit)
-        .where(Unit.deleted_at.is_(None))
-        .order_by(Unit.created_at.desc())
-        .offset(filter_units.offset)
-        .limit(filter_units.limit)
-    )
+    query = select(Unit).order_by(Unit.created_at.desc())
 
-    units = query.all()
+    if filters.q:
+        query = util.apply_text_search(query, Unit, filters.q)
+
+    query = query.offset(filters.offset).limit(filters.limit)
+
+    result = await session.scalars(query)
+    units = result.all()
+
     return {'units': units}
 
 
