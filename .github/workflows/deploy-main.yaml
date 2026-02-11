@@ -6,6 +6,7 @@ on:
 
 env:
   IMAGE_NAME: gleidsoncosta/fiotec-iaeditais
+  DATABASE_URL: postgresql+psycopg://postgres:postgres@iaeditais_db:5432/iaeditais
 
 jobs:
   tests:
@@ -65,7 +66,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             set -euo pipefail
-            cd /home/${{ secrets.USERNAME }}/app/prod/iaEditais-back
+            cd /home/${{ secrets.USERNAME }}/apps/prod/iaEditais-back
             git pull --ff-only
             docker compose pull iaeditais_api
             docker compose up -d --force-recreate iaeditais_api
