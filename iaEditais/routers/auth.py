@@ -68,7 +68,7 @@ async def login_for_access_token(form_data: OAuth2Form, session: Session):
     )
     await session.commit()
 
-    access_token = create_access_token(data={'sub': user.email})
+    access_token = create_access_token(data={'sub': user.id})
     return {'access_token': access_token, 'token_type': 'bearer'}
 
 
@@ -84,7 +84,7 @@ async def refresh_access_token(user: CurrentUser, session: Session):
     )
     await session.commit()
 
-    new_access_token = create_access_token(data={'sub': user.email})
+    new_access_token = create_access_token(data={'sub': user.id})
     return {'access_token': new_access_token, 'token_type': 'bearer'}
 
 
@@ -116,7 +116,7 @@ async def sign_in_for_cookie(
     )
     await session.commit()
 
-    access_token = create_access_token(data={'sub': user.email})
+    access_token = create_access_token(data={'sub': user.id})
 
     max_age = SETTINGS.ACCESS_TOKEN_EXPIRE_MINUTES * 60
 
