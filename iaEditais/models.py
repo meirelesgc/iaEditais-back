@@ -434,8 +434,9 @@ class Taxonomy(AuditMixin):
 
     __table_args__ = (
         Index(
-            'ix_uq_taxonomies_title_active',
+            'ix_uq_taxonomies_typification_title_active',
             'title',
+            'typification_id',
             unique=True,
             postgresql_where=(column('deleted_at').is_(None)),
         ),

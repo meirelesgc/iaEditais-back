@@ -28,6 +28,36 @@ async def test_create_taxonomy(logged_client, create_typification):
 
 
 @pytest.mark.asyncio
+async def test_create_taxonomy_with_same_name_other_typification(
+    logged_client, create_typification, create_taxonomy
+):
+    client, *_ = await logged_client()
+    typification_a = await create_typification(
+        name='Typification A for Taxonomy'
+    )
+    await create_taxonomy(title='Taxonomy', typification_id=typification_a.id)
+
+    typification_b = await create_typification(
+        name='Typification B for Taxonomy'
+    )
+    response = client.post(
+        '/taxonomy',
+        json={
+            'title': 'Taxonomy',
+            'description': 'A detailed description.',
+            'typification_id': str(typification_b.id),
+            'source_ids': [],
+        },
+    )
+
+    assert response.status_code == HTTPStatus.CREATED
+    data = response.json()
+    assert data['title'] == 'Taxonomy'
+    assert data['description'] == 'A detailed description.'
+    assert 'id' in data
+
+
+@pytest.mark.asyncio
 async def test_create_taxonomy_with_source(
     logged_client, create_typification, create_source
 ):
