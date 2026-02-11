@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from uuid import uuid4
 
 import pytest
 
@@ -69,7 +70,7 @@ async def test_refresh_token_invalid_signature(client):
 
 @pytest.mark.asyncio
 async def test_refresh_token_user_not_found(client):
-    token = create_access_token({'sub': 'nonexistent@example.com'})
+    token = create_access_token({'sub': str(uuid4())})
     response = client.post(
         '/auth/refresh_token', headers={'Authorization': f'Bearer {token}'}
     )
