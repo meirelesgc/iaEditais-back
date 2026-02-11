@@ -481,7 +481,8 @@ class Branch(AuditMixin):
 
     __table_args__ = (
         Index(
-            'ix_uq_branch_title_active',
+            'ix_uq_branch_taxonomy_title_active',
+            'taxonomy_id',
             'title',
             unique=True,
             postgresql_where=(column('deleted_at').is_(None)),

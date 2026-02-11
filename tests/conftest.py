@@ -230,7 +230,7 @@ def logged_client(client, create_user, create_unit):
         user = await create_user(
             email=email, password=password, unit_id=str(unit.id), **user_kwargs
         )
-        token = create_access_token({'sub': user.email})
+        token = create_access_token({'sub': user.id})
         client.cookies.set(SETTINGS.ACCESS_TOKEN_COOKIE_NAME, token, path='/')
         auth_headers = {'Authorization': f'Bearer {token}'}
         return client, token, auth_headers, user

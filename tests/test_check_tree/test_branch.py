@@ -32,6 +32,37 @@ async def test_create_branch(
 
 
 @pytest.mark.asyncio
+async def test_create_branch_with_other_tax(
+    logged_client, create_typification, create_taxonomy, create_branch
+):
+    client, *_ = await logged_client()
+    typification = await create_typification(name='Typification for Branch')
+    taxonomy_a = await create_taxonomy(
+        title='Taxonomy A', typification_id=typification.id
+    )
+    await create_branch(title='Branch A', taxonomy_id=taxonomy_a.id)
+
+    taxonomy_b = await create_taxonomy(
+        title='Taxonomy B', typification_id=typification.id
+    )
+
+    response = client.post(
+        '/branch',
+        json={
+            'title': 'Branch A',
+            'description': 'A branch description.',
+            'taxonomy_id': str(taxonomy_b.id),
+        },
+    )
+
+    assert response.status_code == HTTPStatus.CREATED
+    data = response.json()
+    assert data['title'] == 'Branch A'
+    assert data['description'] == 'A branch description.'
+    assert 'id' in data
+
+
+@pytest.mark.asyncio
 async def test_create_branch_conflict(
     logged_client, create_typification, create_taxonomy, create_branch
 ):
