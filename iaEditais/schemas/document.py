@@ -1,4 +1,5 @@
 from datetime import datetime
+from enum import Enum
 from typing import Optional
 from uuid import UUID
 
@@ -7,6 +8,13 @@ from pydantic import BaseModel, ConfigDict
 from .document_history import DocumentHistoryPublic
 from .typification import TypificationPublic
 from .user import UserFilter, UserPublic
+
+
+class DocumentProcessingStatus(str, Enum):
+    IDLE = 'IDLE'
+    QUEUED = 'QUEUED'
+    PROCESSING = 'PROCESSING'
+    FAILED = 'FAILED'
 
 
 class DocumentSchema(BaseModel):
@@ -33,6 +41,7 @@ class DocumentPublic(DocumentSchema):
     editors: list[UserPublic]
     created_at: datetime
     is_archived: bool
+    processing_status: DocumentProcessingStatus = DocumentProcessingStatus.IDLE
     updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 

@@ -10,6 +10,7 @@ from iaEditais.models import (
     User,
 )
 from iaEditais.schemas import AccessType
+from iaEditais.schemas.document import DocumentProcessingStatus
 
 
 class UnitFactory(factory.Factory):
@@ -70,3 +71,4 @@ class DocFactory(factory.Factory):
     name = factory.Sequence(lambda n: f'Documento de Teste {n}')
     identifier = factory.Sequence(lambda n: f'Identificador de Teste {n}')
     description = factory.Faker('paragraph', nb_sentences=3, locale='pt_BR')
+    processing_status = DocumentProcessingStatus.IDLE

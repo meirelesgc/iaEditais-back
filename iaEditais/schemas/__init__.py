@@ -12,6 +12,7 @@ from .document import (
     DocumentCreate,
     DocumentFilter,
     DocumentList,
+    DocumentProcessingStatus,
     DocumentPublic,
     DocumentSchema,
     DocumentUpdate,
@@ -101,7 +102,7 @@ __all__ = [
     'DocumentUpdate',
     'DocumentHistoryPublic',
     'DocumentHistorySchema',
-    'DocumentStatus',
+    'DocumentProcessingStatus',
     'DocumentMessageCreate',
     'DocumentMessagePublic',
     'AppliedBranchPublic',
@@ -154,4 +155,6 @@ __all__ = [
     'TypificationFilter',
     'TaxonomyFilter',
     'BranchFilter',
+    'DocumentProcessingStatus',
+    'DocumentStatus',
 ]

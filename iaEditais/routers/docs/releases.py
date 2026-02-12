@@ -17,6 +17,7 @@ from iaEditais.schemas import (
     DocumentReleaseList,
     DocumentReleasePublic,
 )
+from iaEditais.schemas.document import DocumentProcessingStatus
 from iaEditais.services import audit_service
 from iaEditais.services.report_service import document_release_report
 
@@ -67,6 +68,8 @@ async def create_release(
     )
 
     session.add(db_release)
+    db_doc.processing_status = DocumentProcessingStatus.QUEUED
+
     await session.flush()
     await session.refresh(db_release)
 

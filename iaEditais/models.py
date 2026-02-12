@@ -553,6 +553,7 @@ class Document(AuditMixin):
     name: Mapped[str] = mapped_column(nullable=False)
     identifier: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str]
+    processing_status: Mapped[str]
 
     tsv: Mapped[TSVECTOR] = mapped_column(
         TSVECTOR,

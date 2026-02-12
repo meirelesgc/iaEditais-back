@@ -18,6 +18,7 @@ from iaEditais.schemas import (
     DocumentCreate,
     DocumentFilter,
     DocumentList,
+    DocumentProcessingStatus,
     DocumentPublic,
     DocumentStatus,
     DocumentUpdate,
@@ -49,6 +50,7 @@ async def create_doc(
         description=doc.description,
         identifier=doc.identifier,
         unit_id=current_user.unit_id,
+        processing_status=DocumentProcessingStatus.IDLE,
     )
 
     db_doc.set_creation_audit(current_user.id)
