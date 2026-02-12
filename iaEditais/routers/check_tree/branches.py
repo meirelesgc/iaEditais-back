@@ -2,12 +2,9 @@ from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends
 
 from iaEditais.core.dependencies import CurrentUser, Session
-from iaEditais.models import Branch, Taxonomy
-from iaEditais.repositories import util
 from iaEditais.schemas import (
     BranchCreate,
     BranchFilter,
@@ -15,7 +12,7 @@ from iaEditais.schemas import (
     BranchPublic,
     BranchUpdate,
 )
-from iaEditais.services import audit_service
+from iaEditais.services import branch_service
 
 router = APIRouter(
     prefix='/branch',
@@ -33,86 +30,20 @@ async def create_branch(
     session: Session,
     current_user: CurrentUser,
 ):
-    db_branch = await session.scalar(
-        select(Branch).where(
-            Branch.title == branch.title,
-            Branch.taxonomy_id == branch.taxonomy_id,
-        )
-    )
-
-    if db_branch:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Branch title already exists for this taxonomy',
-        )
-
-    taxonomy = await session.get(Taxonomy, branch.taxonomy_id)
-    if not taxonomy or taxonomy.deleted_at:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Taxonomy not found',
-        )
-
-    db_branch = Branch(
-        title=branch.title,
-        description=branch.description,
-        taxonomy_id=branch.taxonomy_id,
-    )
-
-    db_branch.set_creation_audit(current_user.id)
-
-    session.add(db_branch)
-    await session.flush()
-
-    await audit_service.register_action(
-        session=session,
-        user_id=current_user.id,
-        action='CREATE',
-        table_name=Branch.__tablename__,
-        record_id=db_branch.id,
-        old_data=None,
-    )
-
-    await session.commit()
-    await session.refresh(db_branch)
-
-    return db_branch
+    return await branch_service.create_branch(session, current_user.id, branch)
 
 
 @router.get('', response_model=BranchList)
 async def read_branches(
     session: Session, filters: Annotated[BranchFilter, Depends()]
 ):
-    query = select(Branch).order_by(Branch.created_at.desc())
-
-    if filters.taxonomy_id:
-        query = query.where(Branch.taxonomy_id == filters.taxonomy_id)
-
-    if filters.q:
-        query = util.apply_text_search(query, Branch, filters.q)
-
-    query = query.offset(filters.offset).limit(filters.limit)
-
-    result = await session.scalars(query)
-    branches = result.all()
-
+    branches = await branch_service.get_branches(session, filters)
     return {'branches': branches}
 
 
 @router.get('/{branch_id}', response_model=BranchPublic)
 async def read_branch(branch_id: UUID, session: Session):
-    result = await session.execute(
-        select(Branch).where(Branch.id == branch_id)
-    )
-    branch = result.scalar_one_or_none()
-
-    if not branch or branch.deleted_at:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Branch not found',
-        )
-
-    return branch
+    return await branch_service.get_branch_by_id(session, branch_id)
 
 
 @router.put('', response_model=BranchPublic)
@@ -121,62 +52,7 @@ async def update_branch(
     session: Session,
     current_user: CurrentUser,
 ):
-    db_branch = await session.get(Branch, branch.id)
-
-    if not db_branch or db_branch.deleted_at:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Branch not found',
-        )
-
-    old_data = BranchPublic.model_validate(db_branch).model_dump(mode='json')
-
-    title_changed = branch.title != db_branch.title
-    taxonomy_changed = branch.taxonomy_id != db_branch.taxonomy_id
-
-    if title_changed or taxonomy_changed:
-        db_branch_conflict = await session.scalar(
-            select(Branch).where(
-                Branch.title == branch.title,
-                Branch.taxonomy_id == branch.taxonomy_id,
-                Branch.id != branch.id,
-            )
-        )
-        if db_branch_conflict:
-            raise HTTPException(
-                status_code=HTTPStatus.CONFLICT,
-                detail='Branch title already exists for this taxonomy',
-            )
-
-    if branch.taxonomy_id != db_branch.taxonomy_id:
-        taxonomy = await session.get(Taxonomy, branch.taxonomy_id)
-        if not taxonomy or taxonomy.deleted_at:
-            raise HTTPException(
-                status_code=HTTPStatus.NOT_FOUND,
-                detail='Taxonomy not found',
-            )
-
-    db_branch.title = branch.title
-    db_branch.description = branch.description
-    db_branch.taxonomy_id = branch.taxonomy_id
-
-    new_data = BranchPublic.model_validate(db_branch).model_dump(mode='json')
-
-    db_branch.set_update_audit(current_user.id)
-
-    await audit_service.register_action(
-        session=session,
-        user_id=current_user.id,
-        action='UPDATE',
-        table_name=Branch.__tablename__,
-        record_id=db_branch.id,
-        old_data=old_data,
-        new_data=new_data,
-    )
-
-    await session.commit()
-    await session.refresh(db_branch)
-    return db_branch
+    return await branch_service.update_branch(session, current_user.id, branch)
 
 
 @router.delete(
@@ -188,30 +64,5 @@ async def delete_branch(
     session: Session,
     current_user: CurrentUser,
 ):
-    result = await session.execute(
-        select(Branch).where(Branch.id == branch_id)
-    )
-    db_branch = result.scalar_one_or_none()
-
-    if not db_branch or db_branch.deleted_at:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Branch not found',
-        )
-
-    old_data = BranchPublic.model_validate(db_branch).model_dump(mode='json')
-
-    db_branch.set_deletion_audit(current_user.id)
-
-    await audit_service.register_action(
-        session=session,
-        user_id=current_user.id,
-        action='DELETE',
-        table_name=Branch.__tablename__,
-        record_id=db_branch.id,
-        old_data=old_data,
-    )
-
-    await session.commit()
-
+    await branch_service.delete_branch(session, current_user.id, branch_id)
     return {'message': 'Branch deleted'}

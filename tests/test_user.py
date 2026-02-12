@@ -220,7 +220,7 @@ async def test_add_icon_invalid_format(logged_client):
     )
 
     assert response.status_code == HTTPStatus.BAD_REQUEST
-    assert response.json()['detail'] == 'Invalid file format. Use PNG or JPG'
+    assert response.json()['detail'] == 'Invalid file format'
 
 
 @pytest.mark.asyncio
@@ -402,7 +402,7 @@ async def test_change_password_self_missing_current_password(logged_client):
     response = client.put('/user/password', json=payload, headers=headers)
 
     assert response.status_code == HTTPStatus.BAD_REQUEST
-    assert response.json()['detail'] == 'Current password is required'
+    assert response.json()['detail'] == 'Current password required'
 
 
 @pytest.mark.asyncio
@@ -434,10 +434,7 @@ async def test_change_password_weak_password(logged_client):
     response = client.put('/user/password', json=payload, headers=headers)
 
     assert response.status_code == HTTPStatus.BAD_REQUEST
-    assert (
-        response.json()['detail']
-        == 'Password must be at least 8 characters long'
-    )
+    assert response.json()['detail'] == 'Password too short'
 
 
 @pytest.mark.asyncio
@@ -479,10 +476,7 @@ async def test_change_password_other_user_forbidden(
     response = client.put('/user/password', json=payload, headers=headers)
 
     assert response.status_code == HTTPStatus.FORBIDDEN
-    assert (
-        response.json()['detail']
-        == 'You are not authorized to change this password'
-    )
+    assert response.json()['detail'] == 'Unauthorized'
 
 
 @pytest.mark.asyncio

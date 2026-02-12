@@ -142,7 +142,7 @@ async def test_sign_out_clears_cookie(logged_client):
     response = client.post('/auth/sign-out')
 
     assert response.status_code == HTTPStatus.OK
-    assert response.json()['detail'] == 'signed out'
+    assert response.json()['message'] == 'signed out'
 
     cookie_name = SETTINGS.ACCESS_TOKEN_COOKIE_NAME
     set_cookie_header = response.headers.get('set-cookie', '')

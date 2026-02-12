@@ -75,6 +75,7 @@ from .user import (
     ResetPasswordRequest,
     UserCreate,
     UserFilter,
+    UserImagePublic,
     UserList,
     UserPasswordChange,
     UserPublic,
@@ -157,4 +158,5 @@ __all__ = [
     'BranchFilter',
     'DocumentProcessingStatus',
     'DocumentStatus',
+    'UserImagePublic',
 ]
