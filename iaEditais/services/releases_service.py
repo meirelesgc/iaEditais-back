@@ -25,8 +25,8 @@ from iaEditais.schemas.common import WSMessage
 from iaEditais.schemas.document_release import DocumentReleasePublic
 from iaEditais.schemas.typification import TypificationList
 
-MAX_CHUNKS = 5
-MARGIN_SIZE = 1
+MAX_CHUNKS = 3
+MARGIN_SIZE = 2
 
 
 async def ws_update(redis, db_release, message: str):
@@ -46,12 +46,12 @@ def get_base_filter(db_release: DocumentRelease) -> dict:
     return {'source': allowed_source}
 
 
-def get_query_from_branch(branch: dict) -> str:
-    title = (branch.get('title') or '').strip()
-    description = (branch.get('description') or '').strip()
-    if title and description:
-        return f'{title}: {description}'
-    return title or description
+def get_query_from_branch(branch: dict, taxonomy_title: str = '') -> str:
+    t_title = (taxonomy_title or '').strip()
+    b_title = (branch.get('title') or '').strip()
+    b_desc = (branch.get('description') or '').strip()
+    query = f'{b_title}: {b_desc}'
+    return PROMPTS.QUERY.format(section=t_title, query=query)
 
 
 def iter_typifications(eval_args: dict):
@@ -119,8 +119,11 @@ async def get_branch_sessions(
 ):
     for typification in iter_typifications(eval_args):
         for taxonomy in iter_taxonomies(typification):
+            taxonomy_title = taxonomy.get('title')
             for branch in iter_branches(taxonomy):
-                query = get_query_from_branch(branch)
+                query = get_query_from_branch(
+                    branch, taxonomy_title=taxonomy_title
+                )
                 chunks = await vstore.asimilarity_search(
                     query, k=max_chunks, filter=base_filter
                 )
@@ -188,11 +191,32 @@ def _format_sources(taxonomy: dict) -> str:
 
 def _format_context(branch: dict) -> str:
     sessions = branch.get('sessions') or []
-    contents = [
-        getattr(d, 'page_content', getattr(d, 'content', str(d)))
-        for d in sessions
-    ]
-    return '\n\n---\n\n'.join(contents)
+    sessions.sort(key=lambda x: x.metadata.get('chunk_index', 0))
+    formatted_parts = []
+    current_section = None
+    for doc in sessions:
+        section_title = doc.metadata.get('section_title', '').strip()
+        content = getattr(
+            doc, 'page_content', getattr(doc, 'content', str(doc))
+        )
+        header_pattern = f'SECTION: {section_title}\n\n'
+        if content.startswith(header_pattern):
+            clean_text = content[len(header_pattern) :]
+        else:
+            clean_text = content
+
+        if section_title != current_section:
+            if current_section is not None:
+                formatted_parts.append('\n\n---\n\n')
+
+            if section_title:
+                formatted_parts.append(
+                    f'## CONTEXTO DA SESSÃO: {section_title}\n'
+                )
+
+            current_section = section_title
+        formatted_parts.append(clean_text)
+    return ''.join(formatted_parts).strip()
 
 
 def _format_requirement(branch: dict) -> str:

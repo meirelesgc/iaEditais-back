@@ -1,5 +1,5 @@
 import os
-import uuid
+import re
 from pathlib import Path
 from typing import List
 
@@ -18,31 +18,57 @@ from iaEditais.utils.PresidioAnonymizer import PresidioAnonymizer
 SETTINGS = Settings()
 
 SPLITTER = RecursiveCharacterTextSplitter(
-    chunk_size=750,
+    chunk_size=500,
     chunk_overlap=50,
 )
 
 
-def _with_chunk_ids(chunks: List[Document], source_id: str) -> List[Document]:
-    total = len(chunks)
-    chunk_ids = [f'{source_id}:{i:06d}' for i in range(total)]
+def _clean_and_format_documents(documents: List[Document]) -> List[Document]:
+    chunks = SPLITTER.split_documents(documents)
 
-    for i, d in enumerate(chunks):
-        md = dict(d.metadata or {})
-        md['source_id'] = source_id
-        md['chunk_index'] = i
-        md['chunk_total'] = total
-        md['chunk_id'] = chunk_ids[i]
-        md['prev_chunk_id'] = chunk_ids[i - 1] if i > 0 else None
-        md['next_chunk_id'] = chunk_ids[i + 1] if i + 1 < total else None
-        d.metadata = md
+    for i, chunk in enumerate(chunks):
+        text = re.sub(r'\s+', ' ', (chunk.page_content or '')).strip()
+        section = (chunk.metadata.get('section_title') or '').strip()
+
+        if section:
+            chunk.page_content = f'SECTION: {section}\n\n{text}'
+        else:
+            chunk.page_content = text
+
+        chunk.metadata['chunk_index'] = i
+
+        if 'source' not in chunk.metadata:
+            chunk.metadata['source'] = 'unknown'
 
     return chunks
 
 
-def _split_documents(documents: List[Document], source_id: str):
-    chunks: List[Document] = SPLITTER.split_documents(documents)
-    return _with_chunk_ids(chunks, source_id)
+def _split_by_sections(documents: List[Document]) -> List[Document]:
+    split_documents = []
+
+    # Não mexe no caractere estranho
+    section_pattern = r'(^\d+\s*[\.\-–]\s*(?!\d)\S.{0,49}$)'
+
+    for doc in documents:
+        parts = re.split(section_pattern, doc.page_content, flags=re.MULTILINE)
+
+        if parts[0].strip():
+            meta = doc.metadata.copy()
+            meta['section_title'] = 'Introdução'
+            split_documents.append(
+                Document(page_content=parts[0], metadata=meta)
+            )
+
+        for i in range(1, len(parts), 2):
+            header = parts[i].strip()
+            content = parts[i + 1] if i + 1 < len(parts) else ''
+            full_content = f'{header}\n{content}'
+            meta = doc.metadata.copy()
+            meta['section_title'] = header
+            split_documents.append(
+                Document(page_content=full_content, metadata=meta)
+            )
+    return split_documents
 
 
 async def _anonymize_and_vectorize(chunks: List[Document], vstore: VStore):
@@ -66,12 +92,13 @@ async def process_file(full_path: str, vstore: VStore) -> None:
     else:
         raise ValueError(f'Tipo de arquivo não suportado: {ext}')
 
-    documents = loader.load()
-    unique = uuid.uuid5(uuid.NAMESPACE_URL, os.path.abspath(full_path)).hex
-    source_id = f'{Path(full_path).name}:{unique}'
+    raw_documents = loader.load()
 
-    chunks = _split_documents(documents, source_id)
-    await _anonymize_and_vectorize(chunks, vstore)
+    section_documents = _split_by_sections(raw_documents)
+
+    formatted_documents = _clean_and_format_documents(section_documents)
+
+    await _anonymize_and_vectorize(formatted_documents, vstore)
 
 
 async def create_vectors(file_path: Path, vstore: VStore) -> None:

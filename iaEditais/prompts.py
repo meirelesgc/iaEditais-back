@@ -1,5 +1,12 @@
 # flake8: noqa: E501
 
+QUERY = """
+SECTION: {section}
+SECTION: {section}
+SECTION: {section}
+--- {query}
+"""
+
 DESCRIPTION = """
 Atue assumindo a persona OiacIA.
 
