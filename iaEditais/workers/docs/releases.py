@@ -1,29 +1,21 @@
-from datetime import datetime
 from uuid import UUID
 
 from fastapi import Depends
 from faststream.exceptions import AckMessage
 from faststream.rabbit import RabbitRouter
 from redis import Redis
-from sqlalchemy import select
-from sqlalchemy.orm import selectinload
 
 from iaEditais.core.cache import get_redis
 from iaEditais.core.dependencies import Model, Session, VStore
 from iaEditais.core.settings import Settings
-from iaEditais.models import Document, DocumentHistory, DocumentRelease
+from iaEditais.repositories import release_repo
 from iaEditais.schemas import DocumentProcessingStatus
 from iaEditais.services import (
     notification_service,
-    releases_service,
-    tree_service,
-    vstore_service,
+    release_orchestrator,
 )
 
 SETTINGS = Settings()
-BROKER_URL = SETTINGS.BROKER_URL
-UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
-
 router = RabbitRouter()
 
 
@@ -36,63 +28,40 @@ async def release_pipeline(
     vstore: VStore,
     redis: Redis = Depends(get_redis),
 ):
-    result = await session.execute(
-        select(DocumentRelease)
-        .where(DocumentRelease.id == release_id)
-        .options(
-            selectinload(DocumentRelease.history)
-            .selectinload(DocumentHistory.document)
-            .selectinload(Document.editors)
-        )
+    # Pré-checagem rápida
+    db_release = await release_repo.get_release_with_details(
+        session, release_id
     )
-    db_release = result.scalar_one_or_none()
-
     if not db_release:
         raise AckMessage(f'DocumentRelease {release_id} not found.')
 
     db_doc = db_release.history.document
 
+    # Atualiza status inicial
     db_doc.processing_status = DocumentProcessingStatus.PROCESSING
     await session.commit()
 
     try:
-        await releases_service.ws_update(redis, db_release, 'creating_vectors')
-        await vstore_service.create_vectors(db_release.file_path, vstore)
-
-        await releases_service.ws_update(redis, db_release, 'evaluating')
-        tree = await tree_service.get_tree_by_release(session, db_release)
-        args = await releases_service.get_eval_args(vstore, tree, db_release)
-        eval_args = await releases_service.simplify_eval_args(args)
-
-        chain = releases_service.get_chain(model)
-        await releases_service.apply_tree(chain, eval_args)
-
-        await releases_service.save_eval(
-            session, eval_args, db_release.id, None
-        )
-        await releases_service.create_desc(
-            session, eval_args, model, db_release
+        # Delega todo o processamento complexo para o Orchestrator
+        result = await release_orchestrator.process_release_pipeline(
+            session, release_id, model, vstore, redis
         )
 
-        await releases_service.ws_update(redis, db_release, 'complete')
-
-        message_text = notification_service.format_release_message(db_release)
-        user_ids = {editor.id for editor in db_doc.editors if editor.id}
-
-        log_path = f'iaEditais/storage/temp/{datetime.now().isoformat()}.py'
-        with open(log_path, 'w', encoding='utf-8') as f:
-            f.write(f'eval_args = {repr(eval_args)}')
-
+        # Finalização no Worker
         db_doc.processing_status = DocumentProcessingStatus.IDLE
         await session.commit()
 
-        return {'user_ids': user_ids, 'message_text': message_text}
+        # Prepara notificação
+        message_text = notification_service.format_release_message(
+            result['release']
+        )
+        user_ids = {editor.id for editor in db_doc.editors if editor.id}
+
+        return {'user_ids': list(user_ids), 'message_text': message_text}
 
     except Exception as e:
         await session.rollback()
-
         db_doc.processing_status = DocumentProcessingStatus.FAILED
-        session.add(db_doc)
+        release_repo.add_document(session, db_doc)
         await session.commit()
-
         raise e

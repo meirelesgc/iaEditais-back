@@ -25,7 +25,6 @@ SPLITTER = RecursiveCharacterTextSplitter(
 
 def _clean_and_format_documents(documents: List[Document]) -> List[Document]:
     chunks = SPLITTER.split_documents(documents)
-
     for i, chunk in enumerate(chunks):
         text = re.sub(r'\s+', ' ', (chunk.page_content or '')).strip()
         section = (chunk.metadata.get('section_title') or '').strip()
@@ -36,17 +35,14 @@ def _clean_and_format_documents(documents: List[Document]) -> List[Document]:
             chunk.page_content = text
 
         chunk.metadata['chunk_index'] = i
-
         if 'source' not in chunk.metadata:
             chunk.metadata['source'] = 'unknown'
-
     return chunks
 
 
 def _split_by_sections(documents: List[Document]) -> List[Document]:
     split_documents = []
-
-    # Não mexe no caractere estranho
+    # Regex sensível mantido
     section_pattern = r'(^\d+\s*[\.\-–]\s*(?!\d)\S.{0,49}$)'
 
     for doc in documents:
@@ -74,7 +70,6 @@ def _split_by_sections(documents: List[Document]) -> List[Document]:
 async def _anonymize_and_vectorize(chunks: List[Document], vstore: VStore):
     if not chunks:
         return
-
     anonymizer = PresidioAnonymizer()
     anonymized_chunks = anonymizer.anonymize_chunks(chunks)
     await vstore.aadd_documents(anonymized_chunks)
@@ -93,11 +88,8 @@ async def process_file(full_path: str, vstore: VStore) -> None:
         raise ValueError(f'Tipo de arquivo não suportado: {ext}')
 
     raw_documents = loader.load()
-
     section_documents = _split_by_sections(raw_documents)
-
     formatted_documents = _clean_and_format_documents(section_documents)
-
     await _anonymize_and_vectorize(formatted_documents, vstore)
 
 
