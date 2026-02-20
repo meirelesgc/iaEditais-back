@@ -43,7 +43,6 @@ async def list_messages(
         select(DocumentMessage)
         .where(DocumentMessage.document_id == doc_id)
         .order_by(DocumentMessage.created_at.desc())
-        .execution_options(skip_soft_delete_filter=True)
     )
 
     if filters.author_id:
