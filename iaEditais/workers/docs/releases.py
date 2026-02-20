@@ -28,7 +28,6 @@ async def release_pipeline(
     vstore: VStore,
     redis: Redis = Depends(get_redis),
 ):
-    # Pré-checagem rápida
     db_release = await release_repo.get_release_with_details(
         session, release_id
     )
@@ -37,21 +36,17 @@ async def release_pipeline(
 
     db_doc = db_release.history.document
 
-    # Atualiza status inicial
     db_doc.processing_status = DocumentProcessingStatus.PROCESSING
     await session.commit()
 
     try:
-        # Delega todo o processamento complexo para o Orchestrator
         result = await release_orchestrator.process_release_pipeline(
             session, release_id, model, vstore, redis
         )
 
-        # Finalização no Worker
         db_doc.processing_status = DocumentProcessingStatus.IDLE
         await session.commit()
 
-        # Prepara notificação
         message_text = notification_service.format_release_message(
             result['release']
         )

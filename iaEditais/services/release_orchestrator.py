@@ -130,9 +130,6 @@ async def _save_eval_results(
     await session.flush()
 
 
-# --- Main Pipeline ---
-
-
 async def process_release_pipeline(
     session: AsyncSession,
     release_id: UUID,
@@ -140,7 +137,6 @@ async def process_release_pipeline(
     vstore: VStore,
     redis: Redis,
 ) -> dict:
-    # 1. Fetch Release
     db_release = await release_repo.get_release_with_details(
         session, release_id
     )
@@ -150,11 +146,9 @@ async def process_release_pipeline(
     db_doc = db_release.history.document
 
     try:
-        # 2. Vector Creation
         await _ws_update(redis, db_release, 'creating_vectors')
         await vector_service.create_vectors(db_release.file_path, vstore)
 
-        # 3. Evaluation Setup
         await _ws_update(redis, db_release, 'evaluating')
         tree = await tree_service.get_tree_by_release(session, db_release)
 
@@ -163,14 +157,11 @@ async def process_release_pipeline(
         )
         simplified_args = await release_logic_service.simplify_eval_args(args)
 
-        # 4. LLM Analysis
         chain = release_logic_service.get_chain(model)
         await release_logic_service.apply_tree(chain, simplified_args)
 
-        # 5. Saving Results
         await _save_eval_results(session, simplified_args, db_release.id)
 
-        # 6. Generate Description
         prompt = release_logic_service.generate_description_prompt(
             simplified_args
         )
@@ -178,10 +169,8 @@ async def process_release_pipeline(
         db_release.description = desc_response.content.strip()
         await session.commit()
 
-        # 7. Finalize
         await _ws_update(redis, db_release, 'complete')
 
-        # 8. Logs (Mantendo lógica original de debug em arquivo temp)
         log_path = f'iaEditais/storage/temp/{datetime.now().isoformat()}.py'
         with open(log_path, 'w', encoding='utf-8') as f:
             f.write(f'eval_args = {repr(simplified_args)}')
@@ -189,5 +178,4 @@ async def process_release_pipeline(
         return {'doc': db_doc, 'release': db_release, 'status': 'success'}
 
     except Exception as e:
-        # Erro tratado no nível superior (worker)
         raise e
