@@ -41,11 +41,9 @@ async def list_messages(
 ) -> list[DocumentMessage]:
     query = (
         select(DocumentMessage)
-        .where(
-            DocumentMessage.document_id == doc_id,
-            DocumentMessage.deleted_at.is_(None),
-        )
+        .where(DocumentMessage.document_id == doc_id)
         .order_by(DocumentMessage.created_at.desc())
+        .execution_options(skip_soft_delete_filter=True)
     )
 
     if filters.author_id:

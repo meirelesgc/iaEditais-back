@@ -53,7 +53,7 @@ class DocumentMessageUpdate(DocumentMessageSchema):
 
 class DocumentMessagePublic(DocumentMessageSchema):
     id: UUID
-    author: UserPublic
+    author: UserPublic | None
     document_id: UUID
     release_id: UUID
     created_at: datetime

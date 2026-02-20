@@ -35,7 +35,6 @@ async def _ws_update(redis: Redis, db_release: DocumentRelease, message: str):
     await redis.publish('ws:broadcast', ws_message.model_dump_json())
 
 
-# --- Persistence Helpers ---
 async def _save_eval_results(
     session: AsyncSession,
     eval_args: list[dict],
