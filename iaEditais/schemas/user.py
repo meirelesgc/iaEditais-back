@@ -27,32 +27,6 @@ class UserCreate(UserSchema):
     password: Optional[str] = None
 
 
-class UserPublic(UserSchema):
-    id: UUID
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-    model_config = ConfigDict(from_attributes=True)
-
-
-class UserList(BaseModel):
-    users: list[UserPublic]
-
-
-class UserFilter(FilterPage):
-    unit_id: Optional[UUID] = None
-
-
-class UserPublicMessage(BaseModel):
-    id: UUID
-    username: str
-    model_config = ConfigDict(from_attributes=True)
-
-
-class UserUpdate(UserSchema):
-    id: UUID
-    password: Optional[str] = None
-
-
 class UserImagePublic(BaseModel):
     id: UUID
     file_path: str
@@ -69,3 +43,38 @@ class UserPublic(UserSchema):
     icon: Optional[UserImagePublic] = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class UserList(BaseModel):
+    users: list[UserPublic]
+
+
+class UserFilter(FilterPage):
+    unit_id: Optional[UUID] = None
+    q: Optional[str] = None
+
+
+class UserPublicMessage(BaseModel):
+    id: UUID
+    username: str
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserUpdate(UserSchema):
+    id: UUID
+
+
+class UserPasswordChange(BaseModel):
+    user_id: UUID
+    current_password: Optional[str] = None
+    new_password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    email: EmailStr
+    token: str
+    new_password: str

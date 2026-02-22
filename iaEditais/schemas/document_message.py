@@ -13,7 +13,6 @@ class MessageEntityType(str, Enum):
     USER = 'USER'
     MESSAGE = 'MESSAGE'
     SOURCE = 'SOURCE'
-
     TYPIFICATION = 'TYPIFICATION'
     TAXONOMY = 'TAXONOMY'
     BRANCH = 'BRANCH'
@@ -37,11 +36,10 @@ class QuotedMessage(BaseModel):
 
 
 class DocumentMessageSchema(BaseModel):
-    # Conteúdo textual da mensagem, que pode conter menções e citações.
     content: str = Field()
-    # Lista de entidades mencionadas na mensagem.
+
     mentions: Optional[List[MessageMention]] = Field(default_factory=list)
-    # Mensagem citada (resposta).
+
     quoted_message: Optional[QuotedMessage] = Field(None)
 
 
@@ -55,7 +53,7 @@ class DocumentMessageUpdate(DocumentMessageSchema):
 
 class DocumentMessagePublic(DocumentMessageSchema):
     id: UUID
-    author: UserPublic
+    author: UserPublic | None
     document_id: UUID
     release_id: UUID
     created_at: datetime

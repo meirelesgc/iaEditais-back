@@ -1,5 +1,3 @@
-# Importações necessárias do Presidio
-
 from langchain_core.documents import Document
 from presidio_analyzer import AnalyzerEngine, Pattern, PatternRecognizer
 from presidio_analyzer.nlp_engine import NlpEngineProvider
@@ -17,67 +15,58 @@ class PresidioAnonymizer:
     def __init__(self):
         """Inicializa o anonimizador Presidio com recognizers customizados."""
         self.analyzer = self._setup_analyzer()
-        # Cria o motor de anonimização
+
         self.engine = AnonymizerEngine()
-        # Adiciona o operador de contagem de entidades
+
         self.engine.add_anonymizer(InstanceCounterAnonymizer)
 
-        # Mapeamentos persistentes para consistência entre chunks
         self.existing_presidio_mapping = {}
 
     def _setup_analyzer(self):
         """Configura o analisador com reconhecedores customizados para dados brasileiros."""
 
-        # Padrão regex para CPF
         cpf_pattern = Pattern(
             name='cpf_pattern',
             regex=r'\b\d{3}\.?\d{3}\.?\d{3}-?\d{2}\b',
             score=1,
         )
 
-        # Padrão regex para CNPJ
         cnpj_pattern = Pattern(
             name='cnpj_pattern',
             regex=r'\b\d{2}\.?\d{3}\.?\d{3}/\d{4}-\d{2}\b',
             score=1,
         )
 
-        # Padrão regex para RG
         rg_pattern = Pattern(
             name='rg_pattern',
             regex=r'\b\d{2}\.?\d{3}\.?\d{3}-?\d{1,2}\b',
             score=1,
         )
 
-        # Padrão regex para números de celular brasileiro
         celular_pattern = Pattern(
             name='celular_pattern',
             regex=r'\b(?:\+?55\s?)?(?:\(?\d{2}\)?\s?)?\d{4,5}-?\d{4}\b',
             score=1,
         )
 
-        # Padrão para valores em reais
         valor_reais_pattern = Pattern(
             name='valor_reais_pattern',
             regex=r'R\$\s*\d{1,3}(?:\.\d{3})*,\d{2}',
             score=1,
         )
 
-        # Padrão para números de processos
         numero_processo_pattern = Pattern(
             name='numero_processo_pattern',
             regex=r'\b\d+\.\d+/\d{4}-\d{2}\b',
             score=1,
         )
 
-        # Padrão para números de editais da fiocruz
         numero_edital_pattern = Pattern(
             name='numero_edital_pattern',
             regex=r'\b\d{2,5}/\d{4}\b',
             score=1,
         )
 
-        # Padrão para email
         email_pattern = Pattern(
             name='email_pattern',
             regex=r'\b[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}\b',
@@ -90,68 +79,58 @@ class PresidioAnonymizer:
             score=1,
         )
 
-        # Padrão para horas
         hora_pattern = Pattern(
             name='hora_pattern',
             regex=r'\b([01]\d|2[0-3]):[0-5]\d\b',
             score=1,
         )
 
-        # Padrão para CEP
         cep_pattern = Pattern(
             name='cep_pattern', regex=r'\b\d{5}-?\d{3}\b', score=1
         )
 
-        # Reconhecedor customizado para CPF
         custom_recognizer_cpf = PatternRecognizer(
             supported_entity='CPF',
             patterns=[cpf_pattern],
             supported_language='pt',
         )
 
-        # Reconhecedor customizado para CNPJ
         custom_recognizer_cnpj = PatternRecognizer(
             supported_entity='CNPJ',
             patterns=[cnpj_pattern],
             supported_language='pt',
         )
 
-        # Reconhecedor customizado para RG
         custom_recognizer_rg = PatternRecognizer(
             supported_entity='RG',
             patterns=[rg_pattern],
             supported_language='pt',
         )
 
-        # Reconhecedor customizado para celular
         custom_recognizer_celular = PatternRecognizer(
             supported_entity='PHONE_NUMBER_BR',
             patterns=[celular_pattern],
             supported_language='pt',
         )
 
-        # Reconhecedor customizado para valores em reais
         custom_recognizer_valor_reais = PatternRecognizer(
             supported_entity='MONEY',
             patterns=[valor_reais_pattern],
             supported_language='pt',
         )
 
-        # Reconhecedor customizado para números de processos
         custom_recognizer_numero_processo = PatternRecognizer(
             supported_entity='PROCESS_NUMBER',
             patterns=[numero_processo_pattern],
             supported_language='pt',
         )
 
-        # Reconhecedor customizado para números de editais da fiocruz
         custom_recognizer_numero_edital = PatternRecognizer(
             supported_entity='EDITAL_NUMBER',
             patterns=[numero_edital_pattern],
             supported_language='pt',
         )
 
-        # Reconhecedor customizado para email
         custom_recognizer_email = PatternRecognizer(
             supported_entity='EMAIL_ADDRESS',
             patterns=[email_pattern],
@@ -176,7 +155,6 @@ class PresidioAnonymizer:
             supported_language='pt',
         )
 
-        # Reconhecedor customizado para instituições
         institutions_list = [
             'FIOCRUZ',
             'Fundação Oswaldo Cruz',
@@ -186,36 +164,30 @@ class PresidioAnonymizer:
             'fiocruz',
         ]
 
-        # Reconhecedor customizado para instituições
         custom_recognizer_institutions = PatternRecognizer(
             supported_entity='INSTITUTION',
             deny_list=institutions_list,
             supported_language='pt',
         )
 
-        # Configuração do motor NLP para português
         configuration = {
             'nlp_engine_name': 'spacy',
             'models': [{'lang_code': 'pt', 'model_name': 'pt_core_news_lg'}],
         }
 
-        # Criação do provedor do motor NLP
         provider = NlpEngineProvider(nlp_configuration=configuration)
         nlp_engine_with_portuguese = provider.create_engine()
 
-        # Criação do AnalyzerEngine com suporte ao português
         analyzer = AnalyzerEngine(
             nlp_engine=nlp_engine_with_portuguese, supported_languages=['pt']
         )
 
-        # Remove reconhecedores pré-definidos
         recognizers = analyzer.registry.get_recognizers(
             language='pt', all_fields=True
         )
         for recognizer in recognizers:
             analyzer.registry.remove_recognizer(recognizer.name)
 
-        # Adiciona reconhecedores customizados ao registry
         analyzer.registry.add_recognizer(custom_recognizer_celular)
         analyzer.registry.add_recognizer(custom_recognizer_cpf)
         analyzer.registry.add_recognizer(custom_recognizer_cnpj)
@@ -228,11 +200,6 @@ class PresidioAnonymizer:
         analyzer.registry.add_recognizer(custom_recognizer_data)
         analyzer.registry.add_recognizer(custom_recognizer_hora)
         analyzer.registry.add_recognizer(custom_recognizer_cep)
-
-        # Remoção de alguns recognizers para evitar falsos positivos
-        # analyzer.registry.remove_recognizer("PhoneRecognizer")
-        # analyzer.registry.remove_recognizer("UrlRecognizer")
-        # analyzer.registry.remove_recognizer("IpRecognizer")
 
         return analyzer
 
@@ -253,7 +220,6 @@ class PresidioAnonymizer:
         if verbose:
             print(f'Texto a ser anonimizado: {text}')
 
-        # Usar mapeamento existente ou criar novo
         entity_mapping = (
             existing_mapping.copy() if existing_mapping else dict()
         )

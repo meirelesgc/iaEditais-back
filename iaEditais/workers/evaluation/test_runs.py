@@ -151,8 +151,6 @@ async def process_test_run(
             manager, session, test_run_id, TestRunStatus.PROCESSING.value, 'Criando release do documento...'
         )
         
-        # Importa aqui para evitar circular import
-        from iaEditais.services import releases_service
         from iaEditais.repositories import releases_repository
         
         # Busca documento e cria release
@@ -179,10 +177,8 @@ async def process_test_run(
         )
         
         # 6. Publica para processamento de vetores
-        # Importamos o broker aqui para publicar
-        from iaEditais.workers import router as workers_router
-        await workers_router.broker.publish(db_release.id, 'releases_create_vectors')
-        print('DEBUG: Worker - Publicado para releases_create_vectors - Checkpoint W9')
+        await router.broker.publish(db_release.id, 'release_pipeline')
+        print('DEBUG: Worker - Publicado para release_pipeline - Checkpoint W9')
         
         await send_test_run_update(
             manager, session, test_run_id, TestRunStatus.PROCESSING.value, 'Processando documento (vetores)...'

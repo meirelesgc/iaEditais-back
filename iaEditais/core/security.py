@@ -27,7 +27,11 @@ def create_access_token(data: dict):
     to_encode = data.copy()
     now = datetime.now(tz=ZoneInfo('UTC'))
     expire = now + timedelta(minutes=SETTINGS.ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({'exp': expire, 'iat': now, 'jti': str(uuid4())})
+
+    sub = str(to_encode['sub'])
+    jti = str(uuid4())
+
+    to_encode.update({'exp': expire, 'iat': now, 'jti': jti, 'sub': sub})
     encoded_jwt = encode(
         to_encode, SETTINGS.SECRET_KEY, algorithm=SETTINGS.ALGORITHM
     )
@@ -62,15 +66,13 @@ async def get_current_user(
         payload = decode(
             token, SETTINGS.SECRET_KEY, algorithms=[SETTINGS.ALGORITHM]
         )
-        subject_email = payload.get('sub')
-        if not subject_email:
+        subject_id = payload.get('sub')
+        if not subject_id:
             raise credentials_exception
     except (DecodeError, ExpiredSignatureError):
         raise credentials_exception
 
-    user = await session.scalar(
-        select(User).where(User.email == subject_email)
-    )
+    user = await session.scalar(select(User).where(User.id == subject_id))
     if not user:
         raise credentials_exception
 

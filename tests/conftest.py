@@ -2,7 +2,6 @@ import io
 import shutil
 from contextlib import contextmanager
 from datetime import datetime
-from pathlib import Path
 from typing import override
 from uuid import uuid4
 
@@ -12,16 +11,24 @@ from fastapi.testclient import TestClient
 from faststream.rabbit import TestRabbitBroker
 from langchain_community.embeddings import FakeEmbeddings
 from langchain_core.language_models.fake_chat_models import FakeChatModel
+from langchain_core.messages import AIMessage
+from langchain_core.outputs import (
+    ChatGeneration,
+    ChatResult,
+)
 from langchain_postgres import PGVector
+from redis.asyncio import Redis
 from sqlalchemy import event, select
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from testcontainers.postgres import PostgresContainer
 from testcontainers.redis import RedisContainer
 
-from iaEditais import workers
-from iaEditais.app import app
-from iaEditais.core.broker import get_broker
-from iaEditais.core.cache import ConnectionManager, get_cache
+from iaEditais.app import app, index
+from iaEditais.core.cache import (
+    WebSocketManager,
+    get_redis,
+    get_socket_manager,
+)
 from iaEditais.core.database import get_session
 from iaEditais.core.llm import get_model
 from iaEditais.core.security import (
@@ -55,6 +62,41 @@ from tests.factories import (
 SETTINGS = Settings()
 
 
+@pytest.fixture(scope='session')
+def redis_container():
+    with RedisContainer('redis:latest') as container:
+        yield container
+
+
+@pytest_asyncio.fixture
+async def cache(redis_container):
+    client = Redis(
+        host=redis_container.get_container_host_ip(),
+        port=redis_container.get_exposed_port(6379),
+        password=redis_container.password,
+    )
+    yield client
+
+
+@pytest.fixture(scope='session')
+def engine():
+    with PostgresContainer('pgvector/pgvector:pg17', driver='psycopg') as p:
+        _engine = create_async_engine(p.get_connection_url())
+        yield _engine
+
+
+@pytest_asyncio.fixture
+async def session(engine):
+    async with engine.begin() as conn:
+        await conn.run_sync(table_registry.metadata.create_all)
+
+    async with AsyncSession(engine, expire_on_commit=False) as session:
+        yield session
+
+    async with engine.begin() as conn:
+        await conn.run_sync(table_registry.metadata.drop_all)
+
+
 @pytest_asyncio.fixture
 async def client(session, engine, cache):
     async def get_vstore_override():
@@ -69,55 +111,54 @@ async def client(session, engine, cache):
     async def get_model_override():
         class FakeModel(FakeChatModel):
             @override
-            def _call(self, messages, stop=None, run_manager=None, **kwargs):
+            def _call(
+                self,
+                messages,
+                stop=None,
+                run_manager=None,
+                **kwargs,
+            ):
                 return '{"feedback": "", "fulfilled": true, "score": "3"}'
+
+            @override
+            async def _agenerate(
+                self,
+                messages,
+                stop=None,
+                run_manager=None,
+                **kwargs,
+            ):
+                output = '{"feedback": "", "fulfilled": true, "score": "3"}'
+                message = AIMessage(content=output)
+                generation = ChatGeneration(message=message)
+                return ChatResult(generations=[generation])
 
         return FakeModel()
 
     def get_session_override():
         return session
 
-    def get_cache_override():
-        return ConnectionManager(redis=cache)
+    def get_redis_override():
+        return cache
 
-    async with TestRabbitBroker(workers.router.broker) as broker:
+    socket_manager = WebSocketManager(client=cache)
+
+    def get_socket_manager_override():
+        return socket_manager
+
+    async with TestRabbitBroker(index.broker):
         with TestClient(app) as client:
             app.dependency_overrides[get_session] = get_session_override
             app.dependency_overrides[get_vectorstore] = get_vstore_override
             app.dependency_overrides[get_model] = get_model_override
-            app.dependency_overrides[get_broker] = lambda: broker
-            app.dependency_overrides[get_cache] = get_cache_override
+            app.dependency_overrides[get_socket_manager] = (
+                get_socket_manager_override
+            )
+            app.dependency_overrides[get_redis] = get_redis_override
+
             yield client
 
     app.dependency_overrides.clear()
-
-
-@pytest.fixture(scope='session')
-def engine():
-    with PostgresContainer('pgvector/pgvector:pg17', driver='psycopg') as p:
-        _engine = create_async_engine(p.get_connection_url())
-        yield _engine
-
-
-@pytest.fixture(scope='session')
-def cache():
-    container = RedisContainer('redis:latest')
-    container.start()
-    client = container.get_client()
-    yield client
-    container.stop()
-
-
-@pytest_asyncio.fixture
-async def session(engine):
-    async with engine.begin() as conn:
-        await conn.run_sync(table_registry.metadata.create_all)
-
-    async with AsyncSession(engine, expire_on_commit=False) as session:
-        yield session
-
-    async with engine.begin() as conn:
-        await conn.run_sync(table_registry.metadata.drop_all)
 
 
 @contextmanager
@@ -189,7 +230,7 @@ def logged_client(client, create_user, create_unit):
         user = await create_user(
             email=email, password=password, unit_id=str(unit.id), **user_kwargs
         )
-        token = create_access_token({'sub': user.email})
+        token = create_access_token({'sub': user.id})
         client.cookies.set(SETTINGS.ACCESS_TOKEN_COOKIE_NAME, token, path='/')
         auth_headers = {'Authorization': f'Bearer {token}'}
         return client, token, auth_headers, user
@@ -313,27 +354,6 @@ def create_release(session):
         return db_release
 
     return _create_release
-
-
-@pytest.fixture(autouse=True)
-def mock_upload_directory(monkeypatch):
-    temp_upload_dir = Path('iaEditais') / 'storage' / 'temp'
-    temp_upload_dir.mkdir(parents=True, exist_ok=True)
-
-    monkeypatch.setattr(
-        'iaEditais.services.releases_service.UPLOAD_DIRECTORY',
-        str(temp_upload_dir),
-    )
-    monkeypatch.setattr(
-        'iaEditais.workers.docs.releases.UPLOAD_DIRECTORY',
-        str(temp_upload_dir),
-    )
-
-    monkeypatch.setattr(
-        'iaEditais.routers.check_tree.sources.UPLOAD_DIRECTORY',
-        str(temp_upload_dir),
-    )
-    return str(temp_upload_dir)
 
 
 @pytest_asyncio.fixture

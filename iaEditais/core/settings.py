@@ -1,4 +1,5 @@
-from typing import List
+from pathlib import Path
+from typing import List, Literal, Optional
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -32,3 +33,13 @@ class Settings(BaseSettings):
     COOKIE_SECURE: bool = True
     COOKIE_SAMESITE: str = 'lax'
     COOKIE_PATH: str = '/'
+    COOKIE_DOMAIN: Optional[str] = None
+
+    LOG_LEVEL: Literal['DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'] = (
+        'ERROR'
+    )
+
+    ROOT_PATH: Optional[str] = str()
+
+    UPLOAD_DIRECTORY: Path = 'iaEditais/storage/uploads'
+    STORAGE_PROVIDER: Literal['S3', 'LOCAL'] = 'LOCAL'

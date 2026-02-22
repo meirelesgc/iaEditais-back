@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict
 
 from iaEditais.schemas.branch import BranchPublic
+from iaEditais.schemas.common import FilterPage
 from iaEditais.schemas.source import SourcePublic
 
 
@@ -38,3 +39,8 @@ class TaxonomyPublic(TaxonomySchema):
 
 class TaxonomyList(BaseModel):
     taxonomies: list[TaxonomyPublic]
+
+
+class TaxonomyFilter(FilterPage):
+    q: Optional[str] = None
+    typification_id: Optional[UUID] = None

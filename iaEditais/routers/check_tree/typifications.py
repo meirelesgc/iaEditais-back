@@ -1,26 +1,18 @@
-from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
-from fastapi.responses import FileResponse
-from sqlalchemy import select
+from fastapi import APIRouter, Depends
 
 from iaEditais.core.dependencies import CurrentUser, Session
-from iaEditais.models import (
-    Source,
-    Typification,
-    TypificationSource,
-)
 from iaEditais.schemas import (
-    FilterPage,
     TypificationCreate,
+    TypificationFilter,
     TypificationList,
     TypificationPublic,
     TypificationUpdate,
 )
-from iaEditais.services.report_service import typification_report
+from iaEditais.services import typification_service
 
 router = APIRouter(
     prefix='/typification',
@@ -29,7 +21,7 @@ router = APIRouter(
 
 
 @router.post(
-    '/',
+    '',
     status_code=HTTPStatus.CREATED,
     response_model=TypificationPublic,
 )
@@ -38,121 +30,37 @@ async def create_typification(
     session: Session,
     current_user: CurrentUser,
 ):
-    db_typification = await session.scalar(
-        select(Typification).where(
-            Typification.deleted_at.is_(None),
-            Typification.name == typification.name,
-        )
+    return await typification_service.create_typification(
+        session, current_user.id, typification
     )
 
-    if db_typification:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Typification name already exists',
-        )
 
-    db_typification = Typification(
-        name=typification.name,
-        created_by=current_user.id,
-    )
-    session.add(db_typification)
-
-    if typification.source_ids:
-        source_check = await session.scalars(
-            select(Source.id).where(Source.id.in_(typification.source_ids))
-        )
-        existing_source_ids = set(source_check.all())
-
-        if len(existing_source_ids) != len(typification.source_ids):
-            raise HTTPException(
-                status_code=HTTPStatus.NOT_FOUND,
-                detail='One or more sources not found',
-            )
-
-        for source_id in typification.source_ids:
-            association_entry = TypificationSource(
-                typification_id=db_typification.id,
-                source_id=source_id,
-                created_by=current_user.id,
-            )
-            session.add(association_entry)
-
-    await session.commit()
-    await session.refresh(db_typification)
-
-    return db_typification
-
-
-@router.get('/', response_model=TypificationList)
+@router.get('', response_model=TypificationList)
 async def read_typifications(
-    session: Session, filters: Annotated[FilterPage, Depends()]
+    session: Session, filters: Annotated[TypificationFilter, Depends()]
 ):
-    query = await session.scalars(
-        select(Typification)
-        .where(Typification.deleted_at.is_(None))
-        .order_by(Typification.created_at.desc())
-        .offset(filters.offset)
-        .limit(filters.limit)
+    typifications = await typification_service.get_typifications(
+        session, filters
     )
-    typifications = query.all()
     return {'typifications': typifications}
 
 
 @router.get('/{typification_id}', response_model=TypificationPublic)
 async def read_typification(typification_id: UUID, session: Session):
-    typification = await session.get(Typification, typification_id)
-
-    if not typification or typification.deleted_at:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Typification not found',
-        )
-
-    return typification
+    return await typification_service.get_typification_by_id(
+        session, typification_id
+    )
 
 
-@router.put('/', response_model=TypificationPublic)
+@router.put('', response_model=TypificationPublic)
 async def update_typification(
     typification: TypificationUpdate,
     session: Session,
     current_user: CurrentUser,
 ):
-    db_typification = await session.get(Typification, typification.id)
-
-    if not db_typification or db_typification.deleted_at:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Typification not found',
-        )
-
-    db_typification_same_name = await session.scalar(
-        select(Typification).where(
-            Typification.deleted_at.is_(None),
-            Typification.name == typification.name,
-            Typification.id != typification.id,
-        )
+    return await typification_service.update_typification(
+        session, current_user.id, typification
     )
-
-    if db_typification_same_name:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Typification name already exists',
-        )
-
-    db_typification.name = typification.name
-    db_typification.updated_by = current_user.id
-
-    if typification.source_ids:
-        sources = await session.scalars(
-            select(Source).where(Source.id.in_(typification.source_ids))
-        )
-        db_typification.sources = sources.all()
-    else:
-        db_typification.sources = []
-
-    await session.commit()
-    await session.refresh(db_typification)
-    return db_typification
 
 
 @router.delete(
@@ -164,40 +72,15 @@ async def delete_typification(
     session: Session,
     current_user: CurrentUser,
 ):
-    db_typification = await session.get(Typification, typification_id)
-
-    if not db_typification or db_typification.deleted_at:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Typification not found',
-        )
-
-    db_typification.deleted_at = datetime.now(timezone.utc)
-    db_typification.deleted_by = current_user.id
-    await session.commit()
-
+    await typification_service.delete_typification(
+        session, current_user.id, typification_id
+    )
     return {'message': 'Typification deleted'}
 
 
 @router.get('/export/pdf')
-async def exportar_tipificacoes_pdf(session: Session):
-    query = await session.scalars(
-        select(Typification)
-        .where(Typification.deleted_at.is_(None))
-        .order_by(Typification.created_at.desc())
-    )
-
-    typifications = query.all()
-
-    if not typifications:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='No typifications found',
-        )
-
-    typifications_list = TypificationList(
-        typifications=typifications
-    ).model_dump()
-
-    report_path = typification_report(typifications_list)
-    return FileResponse(report_path, filename=report_path.split('/')[-1])
+async def exportar_tipificacoes_pdf(
+    session: Session,
+    typification_id: UUID = None,
+):
+    return await typification_service.export_pdf(session, typification_id)

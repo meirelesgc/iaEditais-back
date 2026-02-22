@@ -15,8 +15,6 @@ from iaEditais.models import (
     User,
 )
 
-# --- Schemas de Resposta para Estatísticas ---
-
 
 class DocumentCountByUnit(BaseModel):
     """Estatística de contagem de documentos por unidade."""
@@ -46,7 +44,7 @@ class KpiStats(BaseModel):
     total_users: int
     total_documents: int
     total_units: int
-    total_analyses: int  # Contagem de DocumentRelease
+    total_analyses: int
 
 
 class UserMessageActivity(BaseModel):
@@ -59,8 +57,6 @@ class UserMessageActivity(BaseModel):
 class UserMessageActivityList(BaseModel):
     stats: List[UserMessageActivity]
 
-
-# --- Router de Estatísticas ---
 
 router = APIRouter(
     prefix='/stats', tags=['operações de sistema, estatísticas']
@@ -89,7 +85,7 @@ async def get_document_count_by_unit(session: Session):
     )
 
     result = await session.execute(statement)
-    stats = result.mappings().all()  # .mappings() converte para dict-like
+    stats = result.mappings().all()
 
     return {'stats': stats}
 
@@ -118,7 +114,7 @@ async def get_most_used_typifications(session: Session):
             DocumentRelease.history_id == DocumentHistory.id,
         )
         .join(Document, DocumentHistory.document_id == Document.id)
-        .where(Document.deleted_at.is_(None))  # Apenas de documentos ativos
+        .where(Document.deleted_at.is_(None))
         .group_by(AppliedTypification.name)
         .order_by(desc('usage_count'))
         .limit(10)
@@ -141,21 +137,17 @@ async def get_kpis(session: Session):
     documentos, unidades e análises (releases) em documentos ativos.
     """
 
-    # Total de Usuários Ativos
     stmt_users = select(func.count(User.id)).where(User.deleted_at.is_(None))
     total_users = await session.scalar(stmt_users) or 0
 
-    # Total de Documentos Ativos
     stmt_docs = select(func.count(Document.id)).where(
         Document.deleted_at.is_(None)
     )
     total_documents = await session.scalar(stmt_docs) or 0
 
-    # Total de Unidades Ativas
     stmt_units = select(func.count(Unit.id)).where(Unit.deleted_at.is_(None))
     total_units = await session.scalar(stmt_units) or 0
 
-    # Total de Análises (Releases) de Documentos Ativos
     stmt_analyses = (
         select(func.count(DocumentRelease.id))
         .join(

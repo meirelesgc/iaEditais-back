@@ -16,7 +16,7 @@ async def test_create_branch(
         title='Taxonomy for Branch', typification_id=typification.id
     )
     response = client.post(
-        '/branch/',
+        '/branch',
         json={
             'title': 'New Branch',
             'description': 'A branch description.',
@@ -27,6 +27,37 @@ async def test_create_branch(
     assert response.status_code == HTTPStatus.CREATED
     data = response.json()
     assert data['title'] == 'New Branch'
+    assert data['description'] == 'A branch description.'
+    assert 'id' in data
+
+
+@pytest.mark.asyncio
+async def test_create_branch_with_other_tax(
+    logged_client, create_typification, create_taxonomy, create_branch
+):
+    client, *_ = await logged_client()
+    typification = await create_typification(name='Typification for Branch')
+    taxonomy_a = await create_taxonomy(
+        title='Taxonomy A', typification_id=typification.id
+    )
+    await create_branch(title='Branch A', taxonomy_id=taxonomy_a.id)
+
+    taxonomy_b = await create_taxonomy(
+        title='Taxonomy B', typification_id=typification.id
+    )
+
+    response = client.post(
+        '/branch',
+        json={
+            'title': 'Branch A',
+            'description': 'A branch description.',
+            'taxonomy_id': str(taxonomy_b.id),
+        },
+    )
+
+    assert response.status_code == HTTPStatus.CREATED
+    data = response.json()
+    assert data['title'] == 'Branch A'
     assert data['description'] == 'A branch description.'
     assert 'id' in data
 
@@ -43,7 +74,7 @@ async def test_create_branch_conflict(
     await create_branch(title='Existing Branch', taxonomy_id=taxonomy.id)
 
     response = client.post(
-        '/branch/',
+        '/branch',
         json={
             'title': 'Existing Branch',
             'description': 'Another desc.',
@@ -52,14 +83,16 @@ async def test_create_branch_conflict(
     )
 
     assert response.status_code == HTTPStatus.CONFLICT
-    assert response.json() == {'detail': 'Branch title already exists'}
+    assert response.json() == {
+        'detail': 'Branch title already exists for this taxonomy'
+    }
 
 
 @pytest.mark.asyncio
 async def test_create_branch_with_invalid_taxonomy(logged_client):
     client, *_ = await logged_client()
     response = client.post(
-        '/branch/',
+        '/branch',
         json={
             'title': 'Invalid Branch',
             'description': 'desc',
@@ -72,7 +105,7 @@ async def test_create_branch_with_invalid_taxonomy(logged_client):
 
 
 def test_read_branches_empty(client):
-    response = client.get('/branch/')
+    response = client.get('/branch')
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'branches': []}
 
@@ -88,7 +121,7 @@ async def test_read_branches_with_data(
     branch = await create_branch(title='Branch A', taxonomy_id=taxonomy.id)
     branch_schema = BranchPublic.model_validate(branch).model_dump(mode='json')
 
-    response = client.get('/branch/')
+    response = client.get('/branch')
     assert response.status_code == HTTPStatus.OK
     assert response.json() == {'branches': [branch_schema]}
 
@@ -139,7 +172,7 @@ async def test_update_branch(
     )
 
     response = client.put(
-        '/branch/',
+        '/branch',
         json={
             'id': str(branch.id),
             'title': 'Updated Branch',
@@ -168,7 +201,7 @@ async def test_update_branch_conflict(
     branch_b = await create_branch(title='Branch B', taxonomy_id=taxonomy.id)
 
     response = client.put(
-        '/branch/',
+        '/branch',
         json={
             'id': str(branch_b.id),
             'title': 'Branch A',
@@ -178,7 +211,9 @@ async def test_update_branch_conflict(
     )
 
     assert response.status_code == HTTPStatus.CONFLICT
-    assert response.json() == {'detail': 'Branch title already exists'}
+    assert response.json() == {
+        'detail': 'Branch title already exists for this taxonomy'
+    }
 
 
 @pytest.mark.asyncio
@@ -191,7 +226,7 @@ async def test_update_nonexistent_branch(
         title='Taxonomy E', typification_id=typification.id
     )
     response = client.put(
-        '/branch/',
+        '/branch',
         json={
             'id': str(uuid.uuid4()),
             'title': 'Ghost Branch',
@@ -215,7 +250,7 @@ async def test_update_branch_with_nonexistent_taxonomy(
     branch = await create_branch(title='Branch F', taxonomy_id=taxonomy.id)
 
     response = client.put(
-        '/branch/',
+        '/branch',
         json={
             'id': str(branch.id),
             'title': 'Updated Title',

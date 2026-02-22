@@ -1,10 +1,28 @@
 import re
 
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
+from faststream.rabbit.fastapi import RabbitBroker
 
-from iaEditais.core.dependencies import Broker
 from iaEditais.models import DocumentRelease, User
+
+
+async def publish_password_reset_notification(
+    user: User, reset_token: str, broker: RabbitBroker
+):
+    if not user.phone_number:
+        return {'status': 'skipped', 'reason': 'No phone number'}
+
+    message_text = (
+        f'Olá, {user.username}. '
+        f'Seu código para redefinir a senha é: *{reset_token}*. '
+        'Este código expira em 15 minutos. '
+        'Se não foi você que solicitou, ignore esta mensagem.'
+    )
+
+    payload = {'user_ids': [user.id], 'message_text': message_text}
+
+    await broker.publish(payload, 'send_message')
+
+    return {'status': 'published'}
 
 
 def format_user_welcome_message(username: str, temp_password: str) -> str:
@@ -17,7 +35,7 @@ def format_user_welcome_message(username: str, temp_password: str) -> str:
 
 
 async def publish_user_welcome_notification(
-    user: User, temp_password: str, broker: Broker
+    user: User, temp_password: str, broker: RabbitBroker
 ):
     if not user.phone_number:
         return {'status': 'skipped', 'reason': 'No phone number'}
@@ -26,23 +44,14 @@ async def publish_user_welcome_notification(
 
     payload = {'user_ids': [user.id], 'message_text': message_text}
 
-    await broker.publish(payload, 'notifications_send_message')
+    await broker.publish(payload, 'send_message')
 
     return {'status': 'published'}
-
-
-async def get_users_to_notify(session: AsyncSession, user_ids: list):
-    if not user_ids:
-        return []
-    statement = select(User).where(User.id.in_(user_ids))
-    query = await session.scalars(statement)
-    return query.all()
 
 
 def format_release_message(db_release: DocumentRelease):
     db_history = db_release.history
     db_doc = db_history.document
-
     message_text = (
         f"Olá! O processo de verificação do documento '{db_doc.name}' "
         f'foi concluído com sucesso.'
@@ -57,3 +66,25 @@ def prepare_phone_number(user: User):
     if not re.fullmatch(r'55\d{10,11}', phone_number):
         return None
     return phone_number
+
+
+async def publish_test_whatsapp_notification(user: User, broker: RabbitBroker):
+    clean_number = prepare_phone_number(user)
+
+    if not clean_number:
+        return {
+            'status': 'error',
+            'detail': 'Invalid phone format. Must be 55 + DDD + Number (10-11 digits).',
+        }
+
+    message_text = (
+        f'🤖 Olá, {user.username}! \n\n'
+        f'Este é um teste de verificação do seu número no iaEditais. '
+        f'Se você recebeu esta mensagem, seu cadastro está correto.'
+    )
+
+    payload = {'user_ids': [user.id], 'message_text': message_text}
+
+    await broker.publish(payload, 'send_message')
+
+    return {'status': 'published', 'detail': 'Test message queued'}

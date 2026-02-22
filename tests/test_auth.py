@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from uuid import uuid4
 
 import pytest
 
@@ -69,7 +70,7 @@ async def test_refresh_token_invalid_signature(client):
 
 @pytest.mark.asyncio
 async def test_refresh_token_user_not_found(client):
-    token = create_access_token({'sub': 'nonexistent@example.com'})
+    token = create_access_token({'sub': str(uuid4())})
     response = client.post(
         '/auth/refresh_token', headers={'Authorization': f'Bearer {token}'}
     )
@@ -136,11 +137,12 @@ async def test_sign_in_incorrect_password(client, create_user, create_unit):
 
 
 @pytest.mark.asyncio
-async def test_sign_out_clears_cookie(client):
+async def test_sign_out_clears_cookie(logged_client):
+    client, *_ = await logged_client()
     response = client.post('/auth/sign-out')
 
     assert response.status_code == HTTPStatus.OK
-    assert response.json()['detail'] == 'signed out'
+    assert response.json()['message'] == 'signed out'
 
     cookie_name = SETTINGS.ACCESS_TOKEN_COOKIE_NAME
     set_cookie_header = response.headers.get('set-cookie', '')

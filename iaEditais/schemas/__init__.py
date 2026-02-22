@@ -1,18 +1,4 @@
-"""
-Arquivo __init__ para o pacote de schemas.
-
-Este arquivo re-exporta todos os schemas Pydantic/SQLAlchemy individuais
-dos submódulos para criar uma API de importação plana e única.
-
-Em vez de:
-    from iaEditais.schemas.branch import BranchCreate
-    from iaEditais.schemas.document import DocumentPublic
-
-Você pode importar diretamente:
-    from iaEditais.schemas import BranchCreate, DocumentPublic
-"""
-
-# 1. Importar as classes dos submódulos usando imports relativos
+from .audit_log import AuditLogFilter, AuditLogList, AuditLogPublic
 from .branch import (
     BranchCreate,
     BranchFilter,
@@ -26,6 +12,7 @@ from .document import (
     DocumentCreate,
     DocumentFilter,
     DocumentList,
+    DocumentProcessingStatus,
     DocumentPublic,
     DocumentSchema,
     DocumentUpdate,
@@ -60,6 +47,7 @@ from .source import (
 )
 from .taxonomy import (
     TaxonomyCreate,
+    TaxonomyFilter,
     TaxonomyList,
     TaxonomyPublic,
     TaxonomySchema,
@@ -67,6 +55,7 @@ from .taxonomy import (
 )
 from .typification import (
     TypificationCreate,
+    TypificationFilter,
     TypificationList,
     TypificationPublic,
     TypificationSchema,
@@ -74,6 +63,7 @@ from .typification import (
 )
 from .unit import (
     UnitCreate,
+    UnitFilter,
     UnitList,
     UnitPublic,
     UnitSchema,
@@ -81,9 +71,13 @@ from .unit import (
 )
 from .user import (
     AccessType,
+    ForgotPasswordRequest,
+    ResetPasswordRequest,
     UserCreate,
     UserFilter,
+    UserImagePublic,
     UserList,
+    UserPasswordChange,
     UserPublic,
     UserPublicMessage,
     UserSchema,
@@ -116,68 +110,56 @@ from .evaluation import (
     TestRunStatus,
 )
 
-# 2. Definir explicitamente a API pública do pacote 'schemas'
 __all__ = [
-    # Módulo branch
     'BranchCreate',
     'BranchFilter',
     'BranchList',
     'BranchPublic',
     'BranchSchema',
     'BranchUpdate',
-    # Módulo common
     'FilterPage',
     'Message',
     'SortBy',
     'SortOrder',
     'Token',
     'WSMessage',
-    # Módulo document
     'DocumentCreate',
     'DocumentFilter',
     'DocumentList',
     'DocumentPublic',
     'DocumentSchema',
     'DocumentUpdate',
-    # Módulo document_history
     'DocumentHistoryPublic',
     'DocumentHistorySchema',
-    'DocumentStatus',
-    # Módulo document_message
+    'DocumentProcessingStatus',
     'DocumentMessageCreate',
     'DocumentMessagePublic',
-    # Módulo document_release
     'AppliedBranchPublic',
     'AppliedTaxonomyPublic',
     'AppliedTypificationPublic',
     'DocumentReleaseFeedback',
     'DocumentReleaseList',
     'DocumentReleasePublic',
-    # Módulo source
     'SourceCreate',
     'SourceList',
     'SourcePublic',
     'SourceSchema',
     'SourceUpdate',
-    # Módulo taxonomy
     'TaxonomyCreate',
     'TaxonomyList',
     'TaxonomyPublic',
     'TaxonomySchema',
     'TaxonomyUpdate',
-    # Módulo typification
     'TypificationCreate',
     'TypificationList',
     'TypificationPublic',
     'TypificationSchema',
     'TypificationUpdate',
-    # Módulo unit
     'UnitCreate',
     'UnitList',
     'UnitPublic',
     'UnitSchema',
     'UnitUpdate',
-    # Módulo user
     'AccessType',
     'UserCreate',
     'UserFilter',
@@ -186,14 +168,25 @@ __all__ = [
     'UserPublicMessage',
     'UserSchema',
     'UserUpdate',
-    # Módulo messages
+    'UserPasswordChange',
     'DocumentMessageList',
     'DocumentMessageCreate',
     'DocumentMessageUpdate',
     'DocumentMessagePublic',
     'MessageFilter',
     'MessageEntityType',
-    # Módulo evaluation
+    'AuditLogFilter',
+    'AuditLogList',
+    'AuditLogPublic',
+    'ForgotPasswordRequest',
+    'ResetPasswordRequest',
+    'UnitFilter',
+    'TypificationFilter',
+    'TaxonomyFilter',
+    'BranchFilter',
+    'DocumentProcessingStatus',
+    'DocumentStatus',
+    'UserImagePublic',
     'AIModelCreate',
     'AIModelList',
     'AIModelPublic',

@@ -1,25 +1,18 @@
-from datetime import datetime, timezone
 from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends
 
 from iaEditais.core.dependencies import CurrentUser, Session
-from iaEditais.models import (
-    Source,
-    Taxonomy,
-    TaxonomySource,
-    Typification,
-)
 from iaEditais.schemas import (
-    FilterPage,
     TaxonomyCreate,
     TaxonomyList,
     TaxonomyPublic,
     TaxonomyUpdate,
 )
+from iaEditais.schemas.taxonomy import TaxonomyFilter
+from iaEditais.services import taxonomy_service
 
 router = APIRouter(
     prefix='/taxonomy',
@@ -27,149 +20,39 @@ router = APIRouter(
 )
 
 
-@router.post(
-    '/', status_code=HTTPStatus.CREATED, response_model=TaxonomyPublic
-)
+@router.post('', status_code=HTTPStatus.CREATED, response_model=TaxonomyPublic)
 async def create_taxonomy(
     taxonomy: TaxonomyCreate,
     session: Session,
     current_user: CurrentUser,
 ):
-    db_taxonomy = await session.scalar(
-        select(Taxonomy).where(
-            Taxonomy.deleted_at.is_(None),
-            Taxonomy.title == taxonomy.title,
-        )
+    return await taxonomy_service.create_taxonomy(
+        session, current_user.id, taxonomy
     )
 
-    if db_taxonomy:
-        raise HTTPException(
-            status_code=HTTPStatus.CONFLICT,
-            detail='Taxonomy title already exists',
-        )
 
-    typification = await session.get(Typification, taxonomy.typification_id)
-    if not typification or typification.deleted_at:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Typification not found',
-        )
-
-    db_taxonomy = Taxonomy(
-        title=taxonomy.title,
-        description=taxonomy.description,
-        typification_id=taxonomy.typification_id,
-        created_by=current_user.id,
-    )
-    session.add(db_taxonomy)
-
-    if taxonomy.source_ids:
-        source_check = await session.scalars(
-            select(Source.id).where(Source.id.in_(taxonomy.source_ids))
-        )
-        existing_source_ids = set(source_check.all())
-
-        if len(existing_source_ids) != len(taxonomy.source_ids):
-            raise HTTPException(
-                status_code=HTTPStatus.NOT_FOUND,
-                detail='One or more sources not found',
-            )
-
-        for source_id in taxonomy.source_ids:
-            association_entry = TaxonomySource(
-                taxonomy_id=db_taxonomy.id,
-                source_id=source_id,
-                created_by=current_user.id,
-            )
-            session.add(association_entry)
-
-    await session.commit()
-    await session.refresh(db_taxonomy)
-
-    return db_taxonomy
-
-
-@router.get('/', response_model=TaxonomyList)
+@router.get('', response_model=TaxonomyList)
 async def read_taxonomies(
-    session: Session, filters: Annotated[FilterPage, Depends()]
+    session: Session, filters: Annotated[TaxonomyFilter, Depends()]
 ):
-    query = await session.scalars(
-        select(Taxonomy)
-        .where(Taxonomy.deleted_at.is_(None))
-        .order_by(Taxonomy.created_at.desc())
-        .offset(filters.offset)
-        .limit(filters.limit)
-    )
-    taxonomies = query.all()
+    taxonomies = await taxonomy_service.get_taxonomies(session, filters)
     return {'taxonomies': taxonomies}
 
 
 @router.get('/{taxonomy_id}', response_model=TaxonomyPublic)
 async def read_taxonomy(taxonomy_id: UUID, session: Session):
-    taxonomy = await session.get(Taxonomy, taxonomy_id)
-
-    if not taxonomy or taxonomy.deleted_at:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Taxonomy not found',
-        )
-
-    return taxonomy
+    return await taxonomy_service.get_taxonomy_by_id(session, taxonomy_id)
 
 
-@router.put('/', response_model=TaxonomyPublic)
+@router.put('', response_model=TaxonomyPublic)
 async def update_taxonomy(
     taxonomy: TaxonomyUpdate,
     session: Session,
     current_user: CurrentUser,
 ):
-    db_taxonomy = await session.get(Taxonomy, taxonomy.id)
-
-    if not db_taxonomy or db_taxonomy.deleted_at:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Taxonomy not found',
-        )
-
-    if taxonomy.title != db_taxonomy.title:
-        db_taxonomy_same_title = await session.scalar(
-            select(Taxonomy).where(
-                Taxonomy.deleted_at.is_(None),
-                Taxonomy.title == taxonomy.title,
-                Taxonomy.id != taxonomy.id,
-            )
-        )
-        if db_taxonomy_same_title:
-            raise HTTPException(
-                status_code=HTTPStatus.CONFLICT,
-                detail='Taxonomy title already exists',
-            )
-
-    if taxonomy.typification_id != db_taxonomy.typification_id:
-        typification = await session.get(
-            Typification, taxonomy.typification_id
-        )
-        if not typification or typification.deleted_at:
-            raise HTTPException(
-                status_code=HTTPStatus.NOT_FOUND,
-                detail='Typification not found',
-            )
-    if taxonomy.source_ids:
-        sources = await session.scalars(
-            select(Source).where(Source.id.in_(taxonomy.source_ids))
-        )
-        db_taxonomy.sources = sources.all()
-    else:
-        db_taxonomy.sources = []
-
-    db_taxonomy.title = taxonomy.title
-    db_taxonomy.description = taxonomy.description
-    db_taxonomy.typification_id = taxonomy.typification_id
-    db_taxonomy.updated_by = current_user.id
-
-    await session.commit()
-    await session.refresh(db_taxonomy)
-    return db_taxonomy
+    return await taxonomy_service.update_taxonomy(
+        session, current_user.id, taxonomy
+    )
 
 
 @router.delete(
@@ -181,16 +64,7 @@ async def delete_taxonomy(
     session: Session,
     current_user: CurrentUser,
 ):
-    db_taxonomy = await session.get(Taxonomy, taxonomy_id)
-
-    if not db_taxonomy or db_taxonomy.deleted_at:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Taxonomy not found',
-        )
-
-    db_taxonomy.deleted_at = datetime.now(timezone.utc)
-    db_taxonomy.deleted_by = current_user.id
-    await session.commit()
-
+    await taxonomy_service.delete_taxonomy(
+        session, current_user.id, taxonomy_id
+    )
     return {'message': 'Taxonomy deleted'}

@@ -1,109 +1,72 @@
-import json
-from typing import Dict
-from uuid import UUID
+import asyncio
 
-from fastapi import WebSocket
-from redis import Redis
-
-from iaEditais.core.settings import Settings
-from iaEditais.schemas import WSMessage
-
-SETTINGS = Settings()
+import redis.asyncio as aioredis
+from fastapi import Request, WebSocket
+from redis.asyncio import Redis
 
 
-class ConnectionManager:
-    def __init__(self, redis: Redis, channel: str = 'ws:broadcast'):
-        self.active_connections: Dict[UUID, WebSocket] = {}
-        self.redis = redis
-        self.channel = channel
+class PubSubManager:
+    def __init__(self, redis: aioredis.Redis):
+        self.redis_connection = redis
+        self.pubsub = None
 
-    async def connect(self, client_id: UUID, websocket: WebSocket):
+    async def connect(self) -> None:
+        self.pubsub = self.redis_connection.pubsub()
+
+    async def _publish(self, channel_id: str, message: str) -> None:
+        await self.redis_connection.publish(channel_id, message)
+
+    async def subscribe(self, channel_id: str):
+        await self.pubsub.subscribe(channel_id)
+        return self.pubsub
+
+    async def unsubscribe(self, channel_id: str) -> None:
+        await self.pubsub.unsubscribe(channel_id)
+
+
+class WebSocketManager:
+    def __init__(self, client: aioredis.Redis):
+        self.channels: dict = {}
+        self.pubsub_client = PubSubManager(client)
+
+    async def add_user_to_channel(self, channel_id: str, websocket: WebSocket):
         await websocket.accept()
-        self.active_connections[client_id] = websocket
+        if channel_id in self.channels:
+            self.channels[channel_id].append(websocket)
+        else:
+            self.channels[channel_id] = [websocket]
 
-    def disconnect(self, client_id: UUID):
-        self.active_connections.pop(client_id, None)
+            await self.pubsub_client.connect()
+            pubsub_subscriber = await self.pubsub_client.subscribe(channel_id)
+            asyncio.create_task(self._pubsub_data_reader(pubsub_subscriber))
 
-    def send_personal_message(self, client_id: UUID, message: WSMessage):
-        ws = self.active_connections.get(client_id)
-        if ws:
-            ws.send_json(message.model_dump())
+    async def broadcast_to_channel(self, channel_id: str, message: str):
+        await self.pubsub_client._publish(channel_id, message)
 
-    def broadcast(self, message: WSMessage):
-        data = message.model_dump_json()
-        self.redis.publish(self.channel, data)
+    async def remove_user_from_channel(
+        self, channel_id: str, websocket: WebSocket
+    ):
+        self.channels[channel_id].remove(websocket)
+        if len(self.channels[channel_id]) == 0:
+            del self.channels[channel_id]
+            await self.pubsub_client.unsubscribe(channel_id)
 
-    def listen_to_broadcasts(self):
-        pubsub = self.redis.pubsub()
-        pubsub.subscribe(self.channel)
-        for msg in pubsub.listen():
-            if msg and msg['type'] == 'message':
-                try:
-                    data = json.loads(msg['data'])
-                    ws_message = WSMessage(**data)
-                    self.local_broadcast(ws_message)
-                except Exception:
-                    continue
-
-    def local_broadcast(self, message: WSMessage):
-        for ws in list(self.active_connections.values()):
-            try:
-                ws.send_json(message.model_dump())
-            except Exception:
-                continue
-
-    async def local_broadcast_async(self, message: WSMessage):
-        """Envia mensagem para todos os WebSockets conectados de forma assincrona."""
-        for client_id, ws in list(self.active_connections.items()):
-            try:
-                await ws.send_json(message.model_dump())
-            except Exception:
-                # Remove conexao morta
-                self.active_connections.pop(client_id, None)
-
-    async def start_redis_listener(self):
-        """Inicia listener do Redis pub/sub em background."""
-        import asyncio
-        import queue
-        import threading
-
-        msg_queue = queue.Queue()
-
-        def redis_thread():
-            pubsub = self.redis.pubsub()
-            pubsub.subscribe(self.channel)
-            for msg in pubsub.listen():
-                if msg and msg['type'] == 'message':
-                    msg_queue.put(msg['data'])
-
-        # Inicia thread do Redis (bloqueante)
-        thread = threading.Thread(target=redis_thread, daemon=True)
-        thread.start()
-        print('DEBUG: Redis listener iniciado')
-
-        # Loop principal (async)
+    async def _pubsub_data_reader(self, pubsub_subscriber):
         while True:
-            try:
-                data = msg_queue.get_nowait()
-                ws_message = WSMessage.model_validate_json(data)
-                await self.local_broadcast_async(ws_message)
-                print(
-                    f'DEBUG: Broadcast enviado para {len(self.active_connections)} clientes'
-                )
-            except queue.Empty:
-                await asyncio.sleep(0.05)
-            except Exception as e:
-                print(f'DEBUG: Erro no listener: {e}')
-                continue
+            message = await pubsub_subscriber.get_message(
+                ignore_subscribe_messages=True
+            )
+            if message is not None:
+                channel_id = message['channel'].decode('utf-8')
+                all_sockets = self.channels[channel_id]
+                for socket in all_sockets:
+                    data = message['data'].decode('utf-8')
+                    await socket.send_text(data)
 
 
-# Instancia global (singleton)
-_manager_instance = None
+def get_socket_manager(websocket: WebSocket) -> WebSocketManager:
+    return websocket.app.state.socket_manager
 
 
-def get_cache():  # pragma: no cover
-    global _manager_instance
-    if _manager_instance is None:
-        redis = Redis.from_url(SETTINGS.CACHE_URL)
-        _manager_instance = ConnectionManager(redis=redis)
-    return _manager_instance
+def get_redis(request: Request) -> Redis:
+    return request.app.state.redis

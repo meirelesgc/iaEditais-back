@@ -1,7 +1,7 @@
 """add evaluation tables
 
 Revision ID: d192ba3ccc29
-Revises: 836a80fde2a7
+Revises: 0452b4611255
 Create Date: 2025-12-03 23:00:19.101384
 
 """
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision: str = 'd192ba3ccc29'
-down_revision: Union[str, Sequence[str], None] = '836a80fde2a7'
+down_revision: Union[str, Sequence[str], None] = '0452b4611255'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

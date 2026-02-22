@@ -1,12 +1,15 @@
-from datetime import datetime, timezone
 from http import HTTPStatus
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import File, HTTPException, UploadFile
+from fastapi.responses import FileResponse
+from faststream.rabbit.fastapi import RabbitRouter as APIRouter
 from sqlalchemy import select
 
-from iaEditais.core.dependencies import Broker, CurrentUser, Session
+from iaEditais.core.dependencies import CurrentUser, Session, Storage
+from iaEditais.core.settings import Settings
 from iaEditais.models import (
+    Document,
     DocumentHistory,
     DocumentRelease,
 )
@@ -14,7 +17,12 @@ from iaEditais.schemas import (
     DocumentReleaseList,
     DocumentReleasePublic,
 )
-from iaEditais.services import releases_service
+from iaEditais.schemas.document import DocumentProcessingStatus
+from iaEditais.services import audit_service
+from iaEditais.services.report_service import document_release_report
+
+SETTINGS = Settings()
+BROKER_URL = SETTINGS.BROKER_URL
 
 router = APIRouter(
     prefix='/doc/{doc_id}/release',
@@ -23,23 +31,63 @@ router = APIRouter(
 
 
 @router.post(
-    '/', status_code=HTTPStatus.CREATED, response_model=DocumentReleasePublic
+    '',
+    status_code=HTTPStatus.CREATED,
+    response_model=DocumentReleasePublic,
 )
 async def create_release(
     doc_id: UUID,
     session: Session,
     current_user: CurrentUser,
-    broker: Broker,
+    storage: Storage,
     file: UploadFile = File(...),
 ):
-    db_release = await releases_service.create_release(
-        doc_id, session, current_user, file
+    result = await session.execute(
+        select(Document).where(Document.id == doc_id)
     )
-    await broker.publish(db_release.id, 'releases_create_vectors')
+    db_doc = result.scalar_one_or_none()
+    if not db_doc or db_doc.deleted_at:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Document not found',
+        )
+
+    if not db_doc.history or len(db_doc.typifications) == 0:
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST,
+            detail='The document sent has integrity issues.',
+        )
+    latest_history = db_doc.history[0]
+    unique_filename = f'{uuid4()}_{file.filename}'
+    file_path = await storage.save(file, unique_filename)
+
+    db_release = DocumentRelease(
+        history_id=latest_history.id,
+        file_path=file_path,
+        created_by=current_user.id,
+    )
+
+    session.add(db_release)
+    db_doc.processing_status = DocumentProcessingStatus.QUEUED
+
+    await session.flush()
+    await session.refresh(db_release)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='CREATE',
+        table_name=DocumentRelease.__tablename__,
+        record_id=db_release.id,
+        old_data=None,
+    )
+
+    await session.commit()
+    await router.broker.publish(db_release.id, 'release_pipeline')
     return db_release
 
 
-@router.get('/', response_model=DocumentReleaseList)
+@router.get('', response_model=DocumentReleaseList)
 async def read_releases(doc_id: UUID, session: Session):
     query = (
         select(DocumentRelease)
@@ -81,8 +129,51 @@ async def delete_release(
             detail='File not found or does not belong to this document.',
         )
 
-    db_release.deleted_at = datetime.now(timezone.utc)
-    db_release.deleted_by = current_user.id
+    old_data = DocumentReleasePublic.model_validate(db_release).model_dump(
+        mode='json'
+    )
+
+    db_release.set_deletion_audit(current_user.id)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=current_user.id,
+        action='DELETE',
+        table_name=DocumentRelease.__tablename__,
+        record_id=db_release.id,
+        old_data=old_data,
+    )
+
     await session.commit()
 
     return {'message': 'File deleted successfully'}
+
+
+@router.get('/{document_release_id}/export/pdf')
+async def exportar_document_release_pdf(
+    session: Session,
+    document_release_id: UUID,
+):
+    stmt = select(DocumentRelease).where(
+        DocumentRelease.id == document_release_id
+    )
+
+    obj = await session.scalar(stmt)
+
+    if not obj:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Document release not found',
+        )
+
+    payload = DocumentReleasePublic.model_validate(obj).model_dump()
+
+    report_path = document_release_report(payload)
+
+    if not report_path:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail='Could not generate PDF',
+        )
+
+    return FileResponse(report_path, filename=report_path.split('/')[-1])

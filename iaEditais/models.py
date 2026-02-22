@@ -3,7 +3,18 @@ from datetime import datetime
 from typing import List, Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import ForeignKey, Index, column, func
+from sqlalchemy import (  # Adicionar Computed
+    Computed,
+    ForeignKey,
+    Index,
+    Text,
+    column,
+    func,
+)
+from sqlalchemy.dialects.postgresql import (
+    JSONB,
+    TSVECTOR,
+)
 from sqlalchemy.orm import (
     Mapped,
     declared_attr,
@@ -93,6 +104,17 @@ class Unit(AuditMixin):
     name: Mapped[str] = mapped_column(nullable=False)
     location: Mapped[Optional[str]] = mapped_column(default=None)
 
+    tsv: Mapped[TSVECTOR] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "setweight(to_tsvector('portuguese', name), 'A') || "
+            "setweight(to_tsvector('portuguese', coalesce(location, '')), 'B')",
+            persisted=True,
+        ),
+        init=False,
+        deferred=True,
+    )
+
     users: Mapped[List['User']] = relationship(
         back_populates='unit',
         default_factory=list,
@@ -115,6 +137,11 @@ class Unit(AuditMixin):
             unique=True,
             postgresql_where=(column('deleted_at').is_(None)),
         ),
+        Index(
+            'ix_units_tsv',
+            'tsv',
+            postgresql_using='gin',
+        ),
     )
 
 
@@ -135,13 +162,25 @@ class User(AuditMixin):
     password: Mapped[str]
     access_level: Mapped[str] = mapped_column(default=AccessType.DEFAULT)
 
+    tsv: Mapped[TSVECTOR] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "setweight(to_tsvector('simple', username), 'A')",
+            persisted=True,
+        ),
+        init=False,
+        deferred=True,
+    )
+
     unit_id: Mapped[Optional[UUID]] = mapped_column(
         ForeignKey('units.id', name='fk_user_unit_id'),
         default=None,
         nullable=True,
     )
     icon_id: Mapped[Optional[UUID]] = mapped_column(
-        ForeignKey('user_images.id', name='fk_users_icon_id'),
+        ForeignKey(
+            'user_images.id', name='fk_users_icon_id', ondelete='SET NULL'
+        ),
         default=None,
         nullable=True,
     )
@@ -175,6 +214,11 @@ class User(AuditMixin):
             'email',
             unique=True,
             postgresql_where=(column('deleted_at').is_(None)),
+        ),
+        Index(
+            'ix_users_tsv',
+            'tsv',
+            postgresql_using='gin',
         ),
     )
 
@@ -215,6 +259,18 @@ class Source(AuditMixin):
     name: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str]
     file_path: Mapped[str] = mapped_column(nullable=True, init=False)
+
+    tsv: Mapped[TSVECTOR] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('portuguese', name) || "
+            "to_tsvector('portuguese', coalesce(description, ''))",
+            persisted=True,
+        ),
+        init=False,
+        deferred=True,
+    )
+
     typifications: Mapped[List['Typification']] = relationship(
         'Typification',
         lazy='noload',
@@ -239,6 +295,11 @@ class Source(AuditMixin):
             unique=True,
             postgresql_where=(column('deleted_at').is_(None)),
         ),
+        Index(
+            'ix_sources_tsv',
+            'tsv',
+            postgresql_using='gin',
+        ),
     )
 
 
@@ -252,6 +313,16 @@ class Typification(AuditMixin):
         default_factory=uuid4,
     )
     name: Mapped[str] = mapped_column(nullable=False)
+
+    tsv: Mapped[TSVECTOR] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('portuguese', name)",
+            persisted=True,
+        ),
+        init=False,
+        deferred=True,
+    )
 
     sources: Mapped[List[Source]] = relationship(
         'Source',
@@ -282,6 +353,11 @@ class Typification(AuditMixin):
             'name',
             unique=True,
             postgresql_where=(column('deleted_at').is_(None)),
+        ),
+        Index(
+            'ix_typifications_tsv',
+            'tsv',
+            postgresql_using='gin',
         ),
     )
 
@@ -322,6 +398,17 @@ class Taxonomy(AuditMixin):
     title: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str] = mapped_column()
 
+    tsv: Mapped[TSVECTOR] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('portuguese', title) || "
+            "to_tsvector('portuguese', coalesce(description, ''))",
+            persisted=True,
+        ),
+        init=False,
+        deferred=True,
+    )
+
     typification_id: Mapped[UUID] = mapped_column(
         ForeignKey('typifications.id', name='fk_taxonomy_typification_id'),
         nullable=False,
@@ -347,10 +434,16 @@ class Taxonomy(AuditMixin):
 
     __table_args__ = (
         Index(
-            'ix_uq_taxonomies_title_active',
+            'ix_uq_taxonomies_typification_title_active',
             'title',
+            'typification_id',
             unique=True,
             postgresql_where=(column('deleted_at').is_(None)),
+        ),
+        Index(
+            'ix_taxonomies_tsv',
+            'tsv',
+            postgresql_using='gin',
         ),
     )
 
@@ -368,6 +461,17 @@ class Branch(AuditMixin):
     title: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str]
 
+    tsv: Mapped[TSVECTOR] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('portuguese', title) || "
+            "to_tsvector('portuguese', coalesce(description, ''))",
+            persisted=True,
+        ),
+        init=False,
+        deferred=True,
+    )
+
     taxonomy_id: Mapped[UUID] = mapped_column(
         ForeignKey('taxonomies.id', name='fk_branch_taxonomy_id'),
         nullable=False,
@@ -378,10 +482,16 @@ class Branch(AuditMixin):
 
     __table_args__ = (
         Index(
-            'ix_uq_branch_title_active',
+            'ix_uq_branch_taxonomy_title_active',
+            'taxonomy_id',
             'title',
             unique=True,
             postgresql_where=(column('deleted_at').is_(None)),
+        ),
+        Index(
+            'ix_branches_tsv',
+            'tsv',
+            postgresql_using='gin',
         ),
     )
 
@@ -443,6 +553,19 @@ class Document(AuditMixin):
     name: Mapped[str] = mapped_column(nullable=False)
     identifier: Mapped[str] = mapped_column(nullable=False)
     description: Mapped[str]
+    processing_status: Mapped[str]
+
+    tsv: Mapped[TSVECTOR] = mapped_column(
+        TSVECTOR,
+        Computed(
+            "to_tsvector('portuguese', name) || "
+            "to_tsvector('portuguese', identifier) || "
+            "to_tsvector('portuguese', coalesce(description, ''))",
+            persisted=True,
+        ),
+        init=False,
+        deferred=True,
+    )
 
     unit_id: Mapped[UUID] = mapped_column(
         ForeignKey('units.id'), nullable=False
@@ -488,21 +611,21 @@ class Document(AuditMixin):
         init=False,
         cascade='all, delete-orphan',
     )
+    is_archived: Mapped[bool] = mapped_column(nullable=False, default=False)
 
     is_test: Mapped[bool] = mapped_column(default=False)
 
     __table_args__ = (
         Index(
-            'ix_uq_documents_name_active',
-            'name',
-            unique=True,
-            postgresql_where=(column('deleted_at').is_(None)),
-        ),
-        Index(
             'ix_uq_documents_identifier_active',
             'identifier',
             unique=True,
             postgresql_where=(column('deleted_at').is_(None)),
+        ),
+        Index(
+            'ix_documents_tsv',
+            'tsv',
+            postgresql_using='gin',
         ),
     )
 
@@ -912,7 +1035,6 @@ class DocumentMessage(AuditMixin):
     quoted_message: Mapped[Optional['DocumentMessage']] = relationship(
         remote_side='DocumentMessage.id', init=False, lazy='selectin'
     )
-
     mentions: Mapped[List['DocumentMessageMention']] = relationship(
         back_populates='message',
         lazy='selectin',
@@ -920,7 +1042,6 @@ class DocumentMessage(AuditMixin):
         init=False,
         default_factory=list,
     )
-
     __table_args__ = (
         Index(
             'ix_doc_msg_document_id_created_at',
@@ -946,7 +1067,6 @@ class DocumentMessageMention:
     message: Mapped['DocumentMessage'] = relationship(
         back_populates='mentions', init=False
     )
-
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )
@@ -970,15 +1090,65 @@ class UserImage:
     )
 
 
-# ===========================
-# Evaluation Models
-# ===========================
+@table_registry.mapped_as_dataclass
+class AuditLog:
+    __tablename__ = 'audit_logs'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
+    )
+    table_name: Mapped[str] = mapped_column(nullable=False, index=True)
+    record_id: Mapped[UUID] = mapped_column(nullable=False, index=True)
+    action: Mapped[str] = mapped_column(nullable=False)
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey('users.id', name='fk_audit_logs_user_id'),
+        nullable=False,
+        index=True,
+    )
+    old_data: Mapped[Optional[dict]] = mapped_column(
+        JSONB, nullable=True, default=None
+    )
+    user: Mapped['User'] = relationship(init=False, lazy='selectin')
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now(), index=True
+    )
+    description: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, default=None
+    )
+
+
+@table_registry.mapped_as_dataclass
+class PasswordReset:
+    __tablename__ = 'password_resets'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            'users.id', name='fk_password_resets_user_id', ondelete='CASCADE'
+        )
+    )
+
+    token_hash: Mapped[str]
+
+    expires_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
 
 
 @table_registry.mapped_as_dataclass
 class TestCollection(AuditMixin):
-    """Agrupador de casos de teste."""
-
     __tablename__ = 'test_collections'
 
     id: Mapped[UUID] = mapped_column(
@@ -1002,8 +1172,6 @@ class TestCollection(AuditMixin):
 
 @table_registry.mapped_as_dataclass
 class AIModel(AuditMixin):
-    """Modelos de IA usados nas métricas."""
-
     __tablename__ = 'ai_models'
 
     id: Mapped[UUID] = mapped_column(
@@ -1027,8 +1195,6 @@ class AIModel(AuditMixin):
 
 @table_registry.mapped_as_dataclass
 class Metric(AuditMixin):
-    """Critérios de avaliação."""
-
     __tablename__ = 'metrics'
 
     id: Mapped[UUID] = mapped_column(
@@ -1045,8 +1211,6 @@ class Metric(AuditMixin):
 
 @table_registry.mapped_as_dataclass
 class TestCase(AuditMixin):
-    """Cenários de teste."""
-
     __tablename__ = 'test_cases'
 
     id: Mapped[UUID] = mapped_column(
@@ -1084,8 +1248,6 @@ class TestCase(AuditMixin):
 
 @table_registry.mapped_as_dataclass
 class TestRun(AuditMixin):
-    """Evento de execução de testes."""
-
     __tablename__ = 'test_runs'
 
     id: Mapped[UUID] = mapped_column(
@@ -1107,7 +1269,9 @@ class TestRun(AuditMixin):
         default=None,
     )
     status: Mapped[str] = mapped_column(default='pending')
-    progress: Mapped[Optional[str]] = mapped_column(nullable=True, default=None)
+    progress: Mapped[Optional[str]] = mapped_column(
+        nullable=True, default=None
+    )
     error_message: Mapped[Optional[str]] = mapped_column(
         nullable=True, default=None
     )
@@ -1125,8 +1289,6 @@ class TestRun(AuditMixin):
 
 @table_registry.mapped_as_dataclass
 class TestResult(AuditMixin):
-    """Resultados detalhados dos testes."""
-
     __tablename__ = 'test_results'
 
     id: Mapped[UUID] = mapped_column(

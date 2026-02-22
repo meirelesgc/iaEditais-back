@@ -1,19 +1,19 @@
-import asyncio
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-import tomli
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from faststream.rabbit.fastapi import RabbitRouter
+from redis.asyncio import Redis
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
-from iaEditais.core.cache import get_cache
-
-from iaEditais import workers
-from iaEditais.core import broker
+from iaEditais.core.cache import WebSocketManager
 from iaEditais.core.settings import Settings
 from iaEditais.routers import auth, stats, units, users
+from iaEditais.routers.audit import audit_logs
 from iaEditais.routers.check_tree import (
     branches,
     sources,
@@ -30,10 +30,13 @@ from iaEditais.routers.evaluation import (
     test_results,
     test_runs,
 )
+from iaEditais.workers import utils as w_utils
+from iaEditais.workers.docs import releases as w_releases
+from iaEditais.workers.evaluation import test_runs as w_test_runs
 
 PROJECT_FILE = Path(__file__).parent.parent / 'pyproject.toml'
 
-# Diretórios
+
 BASE_DIR = os.path.dirname(__file__)
 STORAGE_DIR = os.path.join(BASE_DIR, 'storage')
 UPLOADS_DIR = os.path.join(STORAGE_DIR, 'uploads')
@@ -44,25 +47,36 @@ for directory in [STORAGE_DIR, UPLOADS_DIR, TEMP_DIR]:
 
 
 SETTINGS = Settings()
+BROKER_URL = SETTINGS.BROKER_URL
+
+logging.basicConfig(
+    level=SETTINGS.LOG_LEVEL, format='%(levelname)s: %(message)s'
+)
 
 
-# Lifespan para iniciar o listener de WebSocket
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    manager = get_cache()
-    listener_task = asyncio.create_task(manager.start_redis_listener())
-    print('DEBUG: WebSocket listener iniciado no startup')
+    redis_instance = Redis.from_url(SETTINGS.CACHE_URL)
+    socket_manager = WebSocketManager(client=redis_instance)
+    app.state.redis = redis_instance
+    app.state.socket_manager = socket_manager
     yield
-    # Shutdown
-    listener_task.cancel()
-    print('DEBUG: WebSocket listener encerrado')
 
 
-# Aplicação
-app = FastAPI(docs_url='/swagger', lifespan=lifespan)
+app = FastAPI(
+    docs_url='/swagger',
+    lifespan=lifespan,
+    root_path=SETTINGS.ROOT_PATH,
+)
+
+index = RabbitRouter(url=BROKER_URL)
 
 app.mount('/uploads', StaticFiles(directory=UPLOADS_DIR), name='uploads')
+
+app.add_middleware(
+    ProxyHeadersMiddleware,
+    trusted_hosts=SETTINGS.ALLOWED_ORIGINS,
+)
 
 app.add_middleware(
     CORSMiddleware,
@@ -73,51 +87,40 @@ app.add_middleware(
 )
 
 
-# Routers principais
 app.include_router(units.router)
-app.include_router(users.router)
-app.include_router(auth.router)
+
 app.include_router(stats.router)
 
-# Routers de documentação
+
 app.include_router(docs.router)
-app.include_router(kanban.router)
-app.include_router(releases.router)
+
+
 app.include_router(messages.router)
 app.include_router(docs_ws.router)
 
-# Routers de árvore
-app.include_router(sources.router)
+
 app.include_router(typifications.router)
 app.include_router(taxonomies.router)
 app.include_router(branches.router)
 
-# Routers de evaluation
+# Routers de evaluation (regulares)
 app.include_router(test_collections.router)
 app.include_router(test_cases.router)
 app.include_router(metrics.router)
 app.include_router(models.router)
-app.include_router(test_runs.router)
 app.include_router(test_results.router)
 
-# Eventos assincronos
-app.include_router(workers.router)
-app.include_router(broker.router)
+index.include_router(auth.router)
+index.include_router(users.router)
+index.include_router(w_releases.router)
+index.include_router(w_utils.router)
+index.include_router(releases.router)
+index.include_router(kanban.router)
+index.include_router(sources.router)
+index.include_router(test_runs.router)
+index.include_router(w_test_runs.router)
+
+app.include_router(index)
 
 
-@app.get('/info')
-async def info():
-    with PROJECT_FILE.open('rb') as f:
-        data = tomli.load(f)
-    project = data.get('project', {})
-    urls = data.get('tool', {}).get('poetry', {}).get('urls', {})
-    authors = project.get('authors', [])
-    authors_str = [f'{a.get("name")} <{a.get("email")}>' for a in authors]
-    return {
-        'name': project.get('name'),
-        'version': project.get('version'),
-        'description': project.get('description'),
-        'authors': authors_str,
-        'license': project.get('license'),
-        'urls': urls,
-    }
+app.include_router(audit_logs.router)
