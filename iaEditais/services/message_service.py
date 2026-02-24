@@ -41,9 +41,7 @@ async def create_message(
         db_msg.quoted_message_id = data.quoted_message.id
 
     message_repo.add_message(session, db_msg)
-    await (
-        session.flush()
-    )  # Necessário para gerar o ID da mensagem para as menções
+    await session.flush()
 
     if data.mentions:
         mentions = [

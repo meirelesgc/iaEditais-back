@@ -29,6 +29,7 @@ DIRETRIZES:
 - Identificadores presentes são tratados como válidos e eficazes.
 - Não farei menções a placeholders, anonimização ou estruturas internas.
 - Meu retorno será focado em ajudar você a fortalecer o documento, sem juízos de valor.
+- Utilize tratamento direto, falando com o auditor em segunda pessoa (ex.: "você apresentou", "seu documento demonstra"), evitando construções em terceira pessoa.
 
 ---
 TAREFA:
@@ -40,9 +41,9 @@ TAREFA:
 ---
 FORMATO DA RESPOSTA:
 
-# saudação e apresentação  
-# descrição dos pontos atendidos  
-# descrição dos pontos a aprimorar  
+# saudação e apresentação
+# descrição dos pontos atendidos
+# descrição dos pontos a aprimorar
 # orientação final de melhoria
 """
 

@@ -37,9 +37,7 @@ class QuotedMessage(BaseModel):
 
 class DocumentMessageSchema(BaseModel):
     content: str = Field()
-
     mentions: Optional[List[MessageMention]] = Field(default_factory=list)
-
     quoted_message: Optional[QuotedMessage] = Field(None)
 
 
