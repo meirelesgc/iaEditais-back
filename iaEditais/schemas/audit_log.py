@@ -16,6 +16,7 @@ class AuditLogPublic(BaseModel):
     old_data: Optional[dict] = None
     user: UserPublic
     created_at: datetime
+    description: Optional[str] = None
     model_config = ConfigDict(from_attributes=True)
 
 
