@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from iaEditais.models import Document, DocumentHistory, User
 from iaEditais.repositories import kanban_repo
 from iaEditais.schemas import DocumentPublic, DocumentStatus
+from iaEditais.schemas.document_history import DocumentHistoryPublic
 from iaEditais.services import audit_service
 
 # --- Definições de Regras de Negócio ---
@@ -143,8 +144,14 @@ async def update_document_status(
     history.set_creation_audit(user_id)
     kanban_repo.add_history(session, history)
 
-    # 5. Auditoria e Commit
+    await session.flush()
+    await session.refresh(history)
+
     new_data = DocumentPublic.model_validate(doc).model_dump(mode='json')
+    new_data['history'].insert(
+        0,
+        DocumentHistoryPublic.model_validate(history).model_dump(mode='json'),
+    )
     doc.set_update_audit(user_id)
 
     await audit_service.register_action(
