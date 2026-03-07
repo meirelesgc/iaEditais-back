@@ -53,6 +53,7 @@ from tests.factories import (
     BranchFactory,
     DocFactory,
     SourceFactory,
+    SystemSettingFactory,
     TaxonomyFactory,
     TypificationFactory,
     UnitFactory,
@@ -402,3 +403,15 @@ def create_message(session):
         return db_msg
 
     return _create_message
+
+
+@pytest_asyncio.fixture
+def create_system_setting(session):
+    async def _create_system_setting(**kwargs):
+        source = SystemSettingFactory.build(**kwargs)
+        session.add(source)
+        await session.commit()
+        await session.refresh(source)
+        return source
+
+    return _create_system_setting

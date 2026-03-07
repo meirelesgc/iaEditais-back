@@ -4,6 +4,7 @@ from iaEditais.models import (
     Branch,
     Document,
     Source,
+    SystemSetting,
     Taxonomy,
     Typification,
     Unit,
@@ -72,3 +73,12 @@ class DocFactory(factory.Factory):
     identifier = factory.Sequence(lambda n: f'Identificador de Teste {n}')
     description = factory.Faker('paragraph', nb_sentences=3, locale='pt_BR')
     processing_status = DocumentProcessingStatus.IDLE
+
+
+class SystemSettingFactory(factory.Factory):
+    class Meta:
+        model = SystemSetting
+
+    key = factory.Sequence(lambda n: f'CONSTANTE_{n}')
+    value = factory.Sequence(lambda n: f'{n}')
+    description = factory.Faker('paragraph', nb_sentences=3, locale='pt_BR')
