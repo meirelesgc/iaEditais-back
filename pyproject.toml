@@ -1,6 +1,6 @@
 [project]
 name = "iaEditais"
-version = "2.5.1"
+version = "2.6.0"
 description = "This API was developed to assist in the preparation and analysis of public procurement notices, employing Artificial Intelligence (AI) techniques. The goal is to increase accuracy, compliance, and efficiency in the creation and review of notices, reducing errors and inconsistencies."
 authors = [{name = "gmcosta",email = "geu_costa@outlook.com"}]
 readme = "README.md"
@@ -54,9 +54,13 @@ filterwarnings = [
 concurrency = ["thread", "greenlet"]
 
 [tool.taskipy.tasks]
+
 run = 'fastapi dev iaEditais/app.py'
+
 test = 'pytest -s -x --cov=iaEditais -vv'
+
 cov = 'coverage html'
-release-patch = "poetry version patch && VERSION=$(poetry version -s) && git add pyproject.toml && git commit -m \"release: v$VERSION\" && git tag v$VERSION && git push && git push --tags"
-release-minor = "poetry version minor && VERSION=$(poetry version -s) && git add pyproject.toml && git commit -m \"release: v$VERSION\" && git tag v$VERSION && git push && git push --tags"
-release-major = "poetry version major && VERSION=$(poetry version -s) && git add pyproject.toml && git commit -m \"release: v$VERSION\" && git tag v$VERSION && git push && git push --tags"
+
+release-patch = "poetry version patch && VERSION=$(poetry version -s) && git add pyproject.toml && git commit -m \"release: v$VERSION\" && git tag -a v$VERSION -m \"release: v$VERSION\" && git push --follow-tags"
+release-minor = "poetry version minor && VERSION=$(poetry version -s) && git add pyproject.toml && git commit -m \"release: v$VERSION\" && git tag -a v$VERSION -m \"release: v$VERSION\" && git push --follow-tags"
+release-major = "poetry version major && VERSION=$(poetry version -s) && git add pyproject.toml && git commit -m \"release: v$VERSION\" && git tag -a v$VERSION -m \"release: v$VERSION\" && git push --follow-tags"
