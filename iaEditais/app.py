@@ -1,5 +1,6 @@
 import logging
 import os
+import tomllib
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -26,6 +27,12 @@ from iaEditais.workers import utils as w_utils
 from iaEditais.workers.docs import releases as w_releases
 
 PROJECT_FILE = Path(__file__).parent.parent / 'pyproject.toml'
+
+
+def get_version():
+    with open(PROJECT_FILE, 'rb') as f:
+        data = tomllib.load(f)
+    return data['project']['version']
 
 
 BASE_DIR = os.path.dirname(__file__)
@@ -76,6 +83,14 @@ app.add_middleware(
     allow_methods=['*'],
     allow_headers=['*'],
 )
+
+
+@app.get('/health')
+async def health():
+    return {
+        'status': 'ok',
+        'version': get_version(),
+    }
 
 
 app.include_router(units.router)
