@@ -1,6 +1,9 @@
 from datetime import datetime
+from http import HTTPStatus
 from pathlib import Path
+from uuid import UUID
 
+from fastapi import HTTPException
 from reportlab.graphics.shapes import Drawing, Line
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_JUSTIFY, TA_LEFT
@@ -8,6 +11,10 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
+from sqlalchemy import select
+
+from iaEditais.models import DocumentRelease
+from iaEditais.schemas.document_release import DocumentReleasePublic
 
 
 def get_custom_styles():
@@ -419,3 +426,26 @@ def document_release_report(
         return str(filepath)
     except Exception:
         return None
+
+
+async def generate_document_release_pdf(session, document_release_id: UUID):
+    stmt = select(DocumentRelease).where(
+        DocumentRelease.id == document_release_id
+    )
+
+    obj = await session.scalar(stmt)
+
+    if not obj:
+        return None
+
+    payload = DocumentReleasePublic.model_validate(obj).model_dump()
+
+    report_path = document_release_report(payload)
+
+    if not report_path:
+        raise HTTPException(
+            status_code=HTTPStatus.INTERNAL_SERVER_ERROR,
+            detail='Could not generate PDF',
+        )
+
+    return report_path

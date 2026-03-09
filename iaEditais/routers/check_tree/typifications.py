@@ -78,7 +78,7 @@ async def delete_typification(
     return {'message': 'Typification deleted'}
 
 
-@router.get('/export/pdf')
+@router.get('/export/pdf', include_in_schema=False)
 async def exportar_tipificacoes_pdf(
     session: Session,
     typification_id: UUID = None,
