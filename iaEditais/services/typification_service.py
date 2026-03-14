@@ -129,7 +129,7 @@ async def update_typification(
         db_typification.sources = sources_list
         new_data['sources'] = SourceList.model_validate({
             'sources': sources_list
-        }).model_dump()
+        }).model_dump()['sources']
     else:
         db_typification.sources = []
 

@@ -83,9 +83,47 @@ def _generate_human_diff(
                 new_status = STATUS_TRANSLATION.get(
                     new_status_raw, new_status_raw or 'Sem status'
                 )
-                changes.append(
-                    f"Moveu o documento da etapa '{old_status}' para '{new_status}'"
+                msg = f"Moveu o documento da etapa '{old_status}' para '{new_status}'"
+                changes.append(msg)
+            continue
+
+        if (
+            key != 'history'
+            and isinstance(old_val, list)
+            and isinstance(new_val, list)
+        ):
+            field_name = field_translation.get(
+                key, key.replace('_', ' ').capitalize()
+            )
+
+            old_dict = {
+                item.get('id'): item
+                for item in old_val
+                if isinstance(item, dict) and item.get('id')
+            }
+            new_dict = {
+                item.get('id'): item
+                for item in new_val
+                if isinstance(item, dict) and item.get('id')
+            }
+
+            added_ids = set(new_dict.keys()) - set(old_dict.keys())
+            removed_ids = set(old_dict.keys()) - set(new_dict.keys())
+
+            for item_id in added_ids:
+                item_name = new_dict[item_id].get(
+                    'name', new_dict[item_id].get('title', item_id)
                 )
+                msg = f"Adicionou '{item_name}' em {field_name}"
+                changes.append(msg)
+
+            for item_id in removed_ids:
+                item_name = old_dict[item_id].get(
+                    'name', old_dict[item_id].get('title', item_id)
+                )
+                msg = f"Removeu '{item_name}' de {field_name}"
+                changes.append(msg)
+
             continue
 
         if old_val != new_val:
@@ -96,16 +134,17 @@ def _generate_human_diff(
             new_str = _format_value(new_val)
 
             if old_str == new_str and old_str == 'Configurado':
-                changes.append(f'{field_name} modificado')
+                msg = f'{field_name} modificado'
+                changes.append(msg)
             else:
-                changes.append(
-                    f"Alterou {field_name} de '{old_str}' para '{new_str}'"
-                )
+                msg = f"Alterou {field_name} de '{old_str}' para '{new_str}'"
+                changes.append(msg)
 
     if not changes:
         return 'Salvo sem alterações.'
 
-    return '; '.join(changes)
+    resultado = '; '.join(changes)
+    return resultado
 
 
 async def register_action(

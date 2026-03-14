@@ -98,7 +98,6 @@ async def update_doc(
 
     old_data = DocumentPublic.model_validate(db_doc).model_dump(mode='json')
 
-    # Verifica conflito de identificador
     conflict = await doc_repo.get_by_identifier(
         session, data.identifier, exclude_id=data.id
     )
@@ -114,7 +113,6 @@ async def update_doc(
 
     new_data = DocumentPublic.model_validate(db_doc).model_dump(mode='json')
 
-    # Atualiza relacionamentos
     if data.typification_ids is not None:
         typifications = await doc_repo.get_typifications_by_ids(
             session, data.typification_ids
@@ -123,7 +121,7 @@ async def update_doc(
         db_doc.typifications = typ_list
         new_data['typifications'] = TypificationList.model_validate({
             'typifications': typ_list
-        }).model_dump(mode='json')
+        }).model_dump(mode='json')['typifications']
 
     if data.editors_ids is not None:
         editors = await doc_repo.get_users_by_ids(session, data.editors_ids)
@@ -131,10 +129,9 @@ async def update_doc(
         db_doc.editors = user_list
         new_data['editors'] = UserList.model_validate({
             'users': user_list
-        }).model_dump(mode='json')
+        }).model_dump(mode='json')['users']
 
     db_doc.set_update_audit(current_user.id)
-
     await audit_service.register_action(
         session=session,
         user_id=current_user.id,

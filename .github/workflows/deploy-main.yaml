@@ -3,6 +3,7 @@ name: CI/CD Pipeline - iaEditais Back
 on:
   push:
     branches: ["main"]
+    tags: ["v*"]
 
 env:
   IMAGE_NAME: gleidsoncosta/fiotec-iaeditais
@@ -34,6 +35,7 @@ jobs:
 
   build-and-push:
     needs: tests
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -56,6 +58,7 @@ jobs:
 
   deploy:
     needs: build-and-push
+    if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-latest
     steps:
       - name: Deploy via SSH
