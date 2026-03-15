@@ -1,3 +1,5 @@
+import logging
+
 import httpx
 from faststream.rabbit import RabbitRouter
 from sqlalchemy import select
@@ -6,6 +8,8 @@ from iaEditais.core.dependencies import Session
 from iaEditais.core.settings import Settings
 from iaEditais.models import User
 from iaEditais.services import notification_service
+
+logger = logging.getLogger(__name__)
 
 SETTINGS = Settings()
 URL = SETTINGS.EVOLUTION_URL
@@ -32,12 +36,15 @@ async def send_message(payload: dict, session: Session):
     query = await session.scalars(statement)
     users_to_notify = query.all()
 
-    async with httpx.AsyncClient() as client:
-        for user in users_to_notify:
-            phone_number = notification_service.prepare_phone_number(user)
+    try:
+        async with httpx.AsyncClient() as client:
+            for user in users_to_notify:
+                phone_number = notification_service.prepare_phone_number(user)
 
-            if not phone_number:
-                continue
+                if not phone_number:
+                    continue
 
-            payload = {'number': phone_number, 'text': message_text}
-            await client.post(URL, headers=HEADERS, json=payload)
+                payload = {'number': phone_number, 'text': message_text}
+                await client.post(URL, headers=HEADERS, json=payload)
+    except httpx.ConnectError:
+        logger.warning('Evolution API unavailable, skipping notification')

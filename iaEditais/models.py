@@ -1,9 +1,9 @@
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional
+from typing import Any, List, Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import (  # Adicionar Computed
+from sqlalchemy import (
     Computed,
     ForeignKey,
     Index,
@@ -1144,6 +1144,27 @@ class PasswordReset:
 
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
+    )
+
+
+@table_registry.mapped_as_dataclass
+class SystemSetting(AuditMixin):
+    __tablename__ = 'system_settings'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False, primary_key=True, default=uuid4
+    )
+    key: Mapped[str] = mapped_column(nullable=False, index=True)
+    value: Mapped[Any] = mapped_column(JSONB, nullable=True)
+    description: Mapped[str | None] = mapped_column(nullable=True)
+
+    __table_args__ = (
+        Index(
+            'ix_uq_settings_name_active',
+            'key',
+            unique=True,
+            postgresql_where=(column('deleted_at').is_(None)),
+        ),
     )
 
 

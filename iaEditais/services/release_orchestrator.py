@@ -170,9 +170,12 @@ async def process_release_pipeline(
 
         await _ws_update(redis, db_release, 'complete')
 
-        log_path = f'iaEditais/storage/temp/{datetime.now().isoformat()}.py'
-        with open(log_path, 'w', encoding='utf-8') as f:
-            f.write(f'eval_args = {repr(simplified_args)}')
+        try:
+            log_path = f'iaEditais/storage/temp/{datetime.now().strftime("%Y%m%d_%H%M%S")}.py'
+            with open(log_path, 'w', encoding='utf-8') as f:
+                f.write(f'eval_args = {repr(simplified_args)}')
+        except OSError:
+            pass
 
         return {'doc': db_doc, 'release': db_release, 'status': 'success'}
 

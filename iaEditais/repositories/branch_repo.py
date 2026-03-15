@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from iaEditais.models import Branch, Taxonomy
+from iaEditais.models import AppliedBranch, Branch, Taxonomy
 from iaEditais.repositories import util
 from iaEditais.schemas import BranchFilter
 
@@ -13,6 +13,16 @@ async def get_by_id(
     session: AsyncSession, branch_id: UUID
 ) -> Optional[Branch]:
     stmt = select(Branch).where(Branch.id == branch_id)
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def get_id_by_id(
+    session: AsyncSession, branch_id: UUID
+) -> Optional[UUID]:
+    stmt = select(AppliedBranch.original_id).where(
+        AppliedBranch.id == branch_id
+    )
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
 

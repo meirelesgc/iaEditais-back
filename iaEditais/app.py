@@ -1,5 +1,6 @@
 import logging
 import os
+import tomllib
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -12,7 +13,7 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
 from iaEditais.core.cache import WebSocketManager
 from iaEditais.core.settings import Settings
-from iaEditais.routers import auth, stats, units, users
+from iaEditais.routers import auth, stats, system, units, users
 from iaEditais.routers.audit import audit_logs
 from iaEditais.routers.check_tree import (
     branches,
@@ -35,6 +36,12 @@ from iaEditais.workers.docs import releases as w_releases
 from iaEditais.workers.evaluation import test_runs as w_test_runs
 
 PROJECT_FILE = Path(__file__).parent.parent / 'pyproject.toml'
+
+
+def get_version():
+    with open(PROJECT_FILE, 'rb') as f:
+        data = tomllib.load(f)
+    return data['project']['version']
 
 
 BASE_DIR = os.path.dirname(__file__)
@@ -87,6 +94,14 @@ app.add_middleware(
 )
 
 
+@app.get('/health')
+async def health():
+    return {
+        'status': 'ok',
+        'version': get_version(),
+    }
+
+
 app.include_router(units.router)
 
 app.include_router(stats.router)
@@ -124,3 +139,4 @@ app.include_router(index)
 
 
 app.include_router(audit_logs.router)
+app.include_router(system.router)

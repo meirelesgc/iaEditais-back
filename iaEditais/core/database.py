@@ -25,7 +25,6 @@ def _add_filtering_criteria(execute_state: ORMExecuteState):
     skip_filter = execute_state.execution_options.get(
         'skip_soft_delete_filter', False
     )
-    
     if execute_state.is_select and not skip_filter:
         execute_state.statement = execute_state.statement.options(
             with_loader_criteria(

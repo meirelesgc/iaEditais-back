@@ -67,12 +67,20 @@ async def get_branches(
 
 
 async def get_branch_by_id(session: AsyncSession, branch_id: UUID) -> Branch:
+    not_found_exp = HTTPException(
+        status_code=HTTPStatus.NOT_FOUND,
+        detail='Branch not found',
+    )
     branch = await branch_repo.get_by_id(session, branch_id)
+
+    # Fallback temporario
+    if not branch:
+        original_id = await branch_repo.get_id_by_id(session, branch_id)
+        branch = await branch_repo.get_by_id(session, original_id)
+
     if not branch or branch.deleted_at:
-        raise HTTPException(
-            status_code=HTTPStatus.NOT_FOUND,
-            detail='Branch not found',
-        )
+        raise not_found_exp
+
     return branch
 
 
