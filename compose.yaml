@@ -19,14 +19,14 @@ services:
 
   iaeditais_api:
     # image: gleidsoncosta/fiotec-iaeditais:latest
-    image: joaovitorcafe/fiotec-iaeditais:feature-deepeval
-    # build: .
+    # image: joaovitorcafe/fiotec-iaeditais:feature-deepeval
+    build: .
     entrypoint: ./entrypoint.sh
     ports:
       - "8000:8000"
     environment:
       OTEL_SERVICE_NAME: iaEditais
-      OTEL_EXPORTER_OTLP_ENDPOINT: iaeditais_otel:4317
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://iaeditais_otel:4317
       OTEL_EXPORTER_OTLP_INSECURE: true
       OTEL_PYTHON_LOG_LEVEL: info
       OTEL_PYTHON_LOGGING_AUTO_INSTRUMENTATION_ENABLED: true
@@ -36,12 +36,10 @@ services:
       BROKER_URL: 'amqp://guest:guest@iaeditais_rabbitmq:5672/'
       CACHE_URL: 'redis://iaeditais_redis:6379/0'
       DATABASE_URL: postgresql+psycopg://postgres:postgres@iaeditais_db:5432/iaeditais
-      CACHE_URL: redis://iaeditais_redis:6379/0
-      BROKER_URL: amqp://guest:guest@iaeditais_rabbitmq:5672/
       TZ: America/Sao_Paulo
     env_file: ".env"
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      # test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
       interval: 30s
       timeout: 10s
       retries: 3

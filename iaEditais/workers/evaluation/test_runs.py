@@ -5,20 +5,24 @@ Worker para processamento assíncrono de test runs.
 import logging
 from uuid import UUID
 
-from faststream.rabbit import RabbitRouter
+from fastapi import Depends
+from faststream.rabbit import RabbitBroker, RabbitRouter
+from redis import Redis
 
-from iaEditais.core.dependencies import CacheManager, Model, Session, VStore
+from iaEditais.core.cache import get_redis
+from iaEditais.core.dependencies import Model, Session, VStore
 from iaEditais.models import TestRun, User
 from iaEditais.repositories import evaluation_repository
 from iaEditais.schemas import TestRunPublic, TestRunStatus, WSMessage
 from iaEditais.services import evaluation_service
+from iaEditais.workers.utils import BROKER_URL
 
 logger = logging.getLogger(__name__)
 router = RabbitRouter()
 
 
 async def send_test_run_update(
-    manager: CacheManager,
+    redis: Redis,
     session,
     test_run_id: UUID,
     status: str,
@@ -26,29 +30,29 @@ async def send_test_run_update(
     error_message: str = None,
 ):
     """Envia atualização de progresso via WebSocket com payload completo."""
-    # Busca TestRun atualizado do banco
-    test_run = await session.get(TestRun, test_run_id)
-    if test_run:
-        test_run_public = TestRunPublic.model_validate(test_run)
-        payload = test_run_public.model_dump(mode='json')
-        # Adiciona campos extras de progresso
-        payload['progress'] = progress
-        payload['error_message'] = error_message
-    else:
-        payload = {
-            'test_run_id': str(test_run_id),
-            'status': status,
-            'progress': progress,
-            'error_message': error_message,
-        }
-    
-    ws_message = WSMessage(
-        event='test_run.update',
-        message=status,
-        payload=payload,
-    )
-    manager.broadcast(ws_message)
-    print(f'DEBUG: WebSocket - test_run.update: {status} - {progress}')
+    try:
+        test_run = await session.get(TestRun, test_run_id)
+        if test_run:
+            test_run_public = TestRunPublic.model_validate(test_run)
+            payload = test_run_public.model_dump(mode='json')
+            payload['progress'] = progress
+            payload['error_message'] = error_message
+        else:
+            payload = {
+                'test_run_id': str(test_run_id),
+                'status': status,
+                'progress': progress,
+                'error_message': error_message,
+            }
+
+        ws_message = WSMessage(
+            event='test_run.update',
+            message=status,
+            payload=payload,
+        )
+        await redis.publish('ws:broadcast', ws_message.model_dump_json())
+    except Exception as e:
+        logger.warning(f'Failed to send WebSocket update for test_run {test_run_id}: {e}')
 
 
 @router.subscriber('test_run_process')
@@ -57,7 +61,7 @@ async def process_test_run(
     session: Session,
     vectorstore: VStore,
     model: Model,
-    manager: CacheManager,
+    redis: Redis = Depends(get_redis),
 ):
     """
     Processa um test run de forma assíncrona.
@@ -101,7 +105,7 @@ async def process_test_run(
             session, test_run_id, TestRunStatus.PROCESSING.value, 'Iniciando processamento...'
         )
         await send_test_run_update(
-            manager, session, test_run_id, TestRunStatus.PROCESSING.value, 'Iniciando processamento...'
+            redis, session, test_run_id, TestRunStatus.PROCESSING.value, 'Iniciando processamento...'
         )
         
         # 2. Busca usuário
@@ -148,7 +152,7 @@ async def process_test_run(
             session, test_run_id, TestRunStatus.PROCESSING.value, 'Criando release do documento...'
         )
         await send_test_run_update(
-            manager, session, test_run_id, TestRunStatus.PROCESSING.value, 'Criando release do documento...'
+            redis, session, test_run_id, TestRunStatus.PROCESSING.value, 'Criando release do documento...'
         )
         
         from iaEditais.repositories import releases_repository
@@ -177,11 +181,12 @@ async def process_test_run(
         )
         
         # 6. Publica para processamento de vetores
-        await router.broker.publish(db_release.id, 'release_pipeline')
+        async with RabbitBroker(BROKER_URL) as broker:
+            await broker.publish(db_release.id, 'release_pipeline')
         print('DEBUG: Worker - Publicado para release_pipeline - Checkpoint W9')
         
         await send_test_run_update(
-            manager, session, test_run_id, TestRunStatus.PROCESSING.value, 'Processando documento (vetores)...'
+            redis, session, test_run_id, TestRunStatus.PROCESSING.value, 'Processando documento (vetores)...'
         )
         
         # 7. Aguarda processamento completo do release
@@ -197,7 +202,7 @@ async def process_test_run(
             f'Avaliando casos de teste (0/{len(test_case_ids)})...'
         )
         await send_test_run_update(
-            manager, session, test_run_id, TestRunStatus.EVALUATING.value, 
+            redis, session, test_run_id, TestRunStatus.EVALUATING.value, 
             f'Avaliando casos de teste (0/{len(test_case_ids)})...'
         )
         
@@ -227,7 +232,7 @@ async def process_test_run(
                     session, test_run_id, TestRunStatus.EVALUATING.value, progress_msg
                 )
                 await send_test_run_update(
-                    manager, session, test_run_id, TestRunStatus.EVALUATING.value, progress_msg
+                    redis, session, test_run_id, TestRunStatus.EVALUATING.value, progress_msg
                 )
                 
                 print(f'DEBUG: Worker - Processando caso {idx}/{len(test_case_id_list)}, métrica {metric_idx}/{len(metric_ids)} - Checkpoint W14')
@@ -267,7 +272,7 @@ async def process_test_run(
             f'Concluído: {len(results_summary)} avaliações processadas'
         )
         await send_test_run_update(
-            manager, session, test_run_id, TestRunStatus.COMPLETED.value, 
+            redis, session, test_run_id, TestRunStatus.COMPLETED.value, 
             f'Concluído: {len(results_summary)} avaliações processadas'
         )
         
@@ -281,19 +286,17 @@ async def process_test_run(
         
     except Exception as e:
         logger.error(f'Error processing test run {test_run_id}: {e}')
-        print(f'DEBUG: Worker - Erro fatal no test run {test_run_id}: {e} - Checkpoint W-ERROR')
         
-        # Atualiza status para ERROR
         try:
+            await session.rollback()
             await evaluation_repository.update_test_run_status(
                 session, test_run_id, TestRunStatus.ERROR.value, error_message=str(e)
             )
             await send_test_run_update(
-                manager, session, test_run_id, TestRunStatus.ERROR.value, error_message=str(e)
+                redis, session, test_run_id, TestRunStatus.ERROR.value, error_message=str(e)
             )
         except Exception as update_error:
             logger.error(f'Failed to update test run status: {update_error}')
-            print(f'DEBUG: Worker - Erro ao atualizar status: {update_error}')
         
         return {
             'status': TestRunStatus.ERROR.value,

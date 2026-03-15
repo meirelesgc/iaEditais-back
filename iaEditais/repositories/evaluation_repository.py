@@ -71,7 +71,7 @@ async def update_test_collection(
 ):
     """Atualiza uma coleção de testes."""
     db_test_collection = await session.get(TestCollection, test_collection_id)
-    if not db_test_collection:
+    if not db_test_collection or db_test_collection.deleted_at:
         return None
 
     for key, value in test_collection_data.items():
@@ -196,7 +196,9 @@ async def create_metric(
 
 async def get_metric(session: AsyncSession, metric_id: UUID):
     """Busca uma métrica por ID."""
-    query = select(Metric).where(Metric.id == metric_id)
+    query = select(Metric).where(
+        Metric.id == metric_id, Metric.deleted_at.is_(None)
+    )
     return await session.scalar(query)
 
 
@@ -223,7 +225,7 @@ async def update_metric(
 ):
     """Atualiza uma métrica."""
     db_metric = await session.get(Metric, metric_id)
-    if not db_metric:
+    if not db_metric or db_metric.deleted_at:
         return None
 
     for key, value in metric_data.items():
@@ -261,7 +263,10 @@ async def get_branch_by_name_or_id(
 ):
     """Busca uma branch por ID ou nome."""
     if branch_id:
-        return await session.get(Branch, branch_id)
+        branch = await session.get(Branch, branch_id)
+        if branch and branch.deleted_at:
+            return None
+        return branch
 
     if branch_name:
         query = select(Branch).where(
@@ -321,7 +326,7 @@ async def update_test_case(
 ):
     """Atualiza um caso de teste."""
     db_test_case = await session.get(TestCase, test_case_id)
-    if not db_test_case:
+    if not db_test_case or db_test_case.deleted_at:
         return None
 
     for key, value in test_case_data.items():

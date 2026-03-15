@@ -208,7 +208,7 @@ async def process_test_case(
     # Executar em thread separada isola o problema
     print('DEBUG: Executando avaliação com DeepEval em thread separada - Checkpoint 39')
     try:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         with ThreadPoolExecutor(max_workers=1) as executor:
             await loop.run_in_executor(executor, metric.measure, llm_test_case)
         score = metric.score

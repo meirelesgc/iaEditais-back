@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 from fastapi import Depends, File, Form, HTTPException, Query, UploadFile
 from faststream.rabbit.fastapi import RabbitRouter as APIRouter
 
-from iaEditais.core.dependencies import CurrentUser, Session
+from iaEditais.core.dependencies import CurrentUser, Session, Storage
 from iaEditais.models import Branch, Document, DocumentHistory, Taxonomy, Typification
 from iaEditais.repositories import evaluation_repository
 from iaEditais.schemas import (
@@ -23,9 +23,8 @@ from iaEditais.schemas import (
     TestRunPublic,
     TestRunStatus,
 )
-from iaEditais.services import storage_service
 
-UPLOAD_DIRECTORY = 'iaEditais/storage/uploads'
+from iaEditais.schemas.document import DocumentProcessingStatus
 
 router = APIRouter(
     prefix='/test-runs',
@@ -127,6 +126,7 @@ async def read_test_run(
 async def execute_test_run(
     session: Session,
     current_user: CurrentUser,
+    storage: Storage,
     payload: str = Form(...),
     file: UploadFile = File(...),
 ):
@@ -156,38 +156,84 @@ async def execute_test_run(
                 'Either test_collection_id or test_case_id is required'
             )
 
+        if test_run_execute.test_collection_id:
+            tc = await evaluation_repository.get_test_collection(
+                session, test_run_execute.test_collection_id
+            )
+            if not tc or tc.deleted_at:
+                raise HTTPException(
+                    status_code=HTTPStatus.NOT_FOUND,
+                    detail='Test collection not found',
+                )
+
+        if test_run_execute.test_case_id:
+            tc_case = await evaluation_repository.get_test_case(
+                session, test_run_execute.test_case_id
+            )
+            if not tc_case or tc_case.deleted_at:
+                raise HTTPException(
+                    status_code=HTTPStatus.NOT_FOUND,
+                    detail='Test case not found',
+                )
+
+        if test_run_execute.model_id:
+            ai_model = await evaluation_repository.get_ai_model(
+                session, test_run_execute.model_id
+            )
+            if not ai_model or ai_model.deleted_at:
+                raise HTTPException(
+                    status_code=HTTPStatus.NOT_FOUND,
+                    detail='AI Model not found',
+                )
+
+        for mid in test_run_execute.metric_ids:
+            metric = await evaluation_repository.get_metric(session, mid)
+            if not metric:
+                raise HTTPException(
+                    status_code=HTTPStatus.NOT_FOUND,
+                    detail=f'Metric {mid} not found',
+                )
+
         # Salva arquivo para processamento posterior
         print('DEBUG: Salvando arquivo para processamento posterior - Checkpoint 4')
-        file_path = await storage_service.save_file(file, UPLOAD_DIRECTORY)
+        unique_filename = f'{uuid4()}_{file.filename}'
+        file_path = await storage.save(file, unique_filename)
         print(f'DEBUG: Arquivo salvo em: {file_path} - Checkpoint 4.1')
 
         # Busca test_case para obter test_collection_id e branch
         test_collection_id = test_run_execute.test_collection_id
         test_case = None
         if test_run_execute.test_case_id:
-            print('DEBUG: Buscando test_case - Checkpoint 4.2')
             test_case = await evaluation_repository.get_test_case(
                 session, test_run_execute.test_case_id
             )
             if test_case and not test_collection_id:
                 test_collection_id = test_case.test_collection_id
-                print(f'DEBUG: test_collection_id encontrado: {test_collection_id} - Checkpoint 4.3')
 
-        # Busca tipificação a partir do branch do test_case
-        print('DEBUG: Buscando tipificação do branch - Checkpoint 4.3.1')
+        # Busca tipificação a partir dos test cases
         typification = None
-        if test_case and test_case.branch_id:
-            branch = await session.get(Branch, test_case.branch_id)
-            if branch and branch.taxonomy_id:
-                taxonomy = await session.get(Taxonomy, branch.taxonomy_id)
-                if taxonomy and taxonomy.typification_id:
-                    typification = await session.get(Typification, taxonomy.typification_id)
-                    print(f'DEBUG: Tipificação encontrada: {typification.name} - Checkpoint 4.3.2')
+        test_cases_for_typ = (
+            [test_case] if test_case
+            else await evaluation_repository.get_test_cases(
+                session, test_collection_id=test_collection_id
+            )
+        )
+
+        for tc in test_cases_for_typ:
+            if tc.branch_id:
+                branch = await session.get(Branch, tc.branch_id)
+                if branch and branch.taxonomy_id:
+                    taxonomy = await session.get(Taxonomy, branch.taxonomy_id)
+                    if taxonomy and taxonomy.typification_id:
+                        typification = await session.get(
+                            Typification, taxonomy.typification_id
+                        )
+                        break
 
         if not typification:
             raise HTTPException(
                 status_code=HTTPStatus.BAD_REQUEST,
-                detail='Test case branch must have an associated typification',
+                detail='No test case branch has an associated typification',
             )
 
         # Cria Document automaticamente com is_test=true
@@ -203,6 +249,7 @@ async def execute_test_run(
             unit_id=current_user.unit_id,
             created_by=current_user.id,
             is_test=True,
+            processing_status=DocumentProcessingStatus.IDLE
         )
         session.add(db_doc)
         await session.flush()  # Para obter o ID antes de associar relacionamentos

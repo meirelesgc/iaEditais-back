@@ -9,7 +9,7 @@ from enum import Enum
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 
 # ===========================
@@ -180,6 +180,13 @@ class TestRunExecute(BaseModel):
     test_case_id: Optional[UUID] = None
     metric_ids: list[UUID]
     model_id: Optional[UUID] = None
+
+    @field_validator('metric_ids')
+    @classmethod
+    def metric_ids_must_not_be_empty(cls, v):
+        if not v:
+            raise ValueError('metric_ids must contain at least one metric')
+        return v
 
 
 class TestRunExecutionResult(BaseModel):
