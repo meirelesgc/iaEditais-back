@@ -15,13 +15,13 @@ services:
       retries: 5
       start_period: 10s
     ports:
-      - "5432:5432"
+      - "${PORT_DB}:5432"
 
   iaeditais_api:
     image: gleidsoncosta/fiotec-iaeditais:latest
     entrypoint: ./entrypoint.sh
     ports:
-      - "8000:8000"
+      - "${PORT_API}:8000"
     environment:
       OTEL_SERVICE_NAME: iaEditais
       OTEL_EXPORTER_OTLP_ENDPOINT: iaeditais_otel:4317
@@ -55,7 +55,7 @@ services:
   iaeditais_redis:
     image: redis:latest
     ports:
-      - "6379:6379"
+      - "${PORT_REDIS}:6379"
     volumes:
       - cache:/data
     command: redis-server --save 60 1 --loglevel warning
@@ -68,8 +68,8 @@ services:
   iaeditais_rabbitmq:
     image: rabbitmq:latest
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "${PORT_RMQ}:5672"
+      - "${PORT_RMQ_UI}:15672"
     environment:
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
@@ -84,19 +84,19 @@ services:
 
   iaeditais_otel:
     image: grafana/otel-lgtm
-    profiles: ["prod"]
+    profiles: [ "prod" ]
     ports:
-      - "3000:3000"
-      - "4317:4317"
-      - "4318:4318"
+      - "${PORT_OTEL_GRAFANA}:3000"
+      - "${PORT_OTEL_1}:4317"
+      - "${PORT_OTEL_2}:4318"
     volumes:
       - lgtm_data:/data
 
   evolution_api:
     image: gleidsoncosta/evolution-api:v2.3.6
-    profiles: ["prod"]
+    profiles: [ "prod" ]
     ports:
-      - "8080:8080"
+      - "${PORT_EVO}:8080"
     env_file:
       - .evolution.env
     volumes:
