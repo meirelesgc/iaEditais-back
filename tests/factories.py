@@ -2,6 +2,8 @@ import factory
 
 from iaEditais.models import (
     Branch,
+    Bundle,
+    BundleDocument,
     Document,
     Source,
     SystemSetting,
@@ -82,3 +84,17 @@ class SystemSettingFactory(factory.Factory):
     key = factory.Sequence(lambda n: f'CONSTANTE_{n}')
     value = factory.Sequence(lambda n: f'{n}')
     description = factory.Faker('paragraph', nb_sentences=3, locale='pt_BR')
+
+
+class BundleFactory(factory.Factory):
+    class Meta:
+        model = Bundle
+
+    name = factory.Sequence(lambda n: f'Bundle {n}')
+
+
+class BundleDocumentFactory(factory.Factory):
+    class Meta:
+        model = BundleDocument
+
+    name = factory.Sequence(lambda n: f'Documento de Bundle {n}')

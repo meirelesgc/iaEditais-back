@@ -17,6 +17,7 @@ from iaEditais.routers import auth, reports, stats, system, units, users
 from iaEditais.routers.audit import audit_logs
 from iaEditais.routers.check_tree import (
     branches,
+    bundles,
     sources,
     taxonomies,
     typifications,
@@ -117,6 +118,7 @@ index.include_router(w_utils.router)
 index.include_router(releases.router)
 index.include_router(kanban.router)
 index.include_router(sources.router)
+index.include_router(bundles.router)
 
 app.include_router(index)
 

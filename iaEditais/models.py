@@ -1162,3 +1162,76 @@ class SystemSetting(AuditMixin):
             postgresql_where=(column('deleted_at').is_(None)),
         ),
     )
+
+
+@table_registry.mapped_as_dataclass
+class BundleDocumentTypification:
+    __tablename__ = 'bundle_document_typifications'
+
+    bundle_document_id: Mapped[UUID] = mapped_column(
+        ForeignKey('bundle_documents.id', ondelete='CASCADE'),
+        primary_key=True,
+    )
+    typification_id: Mapped[UUID] = mapped_column(
+        ForeignKey('typifications.id', ondelete='CASCADE'),
+        primary_key=True,
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+    created_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_bundle_document_created_by'),
+        nullable=True,
+        default=None,
+    )
+
+
+@table_registry.mapped_as_dataclass
+class BundleDocument(AuditMixin):
+    __tablename__ = 'bundle_documents'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
+    )
+    bundle_id: Mapped[UUID] = mapped_column(
+        ForeignKey('bundles.id', ondelete='CASCADE'),
+    )
+    name: Mapped[str] = mapped_column(nullable=False)
+
+    bundle: Mapped['Bundle'] = relationship(
+        back_populates='documents',
+        init=False,
+    )
+
+    typifications: Mapped[List['Typification']] = relationship(
+        'Typification',
+        lazy='selectin',
+        secondary='bundle_document_typifications',
+        default_factory=list,
+        init=False,
+    )
+
+
+@table_registry.mapped_as_dataclass
+class Bundle(AuditMixin):
+    __tablename__ = 'bundles'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
+    )
+    name: Mapped[str] = mapped_column(nullable=False)
+
+    documents: Mapped[List['BundleDocument']] = relationship(
+        'BundleDocument',
+        back_populates='bundle',
+        lazy='selectin',
+        default_factory=list,
+        init=False,
+        cascade='all, delete-orphan',
+    )

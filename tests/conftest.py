@@ -51,6 +51,8 @@ from iaEditais.models import (
 from iaEditais.schemas import DocumentStatus, MessageEntityType
 from tests.factories import (
     BranchFactory,
+    BundleDocumentFactory,
+    BundleFactory,
     DocFactory,
     SourceFactory,
     SystemSettingFactory,
@@ -415,3 +417,30 @@ def create_system_setting(session):
         return source
 
     return _create_system_setting
+
+
+@pytest_asyncio.fixture
+def create_bundle(session):
+    async def _create_bundle(**kwargs):
+        db_bundle = BundleFactory.build(**kwargs)
+        session.add(db_bundle)
+        await session.commit()
+        await session.refresh(db_bundle)
+
+        return db_bundle
+
+    return _create_bundle
+
+
+@pytest_asyncio.fixture
+def create_bundle_document(session):
+    async def _create_bundle_document(**kwargs):
+        db_doc = BundleDocumentFactory.build(**kwargs)
+
+        session.add(db_doc)
+        await session.commit()
+        await session.refresh(db_doc)
+
+        return db_doc
+
+    return _create_bundle_document
