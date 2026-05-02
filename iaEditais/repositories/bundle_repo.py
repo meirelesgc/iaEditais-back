@@ -3,6 +3,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from iaEditais.models import (
     Bundle,
@@ -74,3 +75,19 @@ def add_bundle_document_typification(
     session: AsyncSession, association: BundleDocumentTypification
 ) -> None:
     session.add(association)
+
+
+async def get_bundle_with_relations(
+    session: AsyncSession, bundle_id: UUID
+) -> Bundle | None:
+    stmt = (
+        select(Bundle)
+        .where(Bundle.id == bundle_id)
+        .options(
+            selectinload(Bundle.documents).selectinload(
+                BundleDocument.typifications
+            )
+        )
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()

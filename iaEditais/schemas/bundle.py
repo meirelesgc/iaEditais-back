@@ -51,3 +51,9 @@ class BundleFilter(BaseModel):
 
 class BundleList(BaseModel):
     bundles: List[BundlePublic]
+
+
+class BundleGenerateDocsRequest(BaseModel):
+    base_name: str
+    base_identifier: str
+    base_description: str

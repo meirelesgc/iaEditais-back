@@ -1,17 +1,29 @@
+import re
 from http import HTTPStatus
+from typing import List
 from uuid import UUID
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from iaEditais.models import Bundle, BundleDocument, BundleDocumentTypification
-from iaEditais.repositories import bundle_repo
-from iaEditais.schemas.bundle import (
+from iaEditais.core.dependencies import CurrentUser
+from iaEditais.models import (
+    Bundle,
+    BundleDocument,
+    BundleDocumentTypification,
+    Document,
+    DocumentHistory,
+)
+from iaEditais.repositories import bundle_repo, doc_repo
+from iaEditais.schemas import (
     BundleCreate,
     BundleDocumentCreate,
     BundleFilter,
+    BundleGenerateDocsRequest,
     BundlePublic,
     BundleUpdate,
+    DocumentProcessingStatus,
+    DocumentStatus,
 )
 from iaEditais.services import audit_service
 
@@ -238,3 +250,73 @@ async def remove_document(
     db_doc.set_deletion_audit(user_id)
     db_bundle.set_update_audit(user_id)
     await session.commit()
+
+
+async def generate_docs_from_bundle(
+    session: AsyncSession,
+    current_user: CurrentUser,
+    bundle_id: UUID,
+    data: BundleGenerateDocsRequest,
+) -> List[Document]:
+    bundle = await bundle_repo.get_bundle_with_relations(session, bundle_id)
+    if not bundle:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND, detail='Bundle not found.'
+        )
+
+    created_docs = []
+
+    for b_doc in bundle.documents:
+        doc_name = f'{b_doc.name} - {data.base_name}'
+
+        safe_b_doc_name = re.sub(r'[^A-Za-z0-9]', '', b_doc.name).upper()
+        doc_identifier = f'{data.base_identifier}-{safe_b_doc_name}'
+
+        existing_doc = await doc_repo.get_by_identifier(
+            session, doc_identifier
+        )
+        if existing_doc:
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail=f'Doc with identifier "{doc_identifier}" already exists.',
+            )
+
+        db_doc = Document(
+            name=doc_name,
+            description=data.base_description,
+            identifier=doc_identifier,
+            unit_id=current_user.unit_id,
+            processing_status=DocumentProcessingStatus.IDLE,
+            bundle_id=bundle.id,
+        )
+        db_doc.set_creation_audit(current_user.id)
+        doc_repo.add_document(session, db_doc)
+        await session.flush()
+
+        history = DocumentHistory(
+            document_id=db_doc.id,
+            status=DocumentStatus.PENDING.value,
+        )
+        history.set_creation_audit(current_user.id)
+        doc_repo.add_history(session, history)
+
+        if b_doc.typifications:
+            db_doc.typifications = list(b_doc.typifications)
+
+        await audit_service.register_action(
+            session=session,
+            user_id=current_user.id,
+            action='CREATE',
+            table_name=Document.__tablename__,
+            record_id=db_doc.id,
+            old_data=None,
+        )
+
+        created_docs.append(db_doc)
+
+    await session.commit()
+
+    for doc in created_docs:
+        await session.refresh(doc)
+
+    return created_docs

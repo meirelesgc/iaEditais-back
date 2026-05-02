@@ -296,3 +296,84 @@ async def test_remove_document_from_wrong_bundle(
 
     assert response.status_code == HTTPStatus.NOT_FOUND
     assert response.json() == {'detail': 'Bundle document not found'}
+
+
+@pytest.mark.asyncio
+async def test_generate_bundle_documents_success(logged_client, create_bundle):
+    client, *_ = await logged_client()
+    bundle = await create_bundle()
+
+    client.post(
+        f'/bundle/{bundle.id}/document',
+        json={'name': 'Edital', 'typification_ids': []},
+    )
+    client.post(
+        f'/bundle/{bundle.id}/document',
+        json={'name': 'Termo', 'typification_ids': []},
+    )
+
+    response = client.post(
+        f'/bundle/{bundle.id}/generate-documents',
+        json={
+            'base_name': 'Expansao da rodovia',
+            'base_identifier': 'EXP',
+            'base_description': 'Descricao padrao',
+        },
+    )
+
+    assert response.status_code == HTTPStatus.CREATED
+    data = response.json()
+    assert len(data) == 2
+
+    names = [d['name'] for d in data]
+    assert 'Edital - Expansao da rodovia' in names
+    assert 'Termo - Expansao da rodovia' in names
+
+    identifiers = [d['identifier'] for d in data]
+    assert 'EXP-EDITAL' in identifiers
+    assert 'EXP-TERMO' in identifiers
+
+
+@pytest.mark.asyncio
+async def test_generate_bundle_documents_not_found(logged_client):
+    client, *_ = await logged_client()
+    response = client.post(
+        f'/bundle/{uuid.uuid4()}/generate-documents',
+        json={
+            'base_name': 'Expansao da rodovia',
+            'base_identifier': 'EXP',
+            'base_description': 'Descricao padrao',
+        },
+    )
+
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'Bundle not found.'}
+
+
+@pytest.mark.asyncio
+async def test_generate_bundle_documents_conflict(
+    logged_client, create_bundle, create_doc
+):
+    client, *_ = await logged_client()
+    bundle = await create_bundle()
+
+    client.post(
+        f'/bundle/{bundle.id}/document',
+        json={'name': 'Edital', 'typification_ids': []},
+    )
+
+    await create_doc(name='Documento Existente', identifier='EXP-EDITAL')
+
+    response = client.post(
+        f'/bundle/{bundle.id}/generate-documents',
+        json={
+            'base_name': 'Expansao da rodovia',
+            'base_identifier': 'EXP',
+            'base_description': 'Descricao padrao',
+        },
+    )
+
+    assert response.status_code == HTTPStatus.CONFLICT
+    assert response.json() == {
+        'detail': 'Doc with identifier "EXP-EDITAL" already exists.'
+    }

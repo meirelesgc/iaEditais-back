@@ -612,7 +612,14 @@ class Document(AuditMixin):
         cascade='all, delete-orphan',
     )
     is_archived: Mapped[bool] = mapped_column(nullable=False, default=False)
-
+    bundle_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('bundles.id'), nullable=True, default=None
+    )
+    bundle: Mapped[Optional['Bundle']] = relationship(
+        'Bundle',
+        init=False,
+        lazy='selectin',
+    )
     __table_args__ = (
         Index(
             'ix_uq_documents_identifier_active',

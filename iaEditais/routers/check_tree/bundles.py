@@ -1,9 +1,11 @@
 from http import HTTPStatus
-from typing import Annotated
+from typing import Annotated, List
 from uuid import UUID
 
 from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from iaEditais.core.database import get_session
 from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.schemas import (
     BundleCreate,
@@ -13,6 +15,8 @@ from iaEditais.schemas import (
     BundlePublic,
     BundleUpdate,
 )
+from iaEditais.schemas.bundle import BundleGenerateDocsRequest
+from iaEditais.schemas.document import DocumentPublic
 from iaEditais.services import bundle_service
 
 router = APIRouter(
@@ -99,3 +103,19 @@ async def remove_bundle_document(
         session, current_user.id, bundle_id, document_id
     )
     return {'message': 'Bundle document deleted'}
+
+
+@router.post(
+    '/{bundle_id}/generate-documents',
+    status_code=HTTPStatus.CREATED,
+    response_model=List[DocumentPublic],
+)
+async def generate_bundle_documents(
+    bundle_id: UUID,
+    current_user: CurrentUser,
+    data: BundleGenerateDocsRequest,
+    session: AsyncSession = Depends(get_session),
+):
+    return await bundle_service.generate_docs_from_bundle(
+        session, current_user, bundle_id, data
+    )

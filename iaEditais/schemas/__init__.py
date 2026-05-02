@@ -13,6 +13,7 @@ from .bundle import (
     BundleDocumentPublic,
     BundleDocumentSchema,
     BundleFilter,
+    BundleGenerateDocsRequest,
     BundleList,
     BundlePublic,
     BundleSchema,
@@ -173,7 +174,6 @@ __all__ = [
     'TypificationFilter',
     'TaxonomyFilter',
     'BranchFilter',
-    'DocumentProcessingStatus',
     'DocumentStatus',
     'UserImagePublic',
     'SystemSettingCreate',
@@ -189,4 +189,5 @@ __all__ = [
     'BundleDocumentPublic',
     'BundleDocumentCreate',
     'BundleDocumentSchema',
+    'BundleGenerateDocsRequest',
 ]
