@@ -620,6 +620,9 @@ class Document(AuditMixin):
         init=False,
         lazy='selectin',
     )
+    generation_id: Mapped[Optional[UUID]] = mapped_column(
+        nullable=True, default=None
+    )
     __table_args__ = (
         Index(
             'ix_uq_documents_identifier_active',

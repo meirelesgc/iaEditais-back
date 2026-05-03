@@ -42,6 +42,7 @@ class DocumentPublic(DocumentSchema):
     created_at: datetime
     is_archived: bool
     processing_status: DocumentProcessingStatus = DocumentProcessingStatus.IDLE
+    generation_id: Optional[UUID] = None
     updated_at: Optional[datetime] = None
     model_config = ConfigDict(from_attributes=True)
 

@@ -1,7 +1,7 @@
 import re
 from http import HTTPStatus
 from typing import List
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -265,6 +265,7 @@ async def generate_docs_from_bundle(
         )
 
     created_docs = []
+    generation_id = uuid4()
 
     for b_doc in bundle.documents:
         doc_name = f'{b_doc.name} - {data.base_name}'
@@ -288,6 +289,7 @@ async def generate_docs_from_bundle(
             unit_id=current_user.unit_id,
             processing_status=DocumentProcessingStatus.IDLE,
             bundle_id=bundle.id,
+            generation_id=generation_id,
         )
         db_doc.set_creation_audit(current_user.id)
         doc_repo.add_document(session, db_doc)
