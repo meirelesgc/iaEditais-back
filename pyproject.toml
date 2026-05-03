@@ -21,7 +21,7 @@ pytest = "^8.4.1"
 pytest-cov = "^6.2.1"
 ruff = "^0.12.11"
 taskipy = "^1.14.1"
-testcontainers = {extras = ["rabbitmq"], version = "^4.13.2"}
+testcontainers = "^4.13.2"
 pytest-asyncio = "^1.2.0"
 factory-boy = "^3.3.3"
 
