@@ -1,12 +1,26 @@
 from http import HTTPStatus
 from uuid import UUID, uuid4
 
-from fastapi import File, HTTPException, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    HTTPException,
+    UploadFile,
+)
 from fastapi.responses import FileResponse
-from faststream.rabbit.fastapi import RabbitRouter as APIRouter
+from redis import Redis
 from sqlalchemy import select
 
-from iaEditais.core.dependencies import CurrentUser, Session, Storage
+from iaEditais.core.cache import get_redis
+from iaEditais.core.dependencies import (
+    CurrentUser,
+    Model,
+    Session,
+    Storage,
+    VStore,
+)
 from iaEditais.core.settings import Settings
 from iaEditais.models import (
     Document,
@@ -19,6 +33,7 @@ from iaEditais.schemas import (
 )
 from iaEditais.schemas.document import DocumentProcessingStatus
 from iaEditais.services import audit_service, report_service
+from iaEditais.workers.docs.releases import release_pipeline
 
 SETTINGS = Settings()
 BROKER_URL = SETTINGS.BROKER_URL
@@ -39,6 +54,10 @@ async def create_release(
     session: Session,
     current_user: CurrentUser,
     storage: Storage,
+    background_tasks: BackgroundTasks,
+    model: Model,
+    vstore: VStore,
+    redis: Redis = Depends(get_redis),
     file: UploadFile = File(...),
 ):
     result = await session.execute(
@@ -82,7 +101,16 @@ async def create_release(
     )
 
     await session.commit()
-    await router.broker.publish(db_release.id, 'release_pipeline')
+
+    background_tasks.add_task(
+        release_pipeline,
+        release_id=db_release.id,
+        session=session,
+        model=model,
+        vstore=vstore,
+        redis=redis,
+    )
+
     return db_release
 
 

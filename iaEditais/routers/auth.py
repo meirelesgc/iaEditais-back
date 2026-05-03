@@ -1,7 +1,6 @@
 from http import HTTPStatus
 
-from fastapi import Response
-from faststream.rabbit.fastapi import RabbitRouter as APIRouter
+from fastapi import APIRouter, Response
 
 from iaEditais.core.dependencies import CurrentUser, OAuth2Form, Session
 from iaEditais.schemas import (
@@ -52,7 +51,7 @@ async def forgot_password(
     payload: ForgotPasswordRequest,
     session: Session,
 ):
-    return await auth_service.forgot_password(session, payload, router.broker)
+    return await auth_service.forgot_password(session, payload)
 
 
 @router.post('/reset-password', status_code=HTTPStatus.OK)

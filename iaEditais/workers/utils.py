@@ -1,5 +1,4 @@
 import httpx
-from faststream.rabbit import RabbitRouter
 from sqlalchemy import select
 
 from iaEditais.core.dependencies import Session
@@ -17,10 +16,6 @@ HEADERS = {
 }
 
 
-router = RabbitRouter()
-
-
-@router.subscriber('send_message')
 async def send_message(payload: dict, session: Session):
     user_ids = payload.get('user_ids', [])
     message_text = payload.get('message_text')

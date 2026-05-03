@@ -1,12 +1,12 @@
 import re
 
-from faststream.rabbit.fastapi import RabbitBroker
-
+from iaEditais.core.dependencies import Session
 from iaEditais.models import DocumentRelease, User
+from iaEditais.workers.utils import send_message
 
 
 async def publish_password_reset_notification(
-    user: User, reset_token: str, broker: RabbitBroker
+    user: User, reset_token: str, session: Session
 ):
     if not user.phone_number:
         return {'status': 'skipped', 'reason': 'No phone number'}
@@ -20,7 +20,7 @@ async def publish_password_reset_notification(
 
     payload = {'user_ids': [user.id], 'message_text': message_text}
 
-    await broker.publish(payload, 'send_message')
+    await send_message(payload, session)
 
     return {'status': 'published'}
 
@@ -35,7 +35,7 @@ def format_user_welcome_message(username: str, temp_password: str) -> str:
 
 
 async def publish_user_welcome_notification(
-    user: User, temp_password: str, broker: RabbitBroker
+    user: User, temp_password: str, session: Session
 ):
     if not user.phone_number:
         return {'status': 'skipped', 'reason': 'No phone number'}
@@ -44,7 +44,7 @@ async def publish_user_welcome_notification(
 
     payload = {'user_ids': [user.id], 'message_text': message_text}
 
-    await broker.publish(payload, 'send_message')
+    await send_message(payload, session)
 
     return {'status': 'published'}
 
@@ -68,7 +68,7 @@ def prepare_phone_number(user: User):
     return phone_number
 
 
-async def publish_test_whatsapp_notification(user: User, broker: RabbitBroker):
+async def publish_test_whatsapp_notification(user: User, session: Session):
     clean_number = prepare_phone_number(user)
 
     if not clean_number:
@@ -85,6 +85,6 @@ async def publish_test_whatsapp_notification(user: User, broker: RabbitBroker):
 
     payload = {'user_ids': [user.id], 'message_text': message_text}
 
-    await broker.publish(payload, 'send_message')
+    await send_message(payload, session)
 
     return {'status': 'published', 'detail': 'Test message queued'}

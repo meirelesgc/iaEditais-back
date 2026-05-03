@@ -1,8 +1,6 @@
 from uuid import UUID
 
 from fastapi import Depends
-from faststream.exceptions import AckMessage
-from faststream.rabbit import RabbitRouter
 from redis import Redis
 
 from iaEditais.core.cache import get_redis
@@ -14,13 +12,11 @@ from iaEditais.services import (
     notification_service,
     release_orchestrator,
 )
+from iaEditais.workers.utils import send_message
 
 SETTINGS = Settings()
-router = RabbitRouter()
 
 
-@router.subscriber('release_pipeline')
-@router.publisher('send_message')
 async def release_pipeline(
     release_id: UUID,
     session: Session,
@@ -32,7 +28,7 @@ async def release_pipeline(
         session, release_id
     )
     if not db_release:
-        raise AckMessage(f'DocumentRelease {release_id} not found.')
+        raise Exception(f'DocumentRelease {release_id} not found.')
 
     db_doc = db_release.history.document
 
@@ -51,8 +47,8 @@ async def release_pipeline(
             result['release']
         )
         user_ids = {editor.id for editor in db_doc.editors if editor.id}
-
-        return {'user_ids': list(user_ids), 'message_text': message_text}
+        payload = {'user_ids': list(user_ids), 'message_text': message_text}
+        await send_message(payload, session)
 
     except Exception as e:
         await session.rollback()

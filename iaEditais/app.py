@@ -7,7 +7,6 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from faststream.rabbit.fastapi import RabbitRouter
 from redis.asyncio import Redis
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 
@@ -24,8 +23,6 @@ from iaEditais.routers.check_tree import (
 )
 from iaEditais.routers.docs import docs, kanban, messages, releases
 from iaEditais.routers.docs import ws as docs_ws
-from iaEditais.workers import utils as w_utils
-from iaEditais.workers.docs import releases as w_releases
 
 PROJECT_FILE = Path(__file__).parent.parent / 'pyproject.toml'
 
@@ -68,7 +65,6 @@ app = FastAPI(
     root_path=SETTINGS.ROOT_PATH,
 )
 
-index = RabbitRouter(url=BROKER_URL)
 
 app.mount('/uploads', StaticFiles(directory=UPLOADS_DIR), name='uploads')
 
@@ -111,17 +107,12 @@ app.include_router(taxonomies.router)
 app.include_router(branches.router)
 
 
-index.include_router(auth.router)
-index.include_router(users.router)
-index.include_router(w_releases.router)
-index.include_router(w_utils.router)
-index.include_router(releases.router)
-index.include_router(kanban.router)
-index.include_router(sources.router)
-index.include_router(bundles.router)
-
-app.include_router(index)
-
+app.include_router(auth.router)
+app.include_router(users.router)
+app.include_router(releases.router)
+app.include_router(kanban.router)
+app.include_router(sources.router)
+app.include_router(bundles.router)
 
 app.include_router(audit_logs.router)
 app.include_router(system.router)

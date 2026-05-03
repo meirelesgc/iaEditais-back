@@ -108,6 +108,7 @@ async def get_eval_args(
     eval_args = TypificationList.model_validate(payload).model_dump(
         mode='json'
     )
+    print(eval_args)
 
     base_filter = get_base_filter(db_release)
     await get_branch_sessions(vstore, eval_args, base_filter)

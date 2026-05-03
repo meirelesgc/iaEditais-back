@@ -2,8 +2,7 @@ from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, File, UploadFile
-from faststream.rabbit.fastapi import RabbitRouter as APIRouter
+from fastapi import APIRouter, Depends, File, UploadFile
 
 from iaEditais.core.dependencies import CurrentUser, Session, Storage
 from iaEditais.schemas import (
@@ -29,14 +28,10 @@ router = APIRouter(
     tags=['operações de sistema, usuário'],
 )
 
-# ... [Outros endpoints de Create/Read/Update/Delete de usuário mantidos iguais] ...
-# Vou listar apenas os endpoints que delegam para o auth_service para economizar espaço
-# mas considere que o resto do arquivo (CRUD) continua chamando user_service
-
 
 @router.post('', status_code=HTTPStatus.CREATED, response_model=UserPublic)
 async def create_user(user: UserCreate, session: Session):
-    return await user_service.create_user(session, user, router.broker)
+    return await user_service.create_user(session, user)
 
 
 @router.post('/{user_id}/icon', response_model=Message)
@@ -106,9 +101,7 @@ async def test_whatsapp(
     session: Session,
     current_user: CurrentUser,
 ):
-    return await user_service.test_whatsapp(
-        session, current_user, user_id, router.broker
-    )
+    return await user_service.test_whatsapp(session, current_user, user_id)
 
 
 # --- ENDPOINTS LEGADOS (Redirecionando para Auth Service) ---
@@ -130,7 +123,7 @@ async def forgot_password(
     payload: ForgotPasswordRequest,
     session: Session,
 ):
-    return await auth_service.forgot_password(session, payload, router.broker)
+    return await auth_service.forgot_password(session, payload)
 
 
 @router.post(

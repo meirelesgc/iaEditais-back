@@ -124,7 +124,7 @@ async def refresh_token(session: AsyncSession, user: User) -> Token:
 
 
 async def forgot_password(
-    session: AsyncSession, payload: ForgotPasswordRequest, broker
+    session: AsyncSession, payload: ForgotPasswordRequest
 ) -> dict:
     user = await user_repo.get_by_email_or_phone(session, payload.email)
 
@@ -145,7 +145,7 @@ async def forgot_password(
     await session.commit()
 
     await notification_service.publish_password_reset_notification(
-        user=user, reset_token=reset_token, broker=broker
+        user=user, reset_token=reset_token, session=session
     )
     return {'message': 'If user exists, a code was sent via WhatsApp'}
 

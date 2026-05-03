@@ -3,7 +3,6 @@ from http import HTTPStatus
 from uuid import UUID
 
 from fastapi import HTTPException
-from faststream.rabbit.fastapi import RabbitBroker
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from iaEditais.models import Document, DocumentHistory, User
@@ -11,8 +10,7 @@ from iaEditais.repositories import kanban_repo
 from iaEditais.schemas import DocumentPublic, DocumentStatus
 from iaEditais.schemas.document_history import DocumentHistoryPublic
 from iaEditais.services import audit_service
-
-# --- Definições de Regras de Negócio ---
+from iaEditais.workers.utils import send_message
 
 
 class NotifyTarget(str, Enum):
@@ -49,8 +47,6 @@ STATUS_TRANSLATION = {
     DocumentStatus.COMPLETED: 'Concluído',
 }
 
-# --- Lógica Interna ---
-
 
 async def _resolve_notification_targets(
     session: AsyncSession, doc: Document, status: DocumentStatus
@@ -64,7 +60,6 @@ async def _resolve_notification_targets(
 
     for target_type in rules['targets']:
         if target_type == NotifyTarget.EDITORS:
-            # Assume que doc.editors já foi carregado via selectinload no repo
             targets.extend(doc.editors)
 
         elif target_type == NotifyTarget.CREATOR and doc.created_by:
@@ -87,13 +82,12 @@ async def _resolve_notification_targets(
                 )
                 targets.extend(auditors)
 
-    # Remove duplicados e extrai IDs
     unique_ids = {user.id for user in targets if user.id}
     return list(unique_ids)
 
 
 async def _publish_notification(
-    broker: RabbitBroker,
+    session: AsyncSession,
     user_ids: list[UUID],
     doc_name: str,
     status: DocumentStatus,
@@ -108,10 +102,7 @@ async def _publish_notification(
     )
 
     payload = {'user_ids': user_ids, 'message_text': message_text}
-    await broker.publish(payload, 'send_message')
-
-
-# --- Função Principal ---
+    await send_message(payload, session)
 
 
 async def update_document_status(
@@ -119,24 +110,19 @@ async def update_document_status(
     user_id: UUID,
     doc_id: UUID,
     new_status: DocumentStatus,
-    broker: RabbitBroker,
 ) -> Document:
-    # 1. Busca documento com relacionamentos necessários
     doc = await kanban_repo.get_with_editors(session, doc_id)
     if not doc or doc.deleted_at:
         raise HTTPException(
             status_code=HTTPStatus.NOT_FOUND, detail='Document not found'
         )
 
-    # 2. Prepara Auditoria (Dados Antigos)
     old_data = DocumentPublic.model_validate(doc).model_dump(mode='json')
 
-    # 3. Calcula alvos da notificação (Antes de commitar, pois precisamos dos dados atuais)
     target_user_ids = await _resolve_notification_targets(
         session, doc, new_status
     )
 
-    # 4. Atualiza Histórico
     history = DocumentHistory(
         document_id=doc.id,
         status=new_status.value,
@@ -167,7 +153,6 @@ async def update_document_status(
     await session.commit()
     await session.refresh(doc)
 
-    # 6. Envia Notificação (Side Effect - Apenas após sucesso do commit)
-    await _publish_notification(broker, target_user_ids, doc.name, new_status)
+    await _publish_notification(session, target_user_ids, doc.name, new_status)
 
     return doc

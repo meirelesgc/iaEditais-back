@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from faststream.rabbit.fastapi import RabbitRouter as APIRouter
+from fastapi import APIRouter
 
 from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.schemas import DocumentPublic, DocumentStatus
@@ -19,7 +19,7 @@ async def set_status_pending(
     current_user: CurrentUser,
 ):
     return await kanban_service.update_document_status(
-        session, current_user.id, doc_id, DocumentStatus.PENDING, router.broker
+        session, current_user.id, doc_id, DocumentStatus.PENDING
     )
 
 
@@ -30,11 +30,7 @@ async def set_status_under_construction(
     current_user: CurrentUser,
 ):
     return await kanban_service.update_document_status(
-        session,
-        current_user.id,
-        doc_id,
-        DocumentStatus.UNDER_CONSTRUCTION,
-        router.broker,
+        session, current_user.id, doc_id, DocumentStatus.UNDER_CONSTRUCTION
     )
 
 
@@ -45,11 +41,7 @@ async def set_status_waiting_review(
     current_user: CurrentUser,
 ):
     return await kanban_service.update_document_status(
-        session,
-        current_user.id,
-        doc_id,
-        DocumentStatus.WAITING_FOR_REVIEW,
-        router.broker,
+        session, current_user.id, doc_id, DocumentStatus.WAITING_FOR_REVIEW
     )
 
 
@@ -60,9 +52,5 @@ async def set_status_completed(
     current_user: CurrentUser,
 ):
     return await kanban_service.update_document_status(
-        session,
-        current_user.id,
-        doc_id,
-        DocumentStatus.COMPLETED,
-        router.broker,
+        session, current_user.id, doc_id, DocumentStatus.COMPLETED
     )

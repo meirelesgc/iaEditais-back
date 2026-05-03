@@ -2,8 +2,7 @@ from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import Depends, File, UploadFile
-from faststream.rabbit.fastapi import RabbitRouter as APIRouter
+from fastapi import APIRouter, Depends, File, UploadFile
 
 from iaEditais.core.dependencies import CurrentUser, Session, Storage
 from iaEditais.schemas import (

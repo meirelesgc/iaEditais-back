@@ -26,7 +26,6 @@ from iaEditais.schemas.common import Message
 from iaEditais.services import audit_service, notification_service
 
 
-# Helper function
 def normalize_phone(phone):
     if not phone:
         return None
@@ -36,9 +35,7 @@ def normalize_phone(phone):
     return f'55{digits}'
 
 
-async def create_user(
-    session: AsyncSession, data: UserCreate, broker=None
-) -> User:
+async def create_user(session: AsyncSession, data: UserCreate) -> User:
     norm_phone = normalize_phone(data.phone_number)
     existing_user = await user_repo.get_by_email_or_phone(
         session, data.email, norm_phone
@@ -85,9 +82,9 @@ async def create_user(
     await session.commit()
     await session.refresh(db_user)
 
-    if password_was_generated and broker:
+    if password_was_generated:
         await notification_service.publish_user_welcome_notification(
-            db_user, temp_password, broker
+            db_user, temp_password, session
         )
 
     return db_user
@@ -262,7 +259,6 @@ async def change_password(
             )
 
     new_password = payload.new_password
-    # Validações de senha
     if len(new_password) < 8:
         raise HTTPException(
             status_code=HTTPStatus.BAD_REQUEST, detail='Password too short'
@@ -369,7 +365,7 @@ async def delete_user_icon(
 
 
 async def test_whatsapp(
-    session: AsyncSession, current_user: User, user_id: UUID, broker
+    session: AsyncSession, current_user: User, user_id: UUID
 ) -> Message:
     db_user = await user_repo.get_by_id(session, user_id)
     if not db_user or db_user.deleted_at:
@@ -392,7 +388,7 @@ async def test_whatsapp(
         )
 
     result = await notification_service.publish_test_whatsapp_notification(
-        db_user, broker
+        db_user, session
     )
 
     if result['status'] == 'error':
@@ -406,7 +402,7 @@ async def test_whatsapp(
 
 
 async def forgot_password(
-    session: AsyncSession, payload: ForgotPasswordRequest, broker
+    session: AsyncSession, payload: ForgotPasswordRequest
 ) -> dict:
     user = await user_repo.get_by_email_or_phone(session, payload.email)
 
@@ -426,7 +422,7 @@ async def forgot_password(
     await session.commit()
 
     await notification_service.publish_password_reset_notification(
-        user=user, reset_token=reset_token, broker=broker
+        user=user, reset_token=reset_token, session=session
     )
     return {'message': 'If user exists, a code was sent via WhatsApp'}
 

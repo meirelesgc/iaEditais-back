@@ -8,7 +8,6 @@ from uuid import uuid4
 import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
-from faststream.rabbit import TestRabbitBroker
 from langchain_community.embeddings import FakeEmbeddings
 from langchain_core.language_models.fake_chat_models import FakeChatModel
 from langchain_core.messages import AIMessage
@@ -23,7 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from testcontainers.postgres import PostgresContainer
 from testcontainers.redis import RedisContainer
 
-from iaEditais.app import app, index
+from iaEditais.app import app
 from iaEditais.core.cache import (
     WebSocketManager,
     get_redis,
@@ -149,17 +148,16 @@ async def client(session, engine, cache):
     def get_socket_manager_override():
         return socket_manager
 
-    async with TestRabbitBroker(index.broker):
-        with TestClient(app) as client:
-            app.dependency_overrides[get_session] = get_session_override
-            app.dependency_overrides[get_vectorstore] = get_vstore_override
-            app.dependency_overrides[get_model] = get_model_override
-            app.dependency_overrides[get_socket_manager] = (
-                get_socket_manager_override
-            )
-            app.dependency_overrides[get_redis] = get_redis_override
+    with TestClient(app) as client:
+        app.dependency_overrides[get_session] = get_session_override
+        app.dependency_overrides[get_vectorstore] = get_vstore_override
+        app.dependency_overrides[get_model] = get_model_override
+        app.dependency_overrides[get_socket_manager] = (
+            get_socket_manager_override
+        )
+        app.dependency_overrides[get_redis] = get_redis_override
 
-            yield client
+        yield client
 
     app.dependency_overrides.clear()
 
