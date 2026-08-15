@@ -136,8 +136,9 @@ async def update_bundle(
             )
         db_bundle.name = data.name
 
-    db_bundle.set_update_audit(user_id)
     new_data = BundlePublic.model_validate(db_bundle).model_dump(mode='json')
+
+    db_bundle.set_update_audit(user_id)
 
     await audit_service.register_action(
         session=session,

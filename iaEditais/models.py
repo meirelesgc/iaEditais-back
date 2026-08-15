@@ -705,6 +705,10 @@ class DocumentRelease(AuditMixin):
 
     file_path: Mapped[str] = mapped_column(nullable=False)
 
+    version: Mapped[Optional[str]] = mapped_column(
+        nullable=True, default=None
+    )
+
     check_tree: Mapped[List['AppliedTypification']] = relationship(
         'AppliedTypification',
         lazy='selectin',
@@ -1305,6 +1309,9 @@ class ProjectDocument(AuditMixin):
         default=None,
     )
     sent_to_kanban: Mapped[bool] = mapped_column(default=False)
+    file_path: Mapped[Optional[str]] = mapped_column(
+        default=None, nullable=True
+    )
 
     project: Mapped['Project'] = relationship(
         back_populates='documents',

@@ -102,7 +102,6 @@ async def get_branch_sessions(
                 b_desc = (branch.get('description') or '').strip()
                 query_text = f'{b_title}: {b_desc}'
                 query = PROMPTS.QUERY.format(section=t_title, query=query_text)
-
                 chunks = await vstore.asimilarity_search(
                     query, k=max_chunks, filter=base_filter
                 )
@@ -116,14 +115,10 @@ async def get_eval_args(
     eval_args = TypificationList.model_validate(payload).model_dump(
         mode='json'
     )
-
     base_filter = get_base_filter(db_release)
     await get_branch_sessions(vstore, eval_args, base_filter)
     await expand_branch_sessions(vstore, eval_args)
     return eval_args
-
-
-# --- Funções de LLM e Chain ---
 
 
 def get_chain(model: Model):

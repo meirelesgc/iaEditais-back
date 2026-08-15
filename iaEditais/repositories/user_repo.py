@@ -22,7 +22,9 @@ async def get_by_email_or_phone(
     if phone:
         conditions.append(User.phone_number == phone)
 
-    stmt = select(User).where(or_(*conditions))
+    stmt = select(User).where(
+        User.deleted_at.is_(None), or_(*conditions)
+    )
     return await session.scalar(stmt)
 
 

@@ -2,7 +2,7 @@ import io
 import shutil
 from contextlib import contextmanager
 from datetime import datetime
-from typing import override
+from typing import Any, override
 from uuid import uuid4
 
 import pytest
@@ -15,6 +15,7 @@ from langchain_core.outputs import (
     ChatGeneration,
     ChatResult,
 )
+from langchain_core.runnables import RunnableLambda
 from langchain_postgres import PGVector
 from redis.asyncio import Redis
 from sqlalchemy import event, select
@@ -134,6 +135,21 @@ async def client(session, engine, cache):
                 message = AIMessage(content=output)
                 generation = ChatGeneration(message=message)
                 return ChatResult(generations=[generation])
+
+            def with_structured_output(self, schema: Any, **kwargs: Any):
+                def mock_output(input_val: Any) -> Any:
+                    data = {
+                        'sections': [
+                            {
+                                'section_name': '',
+                                'start_text': '',
+                                'end_text': '',
+                            }
+                        ]
+                    }
+                    return schema(**data)
+
+                return RunnableLambda(mock_output)
 
         return FakeModel()
 

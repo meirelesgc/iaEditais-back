@@ -25,18 +25,18 @@ SPLITTER = RecursiveCharacterTextSplitter(
 
 def _clean_and_format_documents(documents: List[Document]) -> List[Document]:
     chunks = SPLITTER.split_documents(documents)
-    for i, chunk in enumerate(chunks):
-        text = re.sub(r'\s+', ' ', (chunk.page_content or '')).strip()
-        section = (chunk.metadata.get('section_title') or '').strip()
 
+    for i, chunk in enumerate(chunks):
+        text = chunk.page_content or ''
+        text = text.replace('\x00', '')
+        text = re.sub(r'\s+', ' ', text).strip()
+        section = (chunk.metadata.get('section_title') or '').strip()
         if section:
             chunk.page_content = f'SECTION: {section}\n\n{text}'
         else:
             chunk.page_content = text
-
         chunk.metadata['chunk_index'] = i
-        if 'source' not in chunk.metadata:
-            chunk.metadata['source'] = 'unknown'
+        chunk.metadata.setdefault('source', 'unknown')
     return chunks
 
 

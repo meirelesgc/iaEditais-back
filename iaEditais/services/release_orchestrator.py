@@ -145,25 +145,28 @@ async def process_release_pipeline(
 
     try:
         await _ws_update(redis, db_release, 'creating_vectors')
-        await vector_service.create_vectors(db_release.file_path, vstore)
-
+        await vector_service.create_vectors(
+            db_release.file_path, vstore
+        )
         await _ws_update(redis, db_release, 'evaluating')
         tree = await tree_service.get_tree_by_release(session, db_release)
         args = await release_logic_service.get_eval_args(
             vstore, tree, db_release
         )
         simplified_args = await release_logic_service.simplify_eval_args(args)
+        with open('/tmp/simplified_args.py', 'w', encoding='utf-8') as py:
+            # print('Salvando: [/tmp/simplified_args.py]')
+            # py.write(str(simplified_args))
+            pass
         chain = release_logic_service.get_chain(model)
         await release_logic_service.apply_tree(chain, simplified_args)
 
-        print(simplified_args)
         await _save_eval_results(session, simplified_args, db_release.id)
 
         prompt = release_logic_service.generate_description_prompt(
             simplified_args
         )
         desc_response = model.invoke(prompt)
-        print(desc_response)
         db_release.description = desc_response.content.strip()
         await session.commit()
 

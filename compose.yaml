@@ -62,16 +62,6 @@ services:
       timeout: 5s
       retries: 5
 
-  iaeditais_otel:
-    image: grafana/otel-lgtm
-    profiles: [ "prod" ]
-    ports:
-      - "${PORT_OTEL_GRAFANA:-3000}:3000"
-      - "${PORT_OTEL_1:-4317}:4317"
-      - "${PORT_OTEL_2:-4318}:4318"
-    volumes:
-      - lgtm_data:/data
-
   evolution_api:
     image: gleidsoncosta/evolution-api:v2.3.6
     ports:
@@ -89,4 +79,3 @@ volumes:
   storage:
   cache:
   evolution_instances:
-  lgtm_data:

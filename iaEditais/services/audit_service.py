@@ -2,14 +2,12 @@ import logging
 from typing import Any, Optional
 from uuid import UUID
 
-from opentelemetry import trace
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from iaEditais.models import AuditLog
 from iaEditais.schemas import DocumentStatus
 
 logger = logging.getLogger(__name__)
-tracer = trace.get_tracer(__name__)
 
 STATUS_TRANSLATION = {
     DocumentStatus.PENDING: 'Pendente',
@@ -180,7 +178,3 @@ async def register_action(
         f'Audit: User {user_id} performed {action} on {table_name}:{record_id}. Diff: {description}',
         extra=attributes,
     )
-
-    current_span = trace.get_current_span()
-    if current_span.is_recording():
-        current_span.add_event('audit_log_created', attributes=attributes)

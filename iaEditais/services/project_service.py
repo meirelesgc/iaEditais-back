@@ -18,6 +18,13 @@ from iaEditais.services import audit_service
 async def create_project(
     session: AsyncSession, user_id: UUID, data: ProjectCreate
 ) -> Project:
+    existing = await project_repo.get_by_name(session, data.name)
+    if existing:
+        raise HTTPException(
+            status_code=HTTPStatus.CONFLICT,
+            detail='Já existe um projeto com esse nome.',
+        )
+
     db_project = Project(
         name=data.name,
         description=data.description,
@@ -70,15 +77,32 @@ async def update_project(
         )
 
     old_data = ProjectPublic.model_validate(db_project).model_dump(mode='json')
+    old_name = db_project.name
+
+    if data.name != old_name:
+        conflict = await project_repo.get_by_name(
+            session, data.name, exclude_id=data.id
+        )
+        if conflict:
+            raise HTTPException(
+                status_code=HTTPStatus.CONFLICT,
+                detail='Já existe um projeto com esse nome.',
+            )
 
     db_project.name = data.name
     db_project.description = data.description
     db_project.document_group_id = data.document_group_id
     if data.status is not None:
         db_project.status = data.status
-    db_project.set_update_audit(user_id)
 
     new_data = ProjectPublic.model_validate(db_project).model_dump(mode='json')
+
+    db_project.set_update_audit(user_id)
+
+    if data.name != old_name:
+        await project_repo.update_document_project_names(
+            session, data.id, old_name, data.name
+        )
 
     await audit_service.register_action(
         session=session,

@@ -35,6 +35,7 @@ class ProjectDocumentPublic(ProjectDocumentSchema):
     id: UUID
     project_id: UUID
     sent_to_kanban: bool
+    file_path: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 

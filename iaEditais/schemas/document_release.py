@@ -62,6 +62,7 @@ class AppliedTypificationPublic(TypificationSchema):
 class DocumentReleasePublic(BaseModel):
     id: UUID
     file_path: str
+    version: str | None
     description: str | None
     check_tree: list[AppliedTypificationPublic]
 

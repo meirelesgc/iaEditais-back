@@ -8,6 +8,7 @@ from iaEditais.core.dependencies import CurrentUser
 from iaEditais.models import Branch, Document, DocumentHistory, ProjectDocument
 from iaEditais.repositories import project_document_repo
 from iaEditais.repositories import doc_repo
+from iaEditais.repositories import release_repo
 from iaEditais.schemas import (
     DocumentCreate,
     DocumentFilter,
@@ -236,6 +237,14 @@ async def delete_doc(
         if project_doc and not project_doc.deleted_at:
             project_doc.sent_to_kanban = False
             project_doc.status = 'PENDING'
+
+            if not project_doc.file_path:
+                releases = await release_repo.get_releases_by_document(
+                    session, db_doc.id
+                )
+                if releases:
+                    project_doc.file_path = releases[0].file_path
+
             project_doc.set_update_audit(current_user.id)
 
     await audit_service.register_action(
