@@ -1,11 +1,5 @@
-# "Banco de dados" simplificado em JSON: cada resultado é um arquivo
-# `<chave>.json` dentro de uma pasta dedicada. Os arquivos existentes são
-# carregados em memória na inicialização; leituras usam o cache e escritas
-# atualizam o arquivo em disco e o cache, mantendo os dois sempre em sincronia.
-#
-# Usado tanto para os resultados de conformidade com template quanto para os
-# de conformidade ABNT (uma instância para cada, ver service.py) -- os dois
-# JSONs resultantes têm formatos diferentes, mas a persistência é a mesma.
+# "Banco de dados" simplificado em JSON: cada resultado é um arquivo `<chave>.json`,
+# cacheado em memória. Uma instância para template e outra para ABNT (ver service.py).
 
 from __future__ import annotations
 
