@@ -146,7 +146,7 @@ async def process_release_pipeline(
     try:
         await _ws_update(redis, db_release, 'creating_vectors')
         await vector_service.create_vectors(
-            db_release.file_path, vstore, model
+            db_release.file_path, vstore
         )
         await _ws_update(redis, db_release, 'evaluating')
         tree = await tree_service.get_tree_by_release(session, db_release)
