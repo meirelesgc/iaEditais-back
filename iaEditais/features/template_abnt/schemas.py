@@ -1,7 +1,5 @@
-# Schemas usados pelos endpoints da feature (iaEditais/routers/template_abnt.py).
-# Os relatórios em si (hybrid_comparison.HybridReport / abnt_comparison.AbntReport)
-# têm formatos diferentes entre si, então o envelope de status os expõe como
-# dict livre (campo `report`).
+# Schemas do envelope de status usados pelos endpoints (routers/template_abnt.py).
+# Os relatórios têm formatos diferentes entre si, por isso `report` é um dict livre.
 
 from __future__ import annotations
 
