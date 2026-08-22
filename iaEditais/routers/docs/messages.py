@@ -22,9 +22,11 @@ from iaEditais.schemas import (
 )
 from iaEditais.schemas.common import WSMessage
 from iaEditais.schemas.document_message import (
+    DocumentMessageAIResponse,
     MessageEntityType,
     MessageFilter,
     MessageMention,
+    ResolvedCitation,
 )
 from iaEditais.services import ai_service, message_service
 
@@ -50,7 +52,7 @@ async def create_document_message(
 @router.post(
     '/{doc_id}/message/ai',
     status_code=HTTPStatus.CREATED,
-    response_model=DocumentMessagePublic,
+    response_model=DocumentMessageAIResponse,
 )
 async def create_document_ai_message(
     doc_id: UUID,
@@ -64,7 +66,7 @@ async def create_document_ai_message(
         session, current_user.id, doc_id, msg
     )
 
-    filters = MessageFilter(limit=3)
+    filters = MessageFilter(limit=10)
     recent_messages = await message_service.list_messages(
         session, doc_id, filters
     )
@@ -80,7 +82,7 @@ async def create_document_ai_message(
     )
 
     ai_data = DocumentMessageCreate(
-        content=response,
+        content=response['answer'],
         mentions=[MessageMention(id=doc_id, type=MessageEntityType.AI, label='OiacIA')],
         quoted_message=None,
     )
@@ -91,7 +93,14 @@ async def create_document_ai_message(
         data=ai_data,
     )
 
-    return ai_msg
+    references = [
+        ResolvedCitation(**ref) for ref in response['references']
+    ]
+
+    return DocumentMessageAIResponse(
+        message=ai_msg,
+        references=references,
+    )
 
 
 @router.get(
@@ -166,7 +175,7 @@ async def process_user_message(
     await message_service.create_message(session, user_id, doc_id, msg)
 
     if message_service.requires_ai_response(data):
-        filters = MessageFilter(limit=3)
+        filters = MessageFilter(limit=10)
         recent_messages = await message_service.list_messages(
             session, doc_id, filters
         )
@@ -176,7 +185,7 @@ async def process_user_message(
         )
 
         ai_msg_create = DocumentMessageCreate(
-            content=response,
+            content=response['answer'],
             mentions=[MessageMention(id=doc_id, type=MessageEntityType.AI, label='OiacIA')],
             quoted_message=None,
         )
@@ -184,8 +193,12 @@ async def process_user_message(
             session, user_id, doc_id, ai_msg_create
         )
 
+        ws_payload = {
+            'answer': response['answer'],
+            'references': response['references'],
+        }
         await broadcast_event(
-            socket_manager, channel_id, 'chat.ai.message', response
+            socket_manager, channel_id, 'chat.ai.message', ws_payload
         )
 
 

@@ -65,6 +65,18 @@ class DocumentMessageList(BaseModel):
     messages: List[DocumentMessagePublic]
 
 
+class ResolvedCitation(BaseModel):
+    chunk_id: str
+    text_snippet: Optional[str] = None
+    page: Optional[int] = None
+    rects: Optional[List[dict]] = None
+
+
+class DocumentMessageAIResponse(BaseModel):
+    message: DocumentMessagePublic
+    references: List[ResolvedCitation] = Field(default_factory=list)
+
+
 class MessageFilter(FilterPage):
     author_id: Optional[UUID] = None
     release_id: Optional[UUID] = None
