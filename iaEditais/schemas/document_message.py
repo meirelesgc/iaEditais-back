@@ -87,6 +87,7 @@ class DocumentMessageList(BaseModel):
 class DocumentMessageAIResponse(BaseModel):
     message: DocumentMessagePublic
     references: List[ResolvedCitation] = Field(default_factory=list)
+    debug: Optional[dict] = None
 
 
 class MessageFilter(FilterPage):

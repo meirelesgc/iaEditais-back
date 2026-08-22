@@ -26,6 +26,8 @@ FALLBACK_REFERENCES_LIMIT = 3
 SNIPPET_MAX_CHARS = 120
 CONTEXT_PATTERN = re.compile(r'<([^:]+):([^>]+)>')
 
+print('[chat] ai_service carregado (versao com logs)')
+
 
 def get_base_filter(db_release: DocumentRelease) -> dict:
     path = db_release.file_path.split('/')[-1]
@@ -357,6 +359,21 @@ async def create_ai_response(
         f'chunks={[c.metadata.get("chunk_id") for c in all_chunks]}'
     )
 
+    debug = {
+        'release': str(db_release.id),
+        'file_path': db_release.file_path,
+        'source_filter': base_filter['source'],
+        'mentions': len(explicit_prompts),
+        'branches_available': len(doc_branches),
+        'chunks_msg': len(msg_chunks),
+        'chunks_branch': len(branch_chunks),
+        'chunks_targeted': len(targeted_chunks),
+        'chunk_ids': [
+            c.metadata.get('chunk_id') for c in all_chunks
+        ],
+        'fonte_blocks': context.count('[FONTE]'),
+    }
+
     prompt = PROMPTS.CHAT.format(
         context=context,
         content=data.content,
@@ -374,4 +391,5 @@ async def create_ai_response(
     return {
         'answer': response.answer,
         'references': resolved_citations,
+        'debug': debug,
     }

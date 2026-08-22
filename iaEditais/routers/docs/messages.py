@@ -101,6 +101,7 @@ async def create_document_ai_message(
     return DocumentMessageAIResponse(
         message=ai_msg,
         references=references,
+        debug=response.get('debug'),
     )
 
 
