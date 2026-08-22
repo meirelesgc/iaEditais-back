@@ -3,7 +3,13 @@ from enum import Enum
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import AliasChoices, BaseModel, ConfigDict, Field
+from pydantic import (
+    AliasChoices,
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+)
 
 from iaEditais.schemas.common import FilterPage
 from iaEditais.schemas.user import UserPublic
@@ -65,6 +71,11 @@ class DocumentMessagePublic(DocumentMessageSchema):
     created_at: datetime
     updated_at: Optional[datetime] = None
     references: List[ResolvedCitation] = Field(default_factory=list)
+
+    @field_validator('references', mode='before')
+    @classmethod
+    def _null_references_to_empty_list(cls, v):
+        return v or []
 
     model_config = ConfigDict(from_attributes=True)
 
