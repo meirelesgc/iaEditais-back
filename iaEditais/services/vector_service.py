@@ -6,6 +6,7 @@ from typing import List
 import fitz
 from langchain_community.document_loaders import (
     Docx2txtLoader,
+    PyMuPDFLoader,
     TextLoader,
 )
 from langchain_core.documents import Document
@@ -17,14 +18,11 @@ from iaEditais.utils.PresidioAnonymizer import PresidioAnonymizer
 
 SETTINGS = Settings()
 
-SPLITTER = RecursiveCharacterTextSplitter(
-    chunk_size=1000,
-    chunk_overlap=150,
-)
-
-SECTION_PATTERN = re.compile(r'^\d+\s*[\.\-–]\s*(?!\d)\S.{0,49}$')
 MAX_CHARS_PER_CHUNK = 500
-CHUNK_OVERLAP_CHARS = 50
+SPLITTER = RecursiveCharacterTextSplitter(
+    chunk_size=MAX_CHARS_PER_CHUNK,
+    chunk_overlap=50,
+)
 
 
 def _extract_page_lines(page) -> list[tuple[str, list]]:
@@ -45,97 +43,6 @@ def _extract_page_lines(page) -> list[tuple[str, list]]:
         text = ' '.join(w[4] for w in words)
         extracted.append((text, rect))
     return extracted
-
-
-def _pdf_to_documents(full_path: str) -> List[Document]:
-    source_name = (
-        f'iaEditais/storage/uploads/{os.path.basename(full_path)}'
-    )
-    documents: List[Document] = []
-    page_counts: dict[int, int] = {}
-    buffer: list[tuple[str, list]] = []
-    buffer_page = 0
-    buffer_len = 0
-    current_section = ''
-
-    def flush_buffer(keep_overlap: bool = False):
-        nonlocal buffer, buffer_len
-        if not buffer:
-            return
-        joined = ' '.join(line for line, _ in buffer)
-        text = re.sub(r'\s+', ' ', joined.replace('\x00', '')).strip()
-        rects = [rect for _, rect in buffer]
-        page = buffer_page
-        snapshot = buffer
-
-        if keep_overlap:
-            tail: list[tuple[str, list]] = []
-            for line_text, rect in reversed(snapshot):
-                candidate_text = ' '.join(
-                    [line_text] + [l for l, _ in tail]
-                )
-                # garante >=1 linha de contexto mesmo quando a linha
-                # sozinha ja excede CHUNK_OVERLAP_CHARS
-                if tail and len(candidate_text) > CHUNK_OVERLAP_CHARS:
-                    break
-                tail.insert(0, (line_text, rect))
-            # nunca reutilizar o buffer inteiro (geraria chunk duplicado)
-            while tail and len(tail) == len(snapshot):
-                tail = tail[1:]
-            buffer = tail
-            buffer_len = sum(len(l) for l, _ in buffer) + max(
-                0, len(buffer) - 1
-            )
-        else:
-            buffer = []
-            buffer_len = 0
-
-        if not text:
-            return
-        section = current_section or 'Introdução'
-        content = f'SECTION: {section}\n\n{text}'
-        count = page_counts.get(page, 0)
-        page_counts[page] = count + 1
-        documents.append(
-            Document(
-                page_content=content,
-                metadata={
-                    'chunk_id': f'chunk_{page}_{count}',
-                    'chunk_index': len(documents),
-                    'page': page,
-                    'rects': rects,
-                    'source': source_name,
-                    'section_title': section,
-                },
-            )
-        )
-
-    with fitz.open(full_path) as pdf:
-        for page_num in range(len(pdf)):
-            for line_text, rect in _extract_page_lines(pdf[page_num]):
-                line = line_text.strip()
-                if not line:
-                    continue
-                is_header = bool(SECTION_PATTERN.match(line))
-                page_changed = bool(buffer) and buffer_page != page_num
-                overflow = bool(buffer) and (
-                    buffer_len + 1 + len(line) > MAX_CHARS_PER_CHUNK
-                )
-                if is_header or page_changed:
-                    flush_buffer()
-                elif overflow:
-                    # overlap só no corte por tamanho: preserva a
-                    # continuidade do texto entre chunks consecutivos
-                    flush_buffer(keep_overlap=True)
-                if is_header:
-                    current_section = line
-                if not buffer:
-                    buffer_page = page_num
-                buffer.append((line, rect))
-                buffer_len += len(line) + (1 if buffer_len else 0)
-        flush_buffer()
-
-    return documents
 
 
 def _clean_and_format_documents(documents: List[Document]) -> List[Document]:
@@ -183,6 +90,89 @@ def _split_by_sections(documents: List[Document]) -> List[Document]:
                 Document(page_content=full_content, metadata=meta)
             )
     return split_documents
+
+
+def _load_pdf_lines(full_path: str) -> list[tuple[int, str, list]]:
+    lines_with_pages: list[tuple[int, str, list]] = []
+    with fitz.open(full_path) as pdf:
+        for page_num in range(len(pdf)):
+            for line_text, rect in _extract_page_lines(pdf[page_num]):
+                normalized = re.sub(r'\s+', ' ', line_text).strip()
+                if normalized:
+                    lines_with_pages.append((page_num, normalized, rect))
+    return lines_with_pages
+
+
+def _attach_pdf_coordinates(chunks: List[Document], full_path: str) -> None:
+    """Mapeia o texto de cada chunk de volta às linhas do PDF para
+    preencher 'page' e 'rects' sem alterar o conteúdo produzido pelo
+    pipeline original (loader -> seções -> splitter)."""
+    stream: list[tuple[str, int, list]] = []
+    for page_num, line_text, _rect in _load_pdf_lines(full_path):
+        for token in line_text.split():
+            stream.append((token.lower(), page_num, _rect))
+
+    # overlap do splitter faz o chunk seguinte repetir palavras do
+    # anterior; a janela permite remachar esse trecho sem quebrar a
+    # progressão monotônica do cursor.
+    overlap_window = max(40, SPLITTER.chunk_overlap * 3)
+
+    cursor = 0
+    for doc in chunks:
+        content = doc.page_content or ''
+        body = content
+        if body.startswith('SECTION:') and '\n\n' in body:
+            body = body.split('\n\n', 1)[1]
+        needed = re.sub(r'\s+', ' ', body).strip().lower().split()
+        if not needed:
+            continue
+
+        matched_rects: list[list] = []
+        first_new_page = None
+        last_matched_page = None
+        old_cursor = cursor
+        j = max(0, cursor - overlap_window)
+        ok = True
+        for token in needed:
+            while j < len(stream) and stream[j][0] != token:
+                j += 1
+            if j >= len(stream):
+                ok = False
+                break
+            _, page_num, rect = stream[j]
+            last_matched_page = page_num
+            if j >= old_cursor and first_new_page is None:
+                first_new_page = page_num
+            target_page = first_new_page or last_matched_page
+            if page_num == target_page and (
+                not matched_rects or matched_rects[-1] != rect
+            ):
+                matched_rects.append(rect)
+            j += 1
+
+        if ok:
+            doc.metadata['page'] = first_new_page or last_matched_page
+            doc.metadata['rects'] = matched_rects
+            if j > cursor:
+                cursor = j
+
+
+def _pdf_to_documents(full_path: str) -> List[Document]:
+    loader = PyMuPDFLoader(full_path, mode='single')
+    raw_documents = loader.load()
+
+    section_documents = _split_by_sections(raw_documents)
+    chunks = _clean_and_format_documents(section_documents)
+
+    # normaliza o source para o formato esperado pelos filtros de busca
+    canonical_source = (
+        f'iaEditais/storage/uploads/{os.path.basename(full_path)}'
+    )
+    for chunk in chunks:
+        chunk.metadata['source'] = canonical_source
+
+    _attach_pdf_coordinates(chunks, full_path)
+    return chunks
 
 
 async def _anonymize_and_vectorize(chunks: List[Document], vstore: VStore):

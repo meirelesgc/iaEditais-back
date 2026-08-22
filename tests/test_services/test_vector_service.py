@@ -51,8 +51,9 @@ def test_chunks_carry_source_ids_indexes_and_pages(tmp_path):
     assert pages == {0, 1}
 
     last = documents[-1]
-    assert last.metadata['chunk_id'] == 'chunk_1_0'
+    assert last.metadata['chunk_id'] == f"chunk_{len(documents) - 1}"
     assert 'Continuacao do texto na segunda pagina' in last.page_content
+    assert last.metadata['page'] == 1
 
 
 def test_chunks_respect_size_limit_and_rect_bounds(tmp_path):
