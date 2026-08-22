@@ -170,7 +170,7 @@ def resolve_citations(
             resolved.append({
                 'chunk_id': citation.chunk_id,
                 'text_snippet': citation.text_snippet,
-                'page': meta.get('page'),
+                'page': (meta.get('page') or 0) + 1,
                 'rects': mapped_rects,
             })
             seen.add(citation.chunk_id)
