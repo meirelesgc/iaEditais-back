@@ -74,7 +74,9 @@ def _pdf_to_documents(full_path: str) -> List[Document]:
                 candidate_text = ' '.join(
                     [line_text] + [l for l, _ in tail]
                 )
-                if len(candidate_text) > CHUNK_OVERLAP_CHARS:
+                # garante >=1 linha de contexto mesmo quando a linha
+                # sozinha ja excede CHUNK_OVERLAP_CHARS
+                if tail and len(candidate_text) > CHUNK_OVERLAP_CHARS:
                     break
                 tail.insert(0, (line_text, rect))
             # nunca reutilizar o buffer inteiro (geraria chunk duplicado)
@@ -90,9 +92,8 @@ def _pdf_to_documents(full_path: str) -> List[Document]:
 
         if not text:
             return
-        content = text
-        if current_section:
-            content = f'SECTION: {current_section}\n\n{text}'
+        section = current_section or 'Introdução'
+        content = f'SECTION: {section}\n\n{text}'
         count = page_counts.get(page, 0)
         page_counts[page] = count + 1
         documents.append(
@@ -104,6 +105,7 @@ def _pdf_to_documents(full_path: str) -> List[Document]:
                     'page': page,
                     'rects': rects,
                     'source': source_name,
+                    'section_title': section,
                 },
             )
         )
