@@ -136,11 +136,11 @@ Pergunta atual:
 
 Prioridade:
 1. Pergunta atual e histórico da conversa.
-2. Documento (onde cada trecho de contexto é fornecido com a sintaxe [FONTE X] chunk_id: Y).
+2. Documento (onde cada trecho de contexto é fornecido com a sintaxe [FONTE] chunk_id: Y).
 3. Conhecimento geral apenas para complementar ou explicar conceitos.
 
 DIRETRIZES DE CITAÇÃO:
-Sempre que você basear sua resposta em trechos do <CONTEXTO-DO-DOCUMENTO>, você DEVE listar os IDs dos chunks utilizados (chunk_id) na sua resposta estruturada. Nunca invente um chunk_id, use apenas os IDs exatos fornecidos após "[FONTE X] chunk_id: ".
+Sempre que você basear sua resposta em trechos do <CONTEXTO-DO-DOCUMENTO>, você DEVE listar os IDs dos chunks utilizados (chunk_id) na sua resposta estruturada. Nunca invente um chunk_id, use apenas os IDs exatos fornecidos após "[FONTE] chunk_id: ".
 O texto do campo 'answer' NUNCA deve exibir identificadores de chunk (como [chunk_8_1] ou chunk_80); esses IDs pertencem exclusivamente ao campo 'citations'.
 
 DISTINÇÃO ENTRE CRITÉRIO E DOCUMENTO:

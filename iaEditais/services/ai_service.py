@@ -171,21 +171,23 @@ def _dedupe_chunks(chunks: List[Any]) -> List[Any]:
 
 async def get_branch_targeted_context(
     vstore: VStore, db_release: DocumentRelease, msg: str,
-    branches: List[dict],
+    branches: List[dict], extra_text: str = '',
 ) -> tuple[List[str], List[Any]]:
-    """Busca extra estilo análise: quando a pergunta do usuário cita
-    palavras de um ramo, recupera trechos com a query estruturada
-    '{título}: {descrição}' em vez de depender só da frase crua."""
-    msg_tokens = _tokens(msg)
+    """Busca extra estilo análise: quando a pergunta (ou o histórico
+    recente da conversa) cita palavras do título de um ramo, recupera
+    trechos com a query estruturada '{título}: {descrição}' e expande
+    para os vizinhos, como a análise faz."""
+    match_tokens = _tokens(msg) | _tokens(extra_text)
     scored = []
     for branch in branches:
-        overlap = msg_tokens & _tokens(branch['title'])
+        overlap = match_tokens & _tokens(branch['title'])
         if overlap:
             scored.append((len(overlap), branch))
     scored.sort(key=lambda item: -item[0])
     selected = [branch for _, branch in scored[:BRANCH_MATCH_LIMIT]]
 
     if not selected:
+        print('[chat] busca direcionada: nenhum ramo casou com a pergunta')
         return [], []
 
     base_filter = get_base_filter(db_release)
@@ -198,10 +200,18 @@ async def get_branch_targeted_context(
         found = await vstore.asimilarity_search(
             query, k=BRANCH_CHUNKS_PER_MATCH, filter=base_filter
         )
+        print(
+            f"[chat] busca direcionada '{branch['title']}': "
+            f'{len(found)} chunks'
+        )
         matched_chunks.extend(found)
 
-    matched_chunks = _dedupe_chunks(matched_chunks)
-    return build_chunk_prompts(matched_chunks), matched_chunks
+    expanded_chunks = await release_logic_service.get_expanded_chunks(
+        vstore, matched_chunks
+    )
+    combined = _dedupe_chunks(matched_chunks + expanded_chunks)
+    print(f'[chat] busca direcionada total (com vizinhos): {len(combined)}')
+    return build_chunk_prompts(combined), combined
 
 
 def resolve_citations(
@@ -298,6 +308,7 @@ async def create_ai_response(
         session, doc_id
     )
     explicit_prompts = await get_context(session, data.content)
+    chat_context = build_chat_prompt(recent_messages)
 
     branch_context, branch_chunks = await get_prompt_context(
         vstore, db_release, '\n---\n'.join(explicit_prompts)
@@ -308,7 +319,16 @@ async def create_ai_response(
     )
 
     targeted_context, targeted_chunks = await get_branch_targeted_context(
-        vstore, db_release, data.content, doc_branches
+        vstore,
+        db_release,
+        data.content,
+        doc_branches,
+        extra_text=chat_context,
+    )
+
+    print(
+        f'[chat] chunks recuperados msg={len(msg_chunks)} '
+        f'branch={len(branch_chunks)} direcionada={len(targeted_chunks)}'
     )
 
     all_chunks = _dedupe_chunks(
@@ -321,8 +341,6 @@ async def create_ai_response(
         + auto_prompts
         + explicit_prompts
     )
-
-    chat_context = build_chat_prompt(recent_messages)
 
     prompt = PROMPTS.CHAT.format(
         context=context,
