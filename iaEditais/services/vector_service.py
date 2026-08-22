@@ -19,9 +19,10 @@ from iaEditais.utils.PresidioAnonymizer import PresidioAnonymizer
 SETTINGS = Settings()
 
 MAX_CHARS_PER_CHUNK = 500
+CHUNK_OVERLAP = 50
 SPLITTER = RecursiveCharacterTextSplitter(
     chunk_size=MAX_CHARS_PER_CHUNK,
-    chunk_overlap=50,
+    chunk_overlap=CHUNK_OVERLAP,
 )
 
 
@@ -115,7 +116,7 @@ def _attach_pdf_coordinates(chunks: List[Document], full_path: str) -> None:
     # overlap do splitter faz o chunk seguinte repetir palavras do
     # anterior; a janela permite remachar esse trecho sem quebrar a
     # progressão monotônica do cursor.
-    overlap_window = max(40, SPLITTER.chunk_overlap * 3)
+    overlap_window = max(40, CHUNK_OVERLAP * 3)
 
     cursor = 0
     for doc in chunks:
