@@ -303,12 +303,22 @@ async def create_ai_response(
     db_release = await release_service.get_release_with_details(
         session, releases_list[0].id
     )
+    base_filter = get_base_filter(db_release)
+    print(
+        f"[chat] release={db_release.id} arquivo='{db_release.file_path}'"
+    )
+    print(f"[chat] filtro vetorial source='{base_filter['source']}'")
 
     auto_prompts, doc_branches = await get_document_auto_context(
         session, doc_id
     )
     explicit_prompts = await get_context(session, data.content)
     chat_context = build_chat_prompt(recent_messages)
+    print(
+        f'[chat] pergunta={data.content[:120]!r} | '
+        f'mencoes={len(explicit_prompts)} | '
+        f'ramos_disponiveis={len(doc_branches)}'
+    )
 
     branch_context, branch_chunks = await get_prompt_context(
         vstore, db_release, '\n---\n'.join(explicit_prompts)
@@ -340,6 +350,11 @@ async def create_ai_response(
         + targeted_context
         + auto_prompts
         + explicit_prompts
+    )
+    print(
+        f'[chat] contexto final: {len(context)} chars | '
+        f"{context.count('[FONTE]')} blocos [FONTE] | "
+        f'chunks={[c.metadata.get("chunk_id") for c in all_chunks]}'
     )
 
     prompt = PROMPTS.CHAT.format(
