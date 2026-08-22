@@ -23,8 +23,8 @@ SPLITTER = RecursiveCharacterTextSplitter(
 )
 
 SECTION_PATTERN = re.compile(r'^\d+\s*[\.\-–]\s*(?!\d)\S.{0,49}$')
-MAX_CHARS_PER_CHUNK = 1500
-CHUNK_OVERLAP_CHARS = 250
+MAX_CHARS_PER_CHUNK = 500
+CHUNK_OVERLAP_CHARS = 50
 
 
 def _extract_page_lines(page) -> list[tuple[str, list]]:
