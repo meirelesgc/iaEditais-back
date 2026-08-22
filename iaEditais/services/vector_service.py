@@ -3,9 +3,9 @@ import re
 from pathlib import Path
 from typing import List
 
+import fitz
 from langchain_community.document_loaders import (
     Docx2txtLoader,
-    PyMuPDFLoader,
     TextLoader,
 )
 from langchain_core.documents import Document
@@ -21,6 +21,94 @@ SPLITTER = RecursiveCharacterTextSplitter(
     chunk_size=500,
     chunk_overlap=50,
 )
+
+SECTION_PATTERN = re.compile(r'^\d+\s*[\.\-–]\s*(?!\d)\S.{0,49}$')
+MAX_CHARS_PER_CHUNK = 500
+
+
+def _extract_page_lines(page) -> list[tuple[str, list]]:
+    lines: dict[tuple[int, int], list] = {}
+    for word in page.get_text('words'):
+        key = (word[5], word[6])
+        lines.setdefault(key, []).append(word)
+
+    extracted = []
+    for key in sorted(lines):
+        words = sorted(lines[key], key=lambda w: w[0])
+        rect = [
+            min(w[0] for w in words),
+            min(w[1] for w in words),
+            max(w[2] for w in words),
+            max(w[3] for w in words),
+        ]
+        text = ' '.join(w[4] for w in words)
+        extracted.append((text, rect))
+    return extracted
+
+
+def _pdf_to_documents(full_path: str) -> List[Document]:
+    source_name = (
+        f'iaEditais/storage/uploads/{os.path.basename(full_path)}'
+    )
+    documents: List[Document] = []
+    page_counts: dict[int, int] = {}
+    buffer: list[tuple[str, list]] = []
+    buffer_page = 0
+    buffer_len = 0
+    current_section = ''
+
+    def flush_buffer():
+        nonlocal buffer, buffer_len
+        if not buffer:
+            return
+        joined = ' '.join(line for line, _ in buffer)
+        text = re.sub(r'\s+', ' ', joined.replace('\x00', '')).strip()
+        rects = [rect for _, rect in buffer]
+        page = buffer_page
+        buffer = []
+        buffer_len = 0
+        if not text:
+            return
+        content = text
+        if current_section:
+            content = f'SECTION: {current_section}\n\n{text}'
+        count = page_counts.get(page, 0)
+        page_counts[page] = count + 1
+        documents.append(
+            Document(
+                page_content=content,
+                metadata={
+                    'chunk_id': f'chunk_{page}_{count}',
+                    'chunk_index': len(documents),
+                    'page': page,
+                    'rects': rects,
+                    'source': source_name,
+                },
+            )
+        )
+
+    with fitz.open(full_path) as pdf:
+        for page_num in range(len(pdf)):
+            for line_text, rect in _extract_page_lines(pdf[page_num]):
+                line = line_text.strip()
+                if not line:
+                    continue
+                is_header = bool(SECTION_PATTERN.match(line))
+                page_changed = bool(buffer) and buffer_page != page_num
+                overflow = bool(buffer) and (
+                    buffer_len + 1 + len(line) > MAX_CHARS_PER_CHUNK
+                )
+                if is_header or page_changed or overflow:
+                    flush_buffer()
+                if is_header:
+                    current_section = line
+                if not buffer:
+                    buffer_page = page_num
+                buffer.append((line, rect))
+                buffer_len += len(line) + (1 if buffer_len else 0)
+        flush_buffer()
+
+    return documents
 
 
 def _clean_and_format_documents(documents: List[Document]) -> List[Document]:
@@ -82,17 +170,20 @@ async def process_file(full_path: str, vstore: VStore) -> None:
     ext = os.path.splitext(full_path)[1].lower()
 
     if ext == '.pdf':
-        loader = PyMuPDFLoader(full_path, mode='single')
+        formatted_documents = _pdf_to_documents(full_path)
     elif ext == '.docx':
         loader = Docx2txtLoader(full_path)
+        raw_documents = loader.load()
+        section_documents = _split_by_sections(raw_documents)
+        formatted_documents = _clean_and_format_documents(section_documents)
     elif ext == '.txt':
         loader = TextLoader(full_path, encoding='utf-8')
+        raw_documents = loader.load()
+        section_documents = _split_by_sections(raw_documents)
+        formatted_documents = _clean_and_format_documents(section_documents)
     else:
         raise ValueError(f'Tipo de arquivo não suportado: {ext}')
 
-    raw_documents = loader.load()
-    section_documents = _split_by_sections(raw_documents)
-    formatted_documents = _clean_and_format_documents(section_documents)
     await _anonymize_and_vectorize(formatted_documents, vstore)
 
 

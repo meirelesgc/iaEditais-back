@@ -1070,6 +1070,11 @@ class DocumentMessage(AuditMixin):
         init=False,
         default_factory=list,
     )
+    references: Mapped[Optional[list]] = mapped_column(
+        JSONB,
+        nullable=True,
+        default=None,
+    )
     __table_args__ = (
         Index(
             'ix_doc_msg_document_id_created_at',

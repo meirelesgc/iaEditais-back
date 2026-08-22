@@ -91,6 +91,7 @@ async def create_document_ai_message(
         user_id=current_user.id,
         doc_id=doc_id,
         data=ai_data,
+        references=response['references'],
     )
 
     references = [

@@ -19,6 +19,8 @@ from iaEditais.services import (
 )
 
 MAX_CHUNKS = 5
+FALLBACK_REFERENCES_LIMIT = 3
+SNIPPET_MAX_CHARS = 120
 CONTEXT_PATTERN = re.compile(r'<([^:]+):([^>]+)>')
 
 
@@ -178,6 +180,36 @@ def resolve_citations(
     return resolved
 
 
+def _fallback_references(chunks: List[Any]) -> List[Dict]:
+    references = []
+    seen = set()
+    for chunk in chunks:
+        chunk_id = chunk.metadata.get('chunk_id')
+        if not chunk_id or chunk_id in seen:
+            continue
+        seen.add(chunk_id)
+
+        content = chunk.page_content or ''
+        if content.startswith('SECTION:') and '\n\n' in content:
+            content = content.split('\n\n', 1)[1]
+        snippet = ' '.join(content.split())[:SNIPPET_MAX_CHARS]
+
+        rects = [
+            {'x1': r[0], 'y1': r[1], 'x2': r[2], 'y2': r[3]}
+            for r in chunk.metadata.get('rects') or []
+            if len(r) == 4
+        ]
+        references.append({
+            'chunk_id': chunk_id,
+            'text_snippet': snippet,
+            'page': chunk.metadata.get('page'),
+            'rects': rects,
+        })
+        if len(references) >= FALLBACK_REFERENCES_LIMIT:
+            break
+    return references
+
+
 async def create_ai_response(
     session: AsyncSession,
     user_id: UUID,
@@ -227,6 +259,9 @@ async def create_ai_response(
     response: AnswerWithCitations = await structured_model.ainvoke(prompt)
 
     resolved_citations = resolve_citations(response.citations, all_chunks)
+
+    if not resolved_citations and all_chunks:
+        resolved_citations = _fallback_references(all_chunks)
 
     return {
         'answer': response.answer,

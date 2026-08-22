@@ -29,6 +29,7 @@ async def create_message(
     user_id: UUID,
     doc_id: UUID,
     data: DocumentMessageCreate,
+    references: list | None = None,
 ) -> DocumentMessage:
     document = await message_repo.get_document(session, doc_id)
     if not document or document.deleted_at:
@@ -49,6 +50,9 @@ async def create_message(
 
     if data.quoted_message:
         db_msg.quoted_message_id = data.quoted_message.id
+
+    if references:
+        db_msg.references = references
 
     message_repo.add_message(session, db_msg)
     await session.flush()

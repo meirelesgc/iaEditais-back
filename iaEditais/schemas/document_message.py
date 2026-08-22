@@ -50,6 +50,13 @@ class DocumentMessageUpdate(DocumentMessageSchema):
     id: UUID
 
 
+class ResolvedCitation(BaseModel):
+    chunk_id: str
+    text_snippet: Optional[str] = None
+    page: Optional[int] = None
+    rects: Optional[List[dict]] = None
+
+
 class DocumentMessagePublic(DocumentMessageSchema):
     id: UUID
     author: UserPublic | None
@@ -57,19 +64,13 @@ class DocumentMessagePublic(DocumentMessageSchema):
     release_id: UUID
     created_at: datetime
     updated_at: Optional[datetime] = None
+    references: List[ResolvedCitation] = Field(default_factory=list)
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class DocumentMessageList(BaseModel):
     messages: List[DocumentMessagePublic]
-
-
-class ResolvedCitation(BaseModel):
-    chunk_id: str
-    text_snippet: Optional[str] = None
-    page: Optional[int] = None
-    rects: Optional[List[dict]] = None
 
 
 class DocumentMessageAIResponse(BaseModel):
