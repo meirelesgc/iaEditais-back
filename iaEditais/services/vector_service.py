@@ -18,12 +18,13 @@ from iaEditais.utils.PresidioAnonymizer import PresidioAnonymizer
 SETTINGS = Settings()
 
 SPLITTER = RecursiveCharacterTextSplitter(
-    chunk_size=500,
-    chunk_overlap=50,
+    chunk_size=1000,
+    chunk_overlap=150,
 )
 
 SECTION_PATTERN = re.compile(r'^\d+\s*[\.\-–]\s*(?!\d)\S.{0,49}$')
-MAX_CHARS_PER_CHUNK = 500
+MAX_CHARS_PER_CHUNK = 1500
+CHUNK_OVERLAP_CHARS = 250
 
 
 def _extract_page_lines(page) -> list[tuple[str, list]]:
@@ -57,7 +58,7 @@ def _pdf_to_documents(full_path: str) -> List[Document]:
     buffer_len = 0
     current_section = ''
 
-    def flush_buffer():
+    def flush_buffer(keep_overlap: bool = False):
         nonlocal buffer, buffer_len
         if not buffer:
             return
@@ -65,8 +66,28 @@ def _pdf_to_documents(full_path: str) -> List[Document]:
         text = re.sub(r'\s+', ' ', joined.replace('\x00', '')).strip()
         rects = [rect for _, rect in buffer]
         page = buffer_page
-        buffer = []
-        buffer_len = 0
+        snapshot = buffer
+
+        if keep_overlap:
+            tail: list[tuple[str, list]] = []
+            for line_text, rect in reversed(snapshot):
+                candidate_text = ' '.join(
+                    [line_text] + [l for l, _ in tail]
+                )
+                if len(candidate_text) > CHUNK_OVERLAP_CHARS:
+                    break
+                tail.insert(0, (line_text, rect))
+            # nunca reutilizar o buffer inteiro (geraria chunk duplicado)
+            while tail and len(tail) == len(snapshot):
+                tail = tail[1:]
+            buffer = tail
+            buffer_len = sum(len(l) for l, _ in buffer) + max(
+                0, len(buffer) - 1
+            )
+        else:
+            buffer = []
+            buffer_len = 0
+
         if not text:
             return
         content = text
@@ -98,8 +119,12 @@ def _pdf_to_documents(full_path: str) -> List[Document]:
                 overflow = bool(buffer) and (
                     buffer_len + 1 + len(line) > MAX_CHARS_PER_CHUNK
                 )
-                if is_header or page_changed or overflow:
+                if is_header or page_changed:
                     flush_buffer()
+                elif overflow:
+                    # overlap só no corte por tamanho: preserva a
+                    # continuidade do texto entre chunks consecutivos
+                    flush_buffer(keep_overlap=True)
                 if is_header:
                     current_section = line
                 if not buffer:
