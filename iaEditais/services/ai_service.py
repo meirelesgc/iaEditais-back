@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from collections import defaultdict
 from typing import Any, Dict, List
 from uuid import UUID
@@ -18,7 +19,9 @@ from iaEditais.services import (
     release_service,
 )
 
-MAX_CHUNKS = 5
+MAX_CHUNKS = 10
+BRANCH_MATCH_LIMIT = 2
+BRANCH_CHUNKS_PER_MATCH = 4
 FALLBACK_REFERENCES_LIMIT = 3
 SNIPPET_MAX_CHARS = 120
 CONTEXT_PATTERN = re.compile(r'<([^:]+):([^>]+)>')
@@ -113,12 +116,13 @@ O QUE FALOU:
 
 async def get_document_auto_context(
     session: AsyncSession, doc_id: UUID
-) -> List[str]:
+) -> tuple[List[str], List[dict]]:
     doc = await doc_repo.get_by_id(session, doc_id)
     if not doc or doc.deleted_at:
-        return []
+        return [], []
 
     prompts_list = []
+    branches: List[dict] = []
     for typification in doc.typifications:
         if typification.deleted_at:
             continue
@@ -128,6 +132,11 @@ async def get_document_auto_context(
             for branch in taxonomy.branches:
                 if branch.deleted_at:
                     continue
+                branches.append({
+                    'taxonomy': taxonomy.title,
+                    'title': branch.title,
+                    'description': branch.description,
+                })
                 prompt = f"""
 <CONTEXTO-BASE-CONHECIMENTO-BRANCH:{branch.id}>
 **Item Avaliado:** {typification.name}
@@ -138,7 +147,61 @@ async def get_document_auto_context(
 <CONTEXTO-BASE-CONHECIMENTO-BRANCH:{branch.id}>
 """
                 prompts_list.append(prompt)
-    return prompts_list
+    return prompts_list, branches
+
+
+def _tokens(text: str) -> set:
+    normalized = unicodedata.normalize('NFKD', (text or '').lower())
+    flat = ''.join(c for c in normalized if not unicodedata.combining(c))
+    return set(re.findall(r'[a-z0-9]{4,}', flat))
+
+
+def _dedupe_chunks(chunks: List[Any]) -> List[Any]:
+    seen = set()
+    unique = []
+    for chunk in chunks:
+        chunk_id = chunk.metadata.get('chunk_id')
+        if chunk_id and chunk_id in seen:
+            continue
+        if chunk_id:
+            seen.add(chunk_id)
+        unique.append(chunk)
+    return unique
+
+
+async def get_branch_targeted_context(
+    vstore: VStore, db_release: DocumentRelease, msg: str,
+    branches: List[dict],
+) -> tuple[List[str], List[Any]]:
+    """Busca extra estilo análise: quando a pergunta do usuário cita
+    palavras de um ramo, recupera trechos com a query estruturada
+    '{título}: {descrição}' em vez de depender só da frase crua."""
+    msg_tokens = _tokens(msg)
+    scored = []
+    for branch in branches:
+        overlap = msg_tokens & _tokens(branch['title'])
+        if overlap:
+            scored.append((len(overlap), branch))
+    scored.sort(key=lambda item: -item[0])
+    selected = [branch for _, branch in scored[:BRANCH_MATCH_LIMIT]]
+
+    if not selected:
+        return [], []
+
+    base_filter = get_base_filter(db_release)
+    matched_chunks: List[Any] = []
+    for branch in selected:
+        query = PROMPTS.QUERY.format(
+            section=branch['taxonomy'],
+            query=f"{branch['title']}: {branch['description']}",
+        )
+        found = await vstore.asimilarity_search(
+            query, k=BRANCH_CHUNKS_PER_MATCH, filter=base_filter
+        )
+        matched_chunks.extend(found)
+
+    matched_chunks = _dedupe_chunks(matched_chunks)
+    return build_chunk_prompts(matched_chunks), matched_chunks
 
 
 def resolve_citations(
@@ -231,7 +294,9 @@ async def create_ai_response(
         session, releases_list[0].id
     )
 
-    auto_prompts = await get_document_auto_context(session, doc_id)
+    auto_prompts, doc_branches = await get_document_auto_context(
+        session, doc_id
+    )
     explicit_prompts = await get_context(session, data.content)
 
     branch_context, branch_chunks = await get_prompt_context(
@@ -242,9 +307,19 @@ async def create_ai_response(
         vstore, db_release, data.content
     )
 
-    all_chunks = branch_chunks + msg_chunks
+    targeted_context, targeted_chunks = await get_branch_targeted_context(
+        vstore, db_release, data.content, doc_branches
+    )
+
+    all_chunks = _dedupe_chunks(
+        branch_chunks + msg_chunks + targeted_chunks
+    )
     context = '\n---\n'.join(
-        msg_context + branch_context + auto_prompts + explicit_prompts
+        msg_context
+        + branch_context
+        + targeted_context
+        + auto_prompts
+        + explicit_prompts
     )
 
     chat_context = build_chat_prompt(recent_messages)
