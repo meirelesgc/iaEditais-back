@@ -88,13 +88,32 @@ def test_section_header_opens_new_prefixed_chunk(tmp_path):
 
     assert section_docs
 
+    assert (
+        section_docs[0].metadata['section_title']
+        == '8 - Documentacao de habilitacao'
+    )
+
     first_section_body = section_docs[0].page_content.split('\n\n')[-1]
     assert first_section_body.startswith('8 - Documentacao de habilitacao')
 
+    # texto antes do primeiro cabecalho pertence a secao 'Introducao',
+    # igual ao comportamento do fluxo antigo (_split_by_sections)
     before_header = [
         doc
         for doc in documents
-        if doc.page_content.startswith('Linha')
-        or doc.page_content.startswith('SECTION: Linha')
+        if doc.metadata.get('section_title') == 'Introdução'
     ]
     assert before_header
+    assert before_header[0].page_content.startswith(
+        'SECTION: Introdução\n\n'
+    )
+    assert 'Linha 0' in before_header[0].page_content
+
+    # contrato exigido por release_logic_service._format_context:
+    # todo chunk precisa carregar section_title e o prefixo casar exatamente
+    for doc in documents:
+        section_title = doc.metadata['section_title']
+        assert section_title
+        assert doc.page_content.startswith(
+            f'SECTION: {section_title}\n\n'
+        )
