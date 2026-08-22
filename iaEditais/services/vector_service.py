@@ -37,6 +37,9 @@ def _clean_and_format_documents(documents: List[Document]) -> List[Document]:
             chunk.page_content = text
         chunk.metadata['chunk_index'] = i
         chunk.metadata.setdefault('source', 'unknown')
+        chunk.metadata['chunk_id'] = f"chunk_{i}"
+        chunk.metadata.setdefault('page', 0)
+        chunk.metadata.setdefault('rects', [])
     return chunks
 
 
