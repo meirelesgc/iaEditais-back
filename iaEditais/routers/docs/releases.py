@@ -6,7 +6,6 @@ from fastapi import (
     BackgroundTasks,
     Depends,
     File,
-    Form,
     HTTPException,
     UploadFile,
 )
@@ -62,7 +61,6 @@ async def create_release(
     vstore: VStore,
     redis: Redis = Depends(get_redis),
     file: UploadFile = File(...),
-    bump: str = Form('patch'),
 ):
     result = await session.execute(
         select(Document).where(Document.id == doc_id)
@@ -83,9 +81,7 @@ async def create_release(
     unique_filename = f'{uuid4()}_{file.filename}'
     file_path = await storage.save(file, unique_filename)
 
-    version = await release_service.get_next_version(
-        session, doc_id, bump if bump in ('major', 'minor', 'patch') else 'patch'
-    )
+    version = await release_service.get_next_version(session, doc_id)
 
     db_release = DocumentRelease(
         history_id=latest_history.id,
@@ -132,7 +128,6 @@ async def create_release(
 
 class ReleaseFromFileCreate(BaseModel):
     project_document_id: UUID
-    bump: str = 'patch'
 
 
 @router.post(
@@ -177,13 +172,7 @@ async def create_release_from_file(
 
     latest_history = db_doc.history[0]
 
-    version = await release_service.get_next_version(
-        session,
-        doc_id,
-        payload.bump
-        if payload.bump in ('major', 'minor', 'patch')
-        else 'patch',
-    )
+    version = await release_service.get_next_version(session, doc_id)
 
     db_release = DocumentRelease(
         history_id=latest_history.id,
