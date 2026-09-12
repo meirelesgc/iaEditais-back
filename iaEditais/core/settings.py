@@ -17,6 +17,9 @@ class Settings(BaseSettings):
 
     OPENAI_API_KEY: str = '...'
 
+    LLM_MODEL: str = 'gpt-5-mini'
+    LLM_TEMPERATURE: float = 0.1
+
     ALLOWED_ORIGINS: List[str] = [
         'http://localhost:8000',
         'http://localhost:3000',

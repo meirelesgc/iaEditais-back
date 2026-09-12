@@ -38,6 +38,10 @@ def _generate_human_diff(
     action: str, old_data: Optional[dict], new_data: Optional[dict]
 ) -> str:
     if action == 'CREATE':
+        if new_data and new_data.get('version'):
+            return (
+                f"Nova versão v{new_data['version']} do documento adicionada."
+            )
         return 'Registro criado.'
 
     if action == 'DELETE':

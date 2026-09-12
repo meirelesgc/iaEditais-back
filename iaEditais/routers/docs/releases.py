@@ -108,8 +108,9 @@ async def create_release(
         user_id=current_user.id,
         action='CREATE',
         table_name=DocumentRelease.__tablename__,
-        record_id=db_release.id,
+        record_id=doc_id,
         old_data=None,
+        new_data={'version': version},
     )
 
     await session.commit()
@@ -192,8 +193,9 @@ async def create_release_from_file(
         user_id=current_user.id,
         action='CREATE',
         table_name=DocumentRelease.__tablename__,
-        record_id=db_release.id,
+        record_id=doc_id,
         old_data=None,
+        new_data={'version': version},
     )
 
     await session.commit()
@@ -262,7 +264,7 @@ async def delete_release(
         user_id=current_user.id,
         action='DELETE',
         table_name=DocumentRelease.__tablename__,
-        record_id=db_release.id,
+        record_id=doc_id,
         old_data=old_data,
     )
 
