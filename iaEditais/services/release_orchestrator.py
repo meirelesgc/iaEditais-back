@@ -122,6 +122,7 @@ async def _save_eval_results(
             score=branch_data.get('score'),
             feedback=branch_data.get('feedback'),
             presidio_mapping=str(branch_data.get('presidio_mapping')),
+            references=branch_data.get('references') or [],
         )
         release_repo.add_applied_entity(session, applied_branch)
 

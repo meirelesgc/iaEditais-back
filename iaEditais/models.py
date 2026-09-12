@@ -996,6 +996,12 @@ class AppliedBranch:
         nullable=True, default=None
     )
 
+    references: Mapped[Optional[list]] = mapped_column(
+        JSONB,
+        nullable=True,
+        default=None,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         init=False, server_default=func.now()
     )

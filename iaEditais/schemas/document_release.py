@@ -1,9 +1,10 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from iaEditais.schemas.branch import BranchSchema
+from iaEditais.schemas.document_message import ResolvedCitation
 from iaEditais.schemas.source import SourcePublic
 from iaEditais.schemas.taxonomy import TaxonomySchema
 from iaEditais.schemas.typification import TypificationSchema
@@ -39,6 +40,12 @@ class DocumentReleaseFeedbackPublic(DocumentReleaseFeedback):
 class AppliedBranchPublic(BranchSchema):
     id: UUID
     evaluation: DocumentReleaseFeedbackPublic
+    references: list[ResolvedCitation] = Field(default_factory=list)
+
+    @field_validator('references', mode='before')
+    @classmethod
+    def _null_references_to_empty_list(cls, v):
+        return v or []
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -10,6 +10,7 @@ from iaEditais.schemas.typification import TypificationList
 
 MAX_CHUNKS = 3
 MARGIN_SIZE = 2
+SNIPPET_MAX_CHARS = 120
 
 # --- Funções de Iteração e Filtros ---
 
@@ -197,6 +198,37 @@ def _create_eval_payload(taxonomy: dict, branch: dict) -> dict:
     }
 
 
+def build_branch_references(sessions: list) -> list[dict]:
+    """Extrai de cada session (chunk) apenas os dados de localização no PDF
+    (chunk_id, page e rects) usados para destacar o trecho no visualizador.
+    Não altera o conteúdo de texto que alimenta o prompt de avaliação."""
+    references = []
+    seen = set()
+    for doc in sessions:
+        chunk_id = doc.metadata.get('chunk_id')
+        if not chunk_id or chunk_id in seen:
+            continue
+        seen.add(chunk_id)
+
+        content = getattr(doc, 'page_content', getattr(doc, 'content', '')) or ''
+        if content.startswith('SECTION:') and '\n\n' in content:
+            content = content.split('\n\n', 1)[1]
+        snippet = ' '.join(content.split())[:SNIPPET_MAX_CHARS]
+
+        rects = [
+            {'x1': r[0], 'y1': r[1], 'x2': r[2], 'y2': r[3]}
+            for r in doc.metadata.get('rects') or []
+            if len(r) == 4
+        ]
+        references.append({
+            'chunk_id': chunk_id,
+            'text_snippet': snippet,
+            'page': doc.metadata.get('page'),
+            'rects': rects,
+        })
+    return references
+
+
 async def simplify_eval_args(eval_args: dict) -> list[dict]:
     payloads = []
     for typification in iter_typifications(eval_args):
@@ -205,6 +237,9 @@ async def simplify_eval_args(eval_args: dict) -> list[dict]:
                 payload = _create_eval_payload(taxonomy, branch)
                 if payload['document']:
                     payload['id'] = branch.get('id')
+                    payload['references'] = build_branch_references(
+                        branch.get('sessions') or []
+                    )
                     payloads.append(payload)
     return payloads
 
