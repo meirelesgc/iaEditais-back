@@ -159,8 +159,13 @@ def get_chain(model: Model):
 
 
 def _format_context(branch: dict) -> str:
-    sessions = branch.get('sessions') or []
-    sessions.sort(key=lambda x: x.metadata.get('chunk_index', 0))
+    # `sorted` cria uma nova lista: Ordenar no lugar (`sessions.sort`) realterava
+    # `branch['sessions']` e as referências sairiam por página, em vez de
+    # relevância, já que o prompt precisa do contexto em ordem de chunk_index.
+    sessions = sorted(
+        branch.get('sessions') or [],
+        key=lambda x: x.metadata.get('chunk_index', 0),
+    )
     formatted_parts = []
     current_section = None
     for doc in sessions:
