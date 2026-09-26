@@ -72,6 +72,19 @@ async def get_expanded_chunks(vstore: VStore, original_chunks: list) -> list:
     return expanded_chunks
 
 
+def _dedupe_chunks(chunks: list) -> list:
+    seen = set()
+    unique = []
+    for chunk in chunks:
+        chunk_id = chunk.metadata.get('chunk_id')
+        if chunk_id and chunk_id in seen:
+            continue
+        if chunk_id:
+            seen.add(chunk_id)
+        unique.append(chunk)
+    return unique
+
+
 async def expand_branch_sessions(vstore: VStore, eval_args: dict):
     for typification in iter_typifications(eval_args):
         for taxonomy in iter_taxonomies(typification):
@@ -85,7 +98,13 @@ async def expand_branch_sessions(vstore: VStore, eval_args: dict):
                 )
 
                 if expanded_chunks:
-                    branch['sessions'] = expanded_chunks
+                    # Mantém os chunks casados na busca, que já vêm por
+                    # relevância, antes dos vizinhos expandidos. É o mesmo
+                    # critério do assistente, e faz as referências da
+                    # interface saírem por relevância em vez de por página.
+                    branch['sessions'] = _dedupe_chunks(
+                        original_chunks + expanded_chunks
+                    )
 
 
 async def get_branch_sessions(
