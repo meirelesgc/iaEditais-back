@@ -1,9 +1,11 @@
 from http import HTTPStatus
-from uuid import UUID
+from uuid import UUID, uuid4
 
-from fastapi import HTTPException
+from fastapi import HTTPException, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from iaEditais.core.dependencies import Storage
+from iaEditais.core.storage_provider import is_valid_image_filename
 from iaEditais.models import DocumentGroup, DocumentGroupItem
 from iaEditais.repositories import document_group_repo
 from iaEditais.schemas.document_group import (
@@ -142,11 +144,7 @@ async def create_item(
             detail='Document group not found',
         )
 
-    db_item = DocumentGroupItem(
-        group_id=group_id,
-        name=data.name,
-        icon_path=data.icon_path,
-    )
+    db_item = DocumentGroupItem(group_id=group_id, name=data.name)
     db_item.set_creation_audit(user_id)
 
     document_group_repo.add_item(session, db_item)
@@ -167,12 +165,65 @@ async def update_item(
         )
 
     db_item.name = data.name
-    db_item.icon_path = data.icon_path
     db_item.set_update_audit(user_id)
 
     await session.commit()
     await session.refresh(db_item)
     return db_item
+
+
+async def update_item_icon(
+    session: AsyncSession,
+    user_id: UUID,
+    item_id: UUID,
+    file: UploadFile,
+    storage: Storage,
+) -> DocumentGroupItem:
+    db_item = await document_group_repo.get_item_by_id(session, item_id)
+    if not db_item or db_item.deleted_at:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Document group item not found',
+        )
+
+    if not is_valid_image_filename(file.filename):
+        raise HTTPException(
+            status_code=HTTPStatus.BAD_REQUEST, detail='Invalid file format'
+        )
+
+    if db_item.icon_path:
+        await storage.delete(db_item.icon_path)
+
+    unique_filename = f'{uuid4()}_{file.filename}'
+    db_item.icon_path = await storage.save(file, unique_filename)
+    db_item.set_update_audit(user_id)
+
+    await session.commit()
+    await session.refresh(db_item)
+    return db_item
+
+
+async def delete_item_icon(
+    session: AsyncSession, user_id: UUID, item_id: UUID, storage: Storage
+) -> None:
+    db_item = await document_group_repo.get_item_by_id(session, item_id)
+    if not db_item or db_item.deleted_at:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Document group item not found',
+        )
+
+    if not db_item.icon_path:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Document group item has no icon',
+        )
+
+    await storage.delete(db_item.icon_path)
+    db_item.icon_path = None
+    db_item.set_update_audit(user_id)
+
+    await session.commit()
 
 
 async def delete_item(

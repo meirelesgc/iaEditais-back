@@ -19,7 +19,6 @@ class DocumentGroupUpdate(DocumentGroupSchema):
 
 class DocumentGroupItemSchema(BaseModel):
     name: str
-    icon_path: Optional[str] = None
 
 
 class DocumentGroupItemCreate(DocumentGroupItemSchema):
@@ -33,6 +32,7 @@ class DocumentGroupItemUpdate(DocumentGroupItemSchema):
 class DocumentGroupItemPublic(DocumentGroupItemSchema):
     id: UUID
     group_id: UUID
+    icon_path: Optional[str] = None
     created_at: datetime
     updated_at: Optional[datetime] = None
 

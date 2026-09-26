@@ -2,9 +2,9 @@ from http import HTTPStatus
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 
-from iaEditais.core.dependencies import CurrentUser, Session
+from iaEditais.core.dependencies import CurrentUser, Session, Storage
 from iaEditais.schemas.document_group import (
     DocumentGroupCreate,
     DocumentGroupFilter,
@@ -158,3 +158,42 @@ async def delete_item(
         session, current_user.id, item_id
     )
     return {'message': 'Document group item deleted'}
+
+
+@router.post(
+    '/item/{item_id}/icon',
+    response_model=DocumentGroupItemPublic,
+    summary='Enviar imagem do item',
+    description=(
+        'Salva a imagem do item como arquivo e grava em icon_path a URL gerada. '
+        'Substitui a imagem anterior, se houver.'
+    ),
+)
+async def set_item_icon(
+    item_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+    storage: Storage,
+    file: UploadFile = File(...),
+):
+    return await document_group_service.update_item_icon(
+        session, current_user.id, item_id, file, storage
+    )
+
+
+@router.delete(
+    '/item/{item_id}/icon',
+    status_code=HTTPStatus.NO_CONTENT,
+    summary='Remover imagem do item',
+    description='Exclui o arquivo da imagem do item e limpa o icon_path.',
+)
+async def delete_item_icon(
+    item_id: UUID,
+    session: Session,
+    current_user: CurrentUser,
+    storage: Storage,
+):
+    await document_group_service.delete_item_icon(
+        session, current_user.id, item_id, storage
+    )
+    return {'message': 'Document group item icon deleted'}
