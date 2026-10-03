@@ -189,3 +189,114 @@ async def test_listing_taxonomies_typification(
     assert response.status_code == HTTPStatus.OK
     data = response.json()
     assert data['typifications'][0]['taxonomies'][0]['id']
+
+
+@pytest.mark.asyncio
+async def test_clone_typification_without_children(
+    logged_client, create_typification
+):
+    client, *_ = await logged_client()
+    original = await create_typification(name='Original')
+
+    response = client.post(f'/typification/{original.id}/clone', json={})
+
+    assert response.status_code == HTTPStatus.CREATED
+    data = response.json()
+    assert data['name'] == 'Cópia de Original'
+    assert data['id'] != str(original.id)
+    assert data['sources'] == []
+    assert data['taxonomies'] == []
+
+
+@pytest.mark.asyncio
+async def test_clone_typification_with_sources(
+    logged_client, create_typification, create_source
+):
+    source = await create_source()
+    client, *_ = await logged_client()
+    original = await create_typification(
+        name='Com Fonte', source_ids=[source.id]
+    )
+
+    response = client.post(f'/typification/{original.id}/clone', json={})
+
+    assert response.status_code == HTTPStatus.CREATED
+    data = response.json()
+    assert [s['id'] for s in data['sources']] == [str(source.id)]
+
+
+@pytest.mark.asyncio
+async def test_clone_typification_copies_taxonomies_and_branches(
+    logged_client,
+    create_typification,
+    create_taxonomy,
+    create_branch,
+):
+    client, *_ = await logged_client()
+    original = await create_typification(name='Arvore Completa')
+    taxonomy = await create_taxonomy(
+        typification_id=original.id, title='Taxonomia Original'
+    )
+    branch = await create_branch(
+        taxonomy_id=taxonomy.id, title='Ramo Original'
+    )
+
+    response = client.post(f'/typification/{original.id}/clone', json={})
+    assert response.status_code == HTTPStatus.CREATED
+
+    cloned_id = response.json()['id']
+
+    detail = client.get(f'/typification/{cloned_id}')
+    assert detail.status_code == HTTPStatus.OK
+    cloned = detail.json()
+
+    assert len(cloned['taxonomies']) == 1
+    cloned_tax = cloned['taxonomies'][0]
+    assert cloned_tax['id'] != str(taxonomy.id)
+    assert cloned_tax['title'] == 'Taxonomia Original'
+    assert cloned_tax['typification_id'] == cloned_id
+
+    assert len(cloned_tax['branches']) == 1
+    cloned_branch = cloned_tax['branches'][0]
+    assert cloned_branch['id'] != str(branch.id)
+    assert cloned_branch['title'] == 'Ramo Original'
+    assert cloned_branch['taxonomy_id'] == cloned_tax['id']
+
+
+@pytest.mark.asyncio
+async def test_clone_typification_with_custom_name(
+    logged_client, create_typification
+):
+    client, *_ = await logged_client()
+    original = await create_typification(name='Original')
+
+    response = client.post(
+        f'/typification/{original.id}/clone', json={'name': 'Nome Custom'}
+    )
+
+    assert response.status_code == HTTPStatus.CREATED
+    assert response.json()['name'] == 'Nome Custom'
+
+
+@pytest.mark.asyncio
+async def test_clone_typification_name_conflict_appends_counter(
+    logged_client, create_typification
+):
+    client, *_ = await logged_client()
+    original = await create_typification(name='Original')
+
+    first = client.post(f'/typification/{original.id}/clone', json={})
+    second = client.post(f'/typification/{original.id}/clone', json={})
+
+    assert first.status_code == HTTPStatus.CREATED
+    assert second.status_code == HTTPStatus.CREATED
+    assert first.json()['name'] == 'Cópia de Original'
+    assert second.json()['name'] == 'Cópia de Original (1)'
+
+
+@pytest.mark.asyncio
+async def test_clone_nonexistent_typification(logged_client):
+    client, *_ = await logged_client()
+    response = client.post(f'/typification/{uuid.uuid4()}/clone', json={})
+    assert response.status_code == HTTPStatus.NOT_FOUND
+    assert response.json() == {'detail': 'Typification not found'}

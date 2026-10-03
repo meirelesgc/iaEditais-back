@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends
 
 from iaEditais.core.dependencies import CurrentUser, Session
 from iaEditais.schemas import (
+    TypificationClone,
     TypificationCreate,
     TypificationFilter,
     TypificationList,
@@ -76,6 +77,22 @@ async def delete_typification(
         session, current_user.id, typification_id
     )
     return {'message': 'Typification deleted'}
+
+
+@router.post(
+    '/{typification_id}/clone',
+    status_code=HTTPStatus.CREATED,
+    response_model=TypificationPublic,
+)
+async def clone_typification(
+    typification_id: UUID,
+    clone_data: TypificationClone,
+    session: Session,
+    current_user: CurrentUser,
+):
+    return await typification_service.clone_typification(
+        session, current_user.id, typification_id, clone_data
+    )
 
 
 @router.get('/export/pdf', include_in_schema=False)

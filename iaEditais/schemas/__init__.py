@@ -99,6 +99,7 @@ from .project import (
     ProjectUpdate,
 )
 from .typification import (
+    TypificationClone,
     TypificationCreate,
     TypificationFilter,
     TypificationList,
@@ -188,7 +189,9 @@ __all__ = [
     'TaxonomyPublic',
     'TaxonomySchema',
     'TaxonomyUpdate',
+    'TypificationClone',
     'TypificationCreate',
+    'TypificationFilter',
     'TypificationList',
     'TypificationPublic',
     'TypificationSchema',
@@ -220,6 +223,7 @@ __all__ = [
     'ResetPasswordRequest',
     'UnitFilter',
     'TypificationFilter',
+    'TypificationClone',
     'TaxonomyFilter',
     'BranchFilter',
     'DocumentStatus',

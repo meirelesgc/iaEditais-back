@@ -24,6 +24,10 @@ class TypificationUpdate(TypificationSchema):
     source_ids: list[UUID]
 
 
+class TypificationClone(BaseModel):
+    name: Optional[str] = None
+
+
 class TypificationPublic(TypificationSchema):
     id: UUID
     sources: list[SourcePublic]

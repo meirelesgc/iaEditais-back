@@ -5,9 +5,16 @@ from fastapi import HTTPException
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from iaEditais.models import Typification, TypificationSource
-from iaEditais.repositories import typification_repo
+from iaEditais.models import (
+    Branch,
+    Taxonomy,
+    TaxonomySource,
+    Typification,
+    TypificationSource,
+)
+from iaEditais.repositories import branch_repo, taxonomy_repo, typification_repo
 from iaEditais.schemas import (
+    TypificationClone,
     TypificationCreate,
     TypificationFilter,
     TypificationList,
@@ -184,6 +191,94 @@ async def delete_typification(
     )
 
     await session.commit()
+
+
+async def clone_typification(
+    session: AsyncSession,
+    user_id: UUID,
+    typification_id: UUID,
+    data: TypificationClone,
+) -> Typification:
+    original = await typification_repo.get_by_id(session, typification_id)
+    if not original or original.deleted_at:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Typification not found',
+        )
+
+    new_name = data.name or f'Cópia de {original.name}'
+
+    existing = await typification_repo.get_by_name(session, new_name)
+    if existing:
+        counter = 1
+        while await typification_repo.get_by_name(
+            session, f'{new_name} ({counter})'
+        ):
+            counter += 1
+        new_name = f'{new_name} ({counter})'
+
+    new_typ = Typification(
+        name=new_name,
+        document_group_id=original.document_group_id,
+        document_group_item_id=original.document_group_item_id,
+    )
+    new_typ.set_creation_audit(user_id)
+    typification_repo.add_typification(session, new_typ)
+    await session.flush()
+
+    if original.sources:
+        for src in original.sources:
+            assoc = TypificationSource(
+                typification_id=new_typ.id,
+                source_id=src.id,
+                created_by=user_id,
+            )
+            typification_repo.add_typification_source(session, assoc)
+
+    for orig_tax in original.taxonomies:
+        if getattr(orig_tax, 'deleted_at', None):
+            continue
+        new_tax = Taxonomy(
+            title=orig_tax.title,
+            description=orig_tax.description,
+            typification_id=new_typ.id,
+        )
+        new_tax.set_creation_audit(user_id)
+        taxonomy_repo.add_taxonomy(session, new_tax)
+        await session.flush()
+
+        if orig_tax.sources:
+            for src in orig_tax.sources:
+                assoc = TaxonomySource(
+                    taxonomy_id=new_tax.id,
+                    source_id=src.id,
+                    created_by=user_id,
+                )
+                taxonomy_repo.add_taxonomy_source(session, assoc)
+
+        for orig_branch in orig_tax.branches:
+            if getattr(orig_branch, 'deleted_at', None):
+                continue
+            new_branch = Branch(
+                title=orig_branch.title,
+                description=orig_branch.description,
+                taxonomy_id=new_tax.id,
+            )
+            new_branch.set_creation_audit(user_id)
+            branch_repo.add(session, new_branch)
+
+    await audit_service.register_action(
+        session=session,
+        user_id=user_id,
+        action='CREATE',
+        table_name=Typification.__tablename__,
+        record_id=new_typ.id,
+        old_data=None,
+    )
+
+    await session.commit()
+    await session.refresh(new_typ)
+    return new_typ
 
 
 async def export_pdf(
