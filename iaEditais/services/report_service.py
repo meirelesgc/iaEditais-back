@@ -1,3 +1,5 @@
+import re
+import unicodedata
 from datetime import datetime
 from http import HTTPStatus
 from pathlib import Path
@@ -218,8 +220,22 @@ def create_taxonomy_section(taxonomies, styles):
     return elements
 
 
+def _safe_filename(name: str, fallback: str = 'iaeditais_report') -> str:
+    """
+    Normaliza um nome arbitrário para uso em nome de arquivo,
+    removendo acentos e caracteres especiais do sistema de arquivos.
+    """
+    normalized = unicodedata.normalize('NFKD', name or '')
+    flat = ''.join(c for c in normalized if not unicodedata.combining(c))
+    slug = re.sub(r'[^A-Za-z0-9._-]+', '_', flat).strip('._-')
+    slug = re.sub(r'_+', '_', slug)
+    return slug[:100] or fallback
+
+
 def typification_report(
-    data: dict, output_dir: str = 'iaEditais/storage/temp'
+    data: dict,
+    output_dir: str = 'iaEditais/storage/temp',
+    file_stem: str = None,
 ):
     """
     Função principal para geração do PDF.
@@ -227,7 +243,8 @@ def typification_report(
     Path(output_dir).mkdir(parents=True, exist_ok=True)
 
     today = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f'iaeditais_report_{today}.pdf'
+    stem = _safe_filename(file_stem) if file_stem else 'iaeditais_report'
+    filename = f'{stem}_{today}.pdf'
     filepath = Path(output_dir) / filename
 
     pdf = SimpleDocTemplate(

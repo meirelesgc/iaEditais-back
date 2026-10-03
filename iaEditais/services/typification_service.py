@@ -1,4 +1,5 @@
 from http import HTTPStatus
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import HTTPException
@@ -202,5 +203,12 @@ async def export_pdf(
     typifications_list = TypificationList(
         typifications=typifications
     ).model_dump()
-    report_path = typification_report(typifications_list)
-    return FileResponse(report_path, filename=report_path.split('/')[-1])
+
+    download_name = None
+    if typification_id is not None and len(typifications) == 1:
+        download_name = typifications[0].name
+
+    report_path = typification_report(
+        typifications_list, file_stem=download_name
+    )
+    return FileResponse(report_path, filename=Path(report_path).name)
