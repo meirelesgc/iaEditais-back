@@ -16,7 +16,10 @@ from iaEditais.services import audit_service
 
 
 async def create_branch(
-    session: AsyncSession, user_id: UUID, data: BranchCreate
+    session: AsyncSession,
+    user_id: UUID,
+    data: BranchCreate,
+    commit: bool = True,
 ) -> Branch:
     # Verifica duplicidade
     existing_branch = await branch_repo.get_by_title_and_taxonomy(
@@ -55,8 +58,9 @@ async def create_branch(
         old_data=None,
     )
 
-    await session.commit()
-    await session.refresh(db_branch)
+    if commit:
+        await session.commit()
+        await session.refresh(db_branch)
     return db_branch
 
 
@@ -85,7 +89,10 @@ async def get_branch_by_id(session: AsyncSession, branch_id: UUID) -> Branch:
 
 
 async def update_branch(
-    session: AsyncSession, user_id: UUID, data: BranchUpdate
+    session: AsyncSession,
+    user_id: UUID,
+    data: BranchUpdate,
+    commit: bool = True,
 ) -> Branch:
     db_branch = await branch_repo.get_by_id(session, data.id)
 
@@ -135,8 +142,9 @@ async def update_branch(
         new_data=new_data,
     )
 
-    await session.commit()
-    await session.refresh(db_branch)
+    if commit:
+        await session.commit()
+        await session.refresh(db_branch)
     return db_branch
 
 

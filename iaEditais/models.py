@@ -1465,3 +1465,151 @@ class ChatMessage:
     conversation: Mapped['ChatConversation'] = relationship(
         back_populates='messages', init=False
     )
+
+
+@table_registry.mapped_as_dataclass
+class TreeSuggestionSession(AuditMixin):
+    __tablename__ = 'tree_suggestion_sessions'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
+    )
+    mode: Mapped[str] = mapped_column(String(20), nullable=False)
+    file_path: Mapped[str] = mapped_column(String, nullable=False)
+    original_filename: Mapped[str] = mapped_column(String, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default='processing'
+    )
+    target_typification_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey(
+            'typifications.id',
+            name='fk_tree_suggestion_session_typification_id',
+        ),
+        nullable=True,
+        default=None,
+    )
+    page_count: Mapped[Optional[int]] = mapped_column(
+        nullable=True, default=None
+    )
+    error_message: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, default=None
+    )
+    generation_model: Mapped[Optional[str]] = mapped_column(
+        String, nullable=True, default=None
+    )
+    processing_started_at: Mapped[Optional[datetime]] = mapped_column(
+        nullable=True, default=None
+    )
+    processing_finished_at: Mapped[Optional[datetime]] = mapped_column(
+        nullable=True, default=None
+    )
+    excluded_rules: Mapped[List[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, default_factory=list
+    )
+
+    items: Mapped[List['TreeSuggestionItem']] = relationship(
+        back_populates='session',
+        lazy='selectin',
+        order_by='TreeSuggestionItem.position',
+        default_factory=list,
+        init=False,
+    )
+
+    __table_args__ = (
+        Index('ix_tree_suggestion_sessions_status', 'status'),
+        Index('ix_tree_suggestion_sessions_created_at', 'created_at'),
+    )
+
+
+@table_registry.mapped_as_dataclass
+class TreeSuggestionItem:
+    __tablename__ = 'tree_suggestion_items'
+
+    id: Mapped[UUID] = mapped_column(
+        init=False,
+        primary_key=True,
+        insert_default=uuid4,
+        default_factory=uuid4,
+    )
+    session_id: Mapped[UUID] = mapped_column(
+        ForeignKey(
+            'tree_suggestion_sessions.id',
+            name='fk_tree_suggestion_item_session_id',
+        ),
+        nullable=False,
+    )
+    kind: Mapped[str] = mapped_column(String(20), nullable=False)
+    operation: Mapped[str] = mapped_column(String(20), nullable=False)
+    proposed_title: Mapped[str] = mapped_column(String, nullable=False)
+    position: Mapped[int] = mapped_column(nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False, default='pending'
+    )
+    proposed_description: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, default=None
+    )
+    parent_item_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey(
+            'tree_suggestion_items.id',
+            name='fk_tree_suggestion_item_parent_item_id',
+        ),
+        nullable=True,
+        default=None,
+    )
+    parent_entity_id: Mapped[Optional[UUID]] = mapped_column(
+        nullable=True, default=None
+    )
+    target_entity_id: Mapped[Optional[UUID]] = mapped_column(
+        nullable=True, default=None
+    )
+    target_snapshot: Mapped[Optional[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=True, default=None
+    )
+    evidence: Mapped[List[dict[str, Any]]] = mapped_column(
+        JSONB, nullable=False, default_factory=list
+    )
+    rationale: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, default=None
+    )
+    similar_to_id: Mapped[Optional[UUID]] = mapped_column(
+        nullable=True, default=None
+    )
+    similarity_note: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, default=None
+    )
+    final_title: Mapped[Optional[str]] = mapped_column(
+        String, nullable=True, default=None
+    )
+    final_description: Mapped[Optional[str]] = mapped_column(
+        Text, nullable=True, default=None
+    )
+    applied_entity_id: Mapped[Optional[UUID]] = mapped_column(
+        nullable=True, default=None
+    )
+    reviewed_by: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey('users.id', name='fk_tree_suggestion_item_reviewed_by'),
+        nullable=True,
+        default=None,
+    )
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(
+        nullable=True, default=None
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        init=False, server_default=func.now()
+    )
+
+    session: Mapped['TreeSuggestionSession'] = relationship(
+        back_populates='items', init=False
+    )
+
+    __table_args__ = (
+        Index(
+            'ix_tree_suggestion_items_session_status',
+            'session_id',
+            'status',
+        ),
+        Index('ix_tree_suggestion_items_parent_item_id', 'parent_item_id'),
+    )

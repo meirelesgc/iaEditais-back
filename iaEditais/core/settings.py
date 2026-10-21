@@ -42,3 +42,13 @@ class Settings(BaseSettings):
 
     UPLOAD_DIRECTORY: Path = 'iaEditais/storage/uploads'
     STORAGE_PROVIDER: Literal['S3', 'LOCAL'] = 'LOCAL'
+
+    LLM_MODEL: str = 'gpt-5-mini'
+    LLM_FAST_MODEL: str = 'gpt-5-mini'
+
+    TREE_SUGGESTION_MAX_FILE_MB: int = 20
+    TREE_SUGGESTION_MAX_PAGES: int = 300
+    TREE_SUGGESTION_PROCESSING_TIMEOUT_MINUTES: int = 30
+    TREE_SUGGESTION_BATCH_CHARS: int = 24000
+    TREE_SUGGESTION_MAX_CONCURRENCY: int = 4
+    TREE_SUGGESTION_EVIDENCE_MIN_SCORE: int = 90

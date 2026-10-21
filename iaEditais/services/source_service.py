@@ -17,7 +17,10 @@ from iaEditais.services import audit_service
 
 
 async def create_source(
-    session: AsyncSession, user_id: UUID, data: SourceCreate
+    session: AsyncSession,
+    user_id: UUID,
+    data: SourceCreate,
+    commit: bool = True,
 ) -> Source:
     existing_source = await source_repo.get_by_name(session, data.name)
     if existing_source:
@@ -44,8 +47,9 @@ async def create_source(
         old_data=None,
     )
 
-    await session.commit()
-    await session.refresh(db_source)
+    if commit:
+        await session.commit()
+        await session.refresh(db_source)
     return db_source
 
 

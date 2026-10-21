@@ -21,7 +21,10 @@ from iaEditais.services.report_service import typification_report
 
 
 async def create_typification(
-    session: AsyncSession, user_id: UUID, data: TypificationCreate
+    session: AsyncSession,
+    user_id: UUID,
+    data: TypificationCreate,
+    commit: bool = True,
 ) -> Typification:
     existing_typification = await typification_repo.get_by_name(
         session, data.name
@@ -73,8 +76,9 @@ async def create_typification(
         old_data=None,
     )
 
-    await session.commit()
-    await session.refresh(db_typification)
+    if commit:
+        await session.commit()
+        await session.refresh(db_typification)
     return db_typification
 
 
