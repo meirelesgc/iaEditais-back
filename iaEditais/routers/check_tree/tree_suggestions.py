@@ -42,6 +42,8 @@ async def create_suggestion_session(  # noqa: PLR0913, PLR0917
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     typification_id: Optional[UUID] = Form(None),
+    document_group_id: Optional[UUID] = Form(None),
+    document_group_item_id: Optional[UUID] = Form(None),
 ):
     return await tree_suggestion_service.create_session(
         session,
@@ -50,6 +52,8 @@ async def create_suggestion_session(  # noqa: PLR0913, PLR0917
         file,
         typification_id,
         background_tasks,
+        document_group_id,
+        document_group_item_id,
     )
 
 

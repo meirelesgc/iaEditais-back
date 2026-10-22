@@ -1491,6 +1491,22 @@ class TreeSuggestionSession(AuditMixin):
         nullable=True,
         default=None,
     )
+    document_group_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey(
+            'document_groups.id',
+            name='fk_tree_suggestion_session_document_group_id',
+        ),
+        nullable=True,
+        default=None,
+    )
+    document_group_item_id: Mapped[Optional[UUID]] = mapped_column(
+        ForeignKey(
+            'document_group_items.id',
+            name='fk_tree_suggestion_session_document_group_item_id',
+        ),
+        nullable=True,
+        default=None,
+    )
     page_count: Mapped[Optional[int]] = mapped_column(
         nullable=True, default=None
     )

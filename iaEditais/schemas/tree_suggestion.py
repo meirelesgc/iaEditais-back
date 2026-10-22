@@ -86,6 +86,10 @@ class TreeSuggestionSessionPublic(BaseModel):
     status: TreeSuggestionStatus
     target_typification_id: Optional[UUID] = None
     target_typification_name: Optional[str] = None
+    document_group_id: Optional[UUID] = None
+    document_group_name: Optional[str] = None
+    document_group_item_id: Optional[UUID] = None
+    document_group_item_name: Optional[str] = None
     original_filename: str
     file_path: str
     page_count: Optional[int] = None

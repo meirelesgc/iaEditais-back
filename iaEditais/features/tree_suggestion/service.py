@@ -35,6 +35,8 @@ from iaEditais.features.tree_suggestion.structures import (
 )
 from iaEditais.models import (
     Branch,
+    DocumentGroup,
+    DocumentGroupItem,
     Source,
     Taxonomy,
     TaxonomySource,
@@ -57,6 +59,7 @@ from iaEditais.schemas import (
     TreeSuggestionItemStatus,
     TreeSuggestionMode,
     TreeSuggestionSessionDetail,
+    TreeSuggestionSessionPublic,
     TreeSuggestionStatus,
     TypificationCreate,
 )
@@ -145,6 +148,50 @@ async def _get_active_typification(
     return typification
 
 
+async def _validate_document_group(
+    session: AsyncSession,
+    document_group_id: Optional[UUID],
+    document_group_item_id: Optional[UUID],
+) -> tuple[Optional[UUID], Optional[UUID]]:
+    """Valida o grupo e o tipo de documento informados na criação da sessão."""
+    if not document_group_id and not document_group_item_id:
+        return None, None
+
+    if not document_group_id:
+        raise HTTPException(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            detail='Document group is required',
+        )
+
+    group = await session.get(DocumentGroup, document_group_id)
+    if not group or group.deleted_at:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Document group not found',
+        )
+
+    if not document_group_item_id:
+        raise HTTPException(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            detail='Document group item is required',
+        )
+
+    item = await session.get(DocumentGroupItem, document_group_item_id)
+    if not item or item.deleted_at:
+        raise HTTPException(
+            status_code=HTTPStatus.NOT_FOUND,
+            detail='Document group item not found',
+        )
+
+    if item.group_id != group.id:
+        raise HTTPException(
+            status_code=HTTPStatus.UNPROCESSABLE_ENTITY,
+            detail='Document group item does not belong to the group',
+        )
+
+    return group.id, item.id
+
+
 async def create_session(  # noqa: PLR0913, PLR0917
     session: AsyncSession,
     user_id: UUID,
@@ -152,10 +199,16 @@ async def create_session(  # noqa: PLR0913, PLR0917
     file: UploadFile,
     typification_id: Optional[UUID] = None,
     background_tasks: Optional[BackgroundTasks] = None,
+    document_group_id: Optional[UUID] = None,
+    document_group_item_id: Optional[UUID] = None,
 ) -> TreeSuggestionSessionDetail:
     page_count = await _validate_upload(file)
     if typification_id:
         await _get_active_typification(session, typification_id)
+
+    group_id, group_item_id = await _validate_document_group(
+        session, document_group_id, document_group_item_id
+    )
 
     unique_filename = f'{uuid4()}_{os.path.basename(file.filename or "")}'
     file_path = await storage.save(file, unique_filename)
@@ -169,6 +222,8 @@ async def create_session(  # noqa: PLR0913, PLR0917
         file_path=file_path,
         original_filename=file.filename or unique_filename,
         target_typification_id=typification_id,
+        document_group_id=group_id,
+        document_group_item_id=group_item_id,
         page_count=page_count,
         processing_started_at=_utcnow(),
     )
@@ -409,6 +464,87 @@ async def _entity_titles(
     return {row[0]: row[1] for row in rows}
 
 
+async def _document_group_names(
+    session: AsyncSession, suggestion: TreeSuggestionSession
+) -> tuple[Optional[str], Optional[str]]:
+    group_name = None
+    item_name = None
+
+    if suggestion.document_group_id:
+        group = await session.get(DocumentGroup, suggestion.document_group_id)
+        group_name = group.name if group else None
+
+    if suggestion.document_group_item_id:
+        item = await session.get(
+            DocumentGroupItem, suggestion.document_group_item_id
+        )
+        item_name = item.name if item else None
+
+    return group_name, item_name
+
+
+async def _to_public_sessions(
+    session: AsyncSession, suggestions: Sequence[TreeSuggestionSession]
+) -> list[TreeSuggestionSessionPublic]:
+    """Serializa as sessões da listagem com os nomes das referências."""
+    public_list = [
+        TreeSuggestionSessionPublic.model_validate(suggestion)
+        for suggestion in suggestions
+    ]
+
+    typification_ids = {
+        suggestion.target_typification_id
+        for suggestion in suggestions
+        if suggestion.target_typification_id
+    }
+    group_ids = {
+        suggestion.document_group_id
+        for suggestion in suggestions
+        if suggestion.document_group_id
+    }
+    item_ids = {
+        suggestion.document_group_item_id
+        for suggestion in suggestions
+        if suggestion.document_group_item_id
+    }
+
+    typification_titles = await _entity_titles(
+        session, Typification, list(typification_ids)
+    )
+    group_names: dict[UUID, str] = {}
+    if group_ids:
+        rows = await session.execute(
+            select(DocumentGroup.id, DocumentGroup.name).where(
+                DocumentGroup.id.in_(group_ids)
+            )
+        )
+        group_names = {row[0]: row[1] for row in rows}
+    item_names: dict[UUID, str] = {}
+    if item_ids:
+        rows = await session.execute(
+            select(DocumentGroupItem.id, DocumentGroupItem.name).where(
+                DocumentGroupItem.id.in_(item_ids)
+            )
+        )
+        item_names = {row[0]: row[1] for row in rows}
+
+    for public in public_list:
+        if public.target_typification_id:
+            public.target_typification_name = typification_titles.get(
+                public.target_typification_id
+            )
+        if public.document_group_id:
+            public.document_group_name = group_names.get(
+                public.document_group_id
+            )
+        if public.document_group_item_id:
+            public.document_group_item_name = item_names.get(
+                public.document_group_item_id
+            )
+
+    return public_list
+
+
 async def _to_detail(
     session: AsyncSession, suggestion: TreeSuggestionSession
 ) -> TreeSuggestionSessionDetail:
@@ -434,6 +570,10 @@ async def _to_detail(
     detail.target_typification_name = typification_titles.get(
         detail.target_typification_id
     )
+    (
+        detail.document_group_name,
+        detail.document_group_item_name,
+    ) = await _document_group_names(session, suggestion)
     for item in detail.items:
         titles = (
             typification_titles if item.kind == 'taxonomy' else taxonomy_titles
@@ -451,14 +591,14 @@ async def get_session_detail(
 
 async def list_sessions(
     session: AsyncSession, filters: TreeSuggestionFilter
-) -> list[TreeSuggestionSession]:
+) -> list[TreeSuggestionSessionPublic]:
     sessions = list(await tree_suggestion_repo.list_sessions(session, filters))
     expired = [s for s in sessions if await _expire_if_stale(session, s)]
     if expired:
         await session.commit()
     if filters.status:
         sessions = [s for s in sessions if s.status == filters.status.value]
-    return sessions
+    return await _to_public_sessions(session, sessions)
 
 
 # --- Revisão ---------------------------------------------------------------
@@ -618,7 +758,12 @@ async def _apply_item(  # noqa: PLR0913, PLR0917
         entity = await typification_service.create_typification(
             session,
             user_id,
-            TypificationCreate(name=title, source_ids=source_ids),
+            TypificationCreate(
+                name=title,
+                source_ids=source_ids,
+                document_group_id=suggestion.document_group_id,
+                document_group_item_id=suggestion.document_group_item_id,
+            ),
             commit=False,
         )
     elif item.kind == TreeSuggestionItemKind.TAXONOMY.value and is_update:
